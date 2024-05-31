@@ -1,0 +1,24 @@
+{
+  "name": "mafiabot",
+  "version": "1.0.0",
+  "description": "A mafia bot for #FRCBayAreaGang.",
+  "main": "src/discord.ts",
+  "scripts": {
+    "dev": "ts-node src/setup.ts && nodemon src/discord.ts",
+    "prod": "node build/setup.js && node build/discord.js",
+    "build": "tsc"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^14.15.2",
+    "dotenv": "^16.4.5",
+    "firebase-admin": "^12.1.1",
+    "typescript": "^5.4.5",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.2",
+    "ts-node": "^10.9.2"
+  }
+}
