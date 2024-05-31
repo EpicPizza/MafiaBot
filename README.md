@@ -24,3 +24,11 @@ Not sure where I will running the bot, Heroku is kinda expensive now.
 | `DEVCLIENT`               | Client id of development bot.                          |
 | `DEVGUILD`                | Guild id of server development bot is in.              |
 | `FIREBASE_ADMIN`          | Key for firebase admin.                                |
+
+## Database
+
+Uh, maybe I'll make a command to setup it later. For now it's pretty simple.
+
+| Location                  | Values                                                 |
+| :------------------------ | :------------------------------------------------------|
+| settings > game           | started: false                                         |
