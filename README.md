@@ -25,7 +25,7 @@ Not sure where I will running the bot, Heroku is kinda expensive now.
 | `DEVGUILD`                | Guild id of server development bot is in.              |
 | `FIREBASE_ADMIN`          | Key for firebase admin.                                |
 
-## Database
+## Database - OUT OF DATE
 
 Uh, maybe I'll make a command to setup it later. For now it's pretty simple.
 

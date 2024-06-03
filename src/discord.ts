@@ -19,9 +19,13 @@ export type Data = ({
     type: 'slash',
     name: string,
     command: SlashCommandBuilder | SlashCommandOptionsOnlyBuilder | SlashCommandSubcommandsOnlyBuilder,
+} | {
+    type: 'modal',
+    name: string,
+    command: ZodObject<any>,
 });
 
-const Button = z.object({
+const CustomId = z.object({
     name: z.string(),
 })
 
@@ -53,7 +57,7 @@ for(const file of commandFiles) {
     const data: Data[] = command.data;
     const execute = command.execute as Function;
 
-    data.forEach((command) => client.commands.set(command.name, command.type == 'button' ? ({ execute: execute, zod: command.command }) : execute))
+    data.forEach((command) => client.commands.set(command.name, command.type == 'button' || command.type == 'modal' ? ({ execute: execute, zod: command.command }) : execute))
 }
 
 client.on(Events.ClientReady, () => {
@@ -61,8 +65,6 @@ client.on(Events.ClientReady, () => {
 })
 
 client.on(Events.MessageDelete, async (message) => {
-    console.log("CAUGHT");
-
     const channel = message.channel;
 
     if(message.author && message.author.bot == true) return;
@@ -90,7 +92,7 @@ client.on(Events.InteractionCreate, async interaction => {
         let name: string;
 
         try {
-            const command = Button.parse(JSON.parse(interaction.customId));
+            const command = CustomId.parse(JSON.parse(interaction.customId));
 
             name = command.name;
         } catch(e) {
@@ -115,6 +117,44 @@ client.on(Events.InteractionCreate, async interaction => {
             console.log(e);
 
             interaction.reply({ content: `An error occurred while processing button command, ${name}.`, ephemeral: true });
+
+            return;
+        }
+
+        try {
+            await command.execute(interaction);
+        } catch(e) {
+            console.log(e);
+        }
+    } else if(interaction.isModalSubmit()) {
+        let name: string;
+
+        try {
+            const command = CustomId.parse(JSON.parse(interaction.customId));
+
+            name = command.name;
+        } catch(e) {
+            console.log(e);
+
+            await interaction.reply({ content: "An error occurred while processing modal submit.", ephemeral: true})
+
+            return;
+        }
+
+        const command = client.commands.get(`modal-${name}`);
+
+        if(command == undefined || typeof command != 'object') {
+            await interaction.reply({ content: "Modal handler not found.", ephemeral: true });
+
+            return;
+        }
+
+        try {
+            command.zod.parse(JSON.parse(interaction.customId));
+        } catch(e) {
+            console.log(e);
+
+            interaction.reply({ content: `An error occurred while processing modal submit, ${name}.`, ephemeral: true });
 
             return;
         }
