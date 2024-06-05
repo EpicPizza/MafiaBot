@@ -1,4 +1,4 @@
-import { ChannelType, Client, Collection, Events, GatewayIntentBits, Message, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, TextChannel, WebhookClient } from "discord.js";
+import { ChannelType, Client, Collection, ContextMenuCommandBuilder, Events, GatewayIntentBits, Message, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, TextChannel, WebhookClient } from "discord.js";
 import dotenv from 'dotenv';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -9,11 +9,18 @@ import { firebaseAdmin } from "./firebase";
 import { getSetup } from "./utils/setup";
 import { editOverwrites, generateOverwrites, getGame } from "./utils/game";
 import { getUser } from "./utils/user";
+import { FieldValue } from "firebase-admin/firestore";
 
 dotenv.config();
 
 interface ExtendedClient extends Client {
     commands: Collection<string, Function | {execute: Function, zod: ZodObject<any>}>,
+}
+
+const cache = {
+    day: 0,
+    started: false,
+    channel: null as null | string,
 }
 
 export type Data = ({
@@ -24,6 +31,10 @@ export type Data = ({
     type: 'slash',
     name: string,
     command: SlashCommandBuilder | SlashCommandOptionsOnlyBuilder | SlashCommandSubcommandsOnlyBuilder,
+} | {
+    type: 'context',
+    name: string,
+    command: ContextMenuCommandBuilder,
 } | {
     type: 'modal',
     name: string,
@@ -65,22 +76,98 @@ for(const file of commandFiles) {
     data.forEach((command) => client.commands.set(command.name, command.type == 'button' || command.type == 'modal' ? ({ execute: execute, zod: command.command }) : execute))
 }
 
-client.on(Events.ClientReady, () => {
+client.on(Events.ClientReady, async () => {
     console.log("Bot is ready!");
 
-    setInterval(() => {
-        checkFutureLock();
-    }, 1000 * 3)
-})
+    const game = await getGame();
 
-client.on(Events.MessageDelete, async (message) => {
-    const channel = message.channel;
+    cache.day = game.day;   
+    cache.started = game.started;
+
+    setInterval(async () => {
+        await checkFutureLock();
+
+        const game = await getGame();
+        const setup = await getSetup();
+
+        if(typeof setup == 'string') return;
+
+        cache.day = game.day;   
+        cache.started = game.started;
+        cache.channel = setup.primary.chat.id;
+    }, 1000 * 15)
+});
+
+client.on(Events.MessageCreate, async (message) => {
+    if(!cache.started) return;
 
     if(message.author && message.author.bot == true) return;
 
-    if(channel.type != ChannelType.GuildText) return;
+    const db = firebaseAdmin.getFirestore();
 
-    const webhook = await channel.createWebhook({
+    const ref = db.collection('day').doc(cache.day.toString()).collection('players').doc(message.author.id);
+
+    if((await ref.get()).exists) {
+        ref.update({
+            messages: FieldValue.increment(1),
+            words: FieldValue.increment(message.content.split(" ").length)
+        })
+    } else {
+        ref.set({
+            messages: 1,
+            words: message.content.split(" ").length,
+        })
+    }
+})
+
+client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
+    if(!cache.started) return;
+
+    console.log(newMessage.content);
+
+    if(newMessage.author && newMessage.author.bot == true) return;
+    if(newMessage.channelId != cache.channel) return;
+
+    const db = firebaseAdmin.getFirestore();
+
+    const ref = db.collection('edits').doc(newMessage.id);
+
+    if((await ref.get()).exists) {
+        await ref.update({
+            edits: FieldValue.arrayUnion({
+                content: newMessage.content ?? "No Content",
+                timestamp: newMessage.editedTimestamp ?? new Date().valueOf()
+            }),
+        })
+    } else {
+        await ref.set({
+            edits: [{
+                content: newMessage.content ?? "No Content",
+                timestamp: newMessage.editedTimestamp ?? new Date().valueOf()
+            }],
+        })
+    }
+})
+
+client.on(Events.MessageDelete, async (message) => {
+    if(!cache.started) return;
+
+    const channel = message.channel;
+
+    if(message.author && message.author.bot == true) return;
+    if(message.channelId != cache.channel) return;
+
+    const setup = await getSetup();
+
+    if(typeof setup == 'string') return;
+
+    if(channel.id != setup.primary.chat.id) return;
+
+    const db = firebaseAdmin.getFirestore();
+
+    const doc = await db.collection('edits').doc(message.id).get();
+
+    const webhook = await setup.primary.chat.createWebhook({
         name: 'Mafia Bot Snipe',
     });
 
@@ -89,11 +176,17 @@ client.on(Events.MessageDelete, async (message) => {
         token: webhook.token,
     })
 
-    await archiveMessage(channel, message as any, client);
+    const result = await archiveMessage(setup.primary.chat, message as any, client);
 
     client.destroy();
 
     await webhook.delete();
+
+    if(doc.exists && doc.data()) {
+        db.collection('edits').doc(result.id).set(
+            doc.data() ?? {}
+        )
+    }
 })
 
 client.on(Events.GuildMemberAdd, async (member) => {
@@ -108,6 +201,7 @@ client.on(Events.GuildMemberAdd, async (member) => {
     if(docs.length < 1) return;
 
     const data = docs[0].data();
+    const second = docs.length > 1 ? docs[1].data() : undefined;
 
     if(!data) return;
 
@@ -168,9 +262,45 @@ client.on(Events.GuildMemberAdd, async (member) => {
             }
             break;
         case "spectate":
+            if(second && second.type == "dead-spectate" && setup.secondary.guild.id == member.guild.id) {
+                await member.roles.add(setup.secondary.spec);
+                await member.roles.remove(setup.secondary.access);
+            }
+
             if(setup.tertiary.guild.id != member.guild.id) return;
 
             await member.roles.add(setup.tertiary.spec);
+            break;
+        case "mafia":
+            if(setup.tertiary.guild.id != member.guild.id) return;
+
+            await member.roles.add(setup.tertiary.access);
+            break;
+        case "mafia-mod":
+            if(second && second.type == "dead-mod" && setup.secondary.guild.id == member.guild.id) {
+                await member.roles.add(setup.secondary.mod);
+                await member.roles.add(setup.secondary.spec);
+                await member.roles.remove(setup.secondary.access);
+            }
+
+            if(setup.tertiary.guild.id != member.guild.id) return;
+
+            await member.roles.add(setup.tertiary.mod);
+            await member.roles.add(setup.tertiary.spec);
+            break;
+        case "dead-mod":
+            if(setup.secondary.guild.id != member.guild.id) return;
+
+            await member.roles.add(setup.secondary.mod);
+            await member.roles.add(setup.secondary.spec);
+            await member.roles.remove(setup.secondary.access);
+            break;
+        case "dead-spectate":
+            if(setup.secondary.guild.id != member.guild.id) return;
+
+            await member.roles.add(setup.secondary.spec);
+            await member.roles.remove(setup.secondary.access);
+            break;
     }
 })
 
@@ -272,6 +402,28 @@ client.on(Events.InteractionCreate, async interaction => {
 
         if(command == undefined || typeof command == 'object') {
             await interaction.reply({ content: "Slash command not found.", ephemeral: true });
+
+            return;
+        }
+
+        try {
+            await command(interaction);
+        } catch(e: any) {
+            try {
+                console.log(e);
+
+                if(interaction.deferred || interaction.replied) {
+                    await interaction.editReply(e.message as string)
+                } else {
+                    await interaction.reply({ content: e.message as string, ephemeral: true });
+                }
+            } catch(e) {}
+        }
+    } else if(interaction.isContextMenuCommand()) {
+        const command = client.commands.get(`context-${interaction.commandName}`);
+
+        if(command == undefined || typeof command == 'object') {
+            await interaction.reply({ content: "Context menu command not found.", ephemeral: true });
 
             return;
         }

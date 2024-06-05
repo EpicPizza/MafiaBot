@@ -1,10 +1,11 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChannelType, ChatInputCommandInteraction, Collection, Colors, CommandInteraction, EmbedBuilder, PermissionFlagsBits, PermissionOverwriteManager, PermissionOverwriteOptions, PermissionOverwriteResolvable, PermissionOverwrites, PermissionsBitField, SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
 import client, { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
-import { z } from "zod";
-import { getGame, refreshSignup } from "../utils/game";
-import { getUser } from "../utils/user";
+import { set, z } from "zod";
+import { getGame, refreshPlayers, refreshSignup } from "../utils/game";
+import { User, getUser } from "../utils/user";
 import { getPartialSetup, getSetup } from "../utils/setup";
+import { refreshCommands } from "../utils/vote";
 
 module.exports = {
     data: [
@@ -103,6 +104,28 @@ module.exports = {
                                 .setRequired(true)
                         )
                 )
+                .addSubcommand(subcommand =>
+                    subcommand
+                        .setName("players")
+                        .setDescription("Refresh players.")
+                )
+                .addSubcommand(subcommand =>
+                    subcommand
+                        .setName('mod')
+                        .setDescription('Setup mod.')
+                        .addUserOption(option =>
+                            option  
+                                .setName('member')
+                                .setDescription('Member to spectate.')
+                                .setRequired(true)
+                        )
+                        .addBooleanOption(option =>
+                            option
+                                .setName('remove')
+                                .setDescription('Whether to remove a mod.')
+                            
+                        )
+                )
                 .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels)
         },
         {
@@ -115,6 +138,13 @@ module.exports = {
     ] satisfies Data[],
 
     execute: async (interaction: ChatInputCommandInteraction | ButtonInteraction) => {
+        const setup = await getSetup();
+
+        if(typeof setup == 'string') throw new Error("Setup Incomplete");
+
+        const member = await setup.primary.guild.members.fetch(interaction.user.id).catch(() => undefined);
+
+        if(member == undefined || !member.permissions.has(PermissionFlagsBits.ManageChannels)) throw new Error("You are not admin!");
 
         const db = firebaseAdmin.getFirestore();
 
@@ -221,6 +251,7 @@ Primary mod alive: <@&${setup.primary.alive.id}>
 Primary mod gang: <@&${setup.primary.gang.id}>
 Secondary mod role: <@&${setup.secondary.mod.id}>
 Secondary spec role: <@&${setup.secondary.spec.id}>
+Secondary access role: <@&${setup.secondary.access.id}>
 Tertiary mod role: <@&${setup.tertiary.mod.id}>
 Tertiary spec role: <@&${setup.tertiary.spec.id}>
 Tertiary access role: <@&${setup.tertiary.access.id}>
@@ -324,6 +355,97 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
             await refreshSignup(interaction.options.getString("game") ?? "12948201380912840192380192840912830912803921312");
 
             await interaction.reply({ ephemeral: true, content: "Signups refreshed." });
+        } else if(subcommand == "votes") {
+            await refreshPlayers();
+
+            await interaction.reply({ ephemeral: true, content: "Refreshed players."});
+        } else if(subcommand == "mod") {
+            const mod = interaction.options.getUser('member');
+            const remove = interaction.options.getBoolean('remove') ?? false;
+
+            if(mod == undefined) throw new Error("A member must be specified");
+
+            const dm = await client.users.cache.get(mod.id)?.createDM();
+
+            if(!dm) throw new Error("Unable to send dms to " + mod.displayName + ".");
+
+            const main = await setup.primary.guild.members.fetch(mod.id).catch(() => undefined);
+
+            if(main == undefined) throw new Error("Member not found.");
+
+            if(remove == false) {
+                await main.roles.add(setup.primary.mod);
+                await main.roles.remove(setup.primary.alive);
+            } else {
+                await main.roles.remove(setup.primary.mod);
+                await main.roles.remove(setup.primary.alive);
+            }
+
+            let message = "";
+
+            const dead = await setup.secondary.guild.members.fetch(mod.id).catch(() => undefined);
+
+            if(dead == undefined && !remove) {
+                const channel = setup.secondary.guild.channels.cache.filter(filter => filter.type == ChannelType.GuildText).at(0);
+
+                if(channel == undefined || channel.type != ChannelType.GuildText) throw new Error("Unable to make invite for dead chat.");
+
+                const invite = await setup.secondary.guild.invites.create(channel, { maxUses: 1 });
+
+                await db.collection('invites').add({
+                    id: mod.id,
+                    type: 'dead-mod',
+                    timestamp: new Date().valueOf(),
+                });
+
+                message += "Dead Chat: https://discord.com/invite/" + invite.code + "\n";
+            } else if(dead != undefined && !remove) {
+                await dead.roles.remove(setup.secondary.access);
+                await dead.roles.add(setup.secondary.mod);
+                await dead.roles.add(setup.secondary.spec);
+            } else if(dead != undefined && remove) {
+                await dead.roles.remove(setup.secondary.access);
+                await dead.roles.remove(setup.secondary.mod);
+                await dead.roles.add(setup.secondary.spec);
+            }
+
+            const mafia = await setup.tertiary.guild.members.fetch(mod.id).catch(() => undefined);
+        
+            if(mafia == undefined && !remove) {
+                const channel = setup.tertiary.guild.channels.cache.filter(filter => filter.type == ChannelType.GuildText).at(0);
+
+                if(channel == undefined || channel.type != ChannelType.GuildText) throw new Error("Unable to make invite for dead chat.");
+
+                const invite = await setup.tertiary.guild.invites.create(channel, { maxUses: 1 });
+
+                await db.collection('invites').add({
+                    id: mod.id,
+                    type: 'mafia-mod',
+                    timestamp: new Date().valueOf(),
+                });
+
+                message += "Mafia Chat: https://discord.com/invite/" + invite.code + "\n";
+            } else if(mafia != undefined && !remove) {
+                await mafia.roles.remove(setup.tertiary.access);
+                await mafia.roles.add(setup.tertiary.mod);
+                await mafia.roles.add(setup.tertiary.spec);
+            } else if(mafia != undefined && remove) {
+                await mafia.roles.remove(setup.tertiary.access);
+                await mafia.roles.remove(setup.tertiary.mod);
+                await mafia.roles.add(setup.tertiary.spec);
+            }
+
+            if(remove) {
+                dm.send("You're not a mod anymore, your roles have been adjusted.");
+            } else {
+                if(message == "") {
+                    dm.send("You're now a mod, your roles have been adjusted.");
+                } else {
+                    dm.send("You're now a mod, here are invites to the servers you're not in:\n" + message);
+                }
+            }
+
+            await interaction.reply({ ephemeral: true, content: "Mod has been " + (remove ? "removed" : "added") + "." });
         }
     } 
 }

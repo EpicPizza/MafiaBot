@@ -1,6 +1,6 @@
 import { firebaseAdmin } from "../firebase";
 
-interface User {
+export interface User {
     id: string,
     nickname: string,
     emoji: string | false,

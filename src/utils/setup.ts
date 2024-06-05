@@ -4,33 +4,6 @@ import { firebaseAdmin } from "../firebase";
 import { getGame } from "./game";
 import { z } from "zod";
 
-const Setup = z.object({
-    primary: z.object({
-        guild: z.string(),
-        gang: z.string(),
-        alive: z.string(),
-        mod: z.string(),
-        chat: z.string(),
-    }),
-    secondary: z.object({
-        guild: z.string(),
-        mod: z.string(),
-        spec: z.string(),
-        dms: z.string(),
-        archivedDms: z.string(),
-        ongoing: z.string(),
-        archive: z.string(),
-    }),
-    tertiary: z.object({
-        guild: z.string(),
-        mod: z.string(),
-        spec: z.string(),
-        access: z.string(),
-        ongoing: z.string(),
-        archive: z.string(),
-    })
-});
-
 const PartialSetup = z.object({
     primary: z.object({
         guild: z.string().nullable(),
@@ -47,6 +20,7 @@ const PartialSetup = z.object({
         archivedDms: z.string().nullable(),
         ongoing: z.string().nullable(),
         archive: z.string().nullable(),
+        access: z.string().nullable(),
     }),
     tertiary: z.object({
         guild: z.string().nullable(),
@@ -100,15 +74,15 @@ export async function getSetup() {
     const archivedDms = fetchCategory(setup.secondary.archivedDms, setup.secondary.guild, "Secondary archived dms category");
     const seocndaryOngoing = fetchCategory(setup.secondary.ongoing, setup.secondary.guild, "Secondary ongoing category");
     const secondaryArchive = fetchCategory(setup.secondary.archive, setup.secondary.guild, "Secondary archive category");
+    const secondaryAccess = fetchRole(setup.secondary.access, setup.secondary.guild, "Secondary access role");
 
     const tertiaryMod = fetchRole(setup.tertiary.mod, setup.tertiary.guild, "Tertiary mod role"); 
     const tertiarySpec = fetchRole(setup.tertiary.spec, setup.tertiary.guild, "Tertiary spec role");
     const tertiaryOngoing = fetchCategory(setup.tertiary.ongoing, setup.tertiary.guild, "Tertiary ongoing category");
     const tertiaryArchive = fetchCategory(setup.tertiary.archive, setup.tertiary.guild, "Tertiary archive category");
-    const access = fetchRole(setup.tertiary.access, setup.tertiary.guild, "Tertiary access role");
+    const tertiaryAccess = fetchRole(setup.tertiary.access, setup.tertiary.guild, "Tertiary access role");
 
-    const results = await Promise.allSettled([primary, secondary, tertiary, alive, primaryMod, gang, chat, secondaryMod, secondarySpec, dms, archivedDms, seocndaryOngoing, secondaryArchive, tertiaryMod, tertiarySpec, tertiaryOngoing, tertiaryArchive, access]);
-
+    const results = await Promise.allSettled([primary, secondary, tertiary, alive, primaryMod, gang, chat, secondaryMod, secondarySpec, dms, archivedDms, seocndaryOngoing, secondaryArchive, tertiaryMod, tertiarySpec, tertiaryOngoing, tertiaryArchive, tertiaryAccess, secondaryAccess]);
     
     const fails = results.filter(result => result.status == "rejected");
 
@@ -132,6 +106,7 @@ export async function getSetup() {
             archivedDms: await archivedDms,
             ongoing: await seocndaryOngoing,
             archive: await secondaryArchive,
+            access: await secondaryAccess,
         },
         tertiary: {
             guild: await tertiary,
@@ -139,7 +114,7 @@ export async function getSetup() {
             spec: await tertiarySpec,
             ongoing: await tertiaryOngoing,
             archive: await tertiaryArchive,
-            access: await access,
+            access: await tertiaryAccess,
         }
     }
 }

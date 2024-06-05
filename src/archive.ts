@@ -4,7 +4,7 @@ import * as https from 'https';
 
 //this code is from another project, i'm not sure if i even know how it works.
 
-export async function archiveMessage(channel: TextChannel, message: Message, webhook: WebhookClient): Promise<any> {
+export async function archiveMessage(channel: TextChannel, message: Message, webhook: WebhookClient) {
     channel.messages.cache.clear();
 
     let { newAttachments, fails } = await getAttachments(message.attachments);
@@ -50,6 +50,10 @@ export async function archiveMessage(channel: TextChannel, message: Message, web
         components: reference,
     }
 
+    if(message.editedTimestamp) {
+        footer.text += "\nEdited";
+    }
+
     embed.setFooter(footer);
     optionsWebhook.embeds = [embed];
 
@@ -59,7 +63,7 @@ export async function archiveMessage(channel: TextChannel, message: Message, web
         }
     }
 
-    await webhook.send(optionsWebhook as any);
+    return await webhook.send(optionsWebhook as any);
 }
 
 export async function getAttachments(messageAttachments: Collection<string, Attachment>): Promise<{ newAttachments: any[], fails: number }> {

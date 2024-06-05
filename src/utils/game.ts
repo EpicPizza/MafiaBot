@@ -1,11 +1,12 @@
-import { Transaction, FieldValue } from "firebase-admin/firestore";
+import { Transaction, FieldValue, Firestore, CollectionReference, Query } from "firebase-admin/firestore";
 import { firebaseAdmin } from "../firebase";
 import client from "../discord";
-import { ActionRow, BaseGuildTextChannel, ButtonStyle, ChannelType, ChatInputCommandInteraction, Colors, CommandInteraction, GuildBasedChannel, PermissionsBitField, TextChannel } from "discord.js";
+import { ActionRow, ActionRowComponent, BaseGuildTextChannel, ButtonStyle, ChannelType, ChatInputCommandInteraction, Colors, CommandInteraction, ComponentEmojiResolvable, GuildBasedChannel, PermissionsBitField, TextChannel } from "discord.js";
 import { ActionRowBuilder, ButtonBuilder, EmbedBuilder } from "@discordjs/builders";
-import { getUser } from "./user";
+import { User, getUser } from "./user";
 import { getSetup } from "./setup";
 import { z } from "zod";
+import { refreshCommands } from "./vote";
 
 export async function getGame(t: Transaction | undefined = undefined) {
     const db = firebaseAdmin.getFirestore();
@@ -85,7 +86,7 @@ export function editOverwrites() {
     }
 }
 
-export async function unlockGame() {
+export async function unlockGame(increment: boolean = false) {
     const game = await getGame();
     const setup = await getSetup();
 
@@ -101,7 +102,12 @@ export async function unlockGame() {
     await ref.update({
         started: true,
         locked: false,
+        day: increment ? game.day + 1 : game.day,
     });
+
+    await db.collection('day').doc((increment ? game.day + 1 : game.day).toString()).set({
+        game: game.game,
+    })
 
     await setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game has unlocked!");
 
@@ -257,6 +263,9 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
     const which = await getGameByName(name);
     const setup = await getSetup();
 
+    await deleteCollection(firebaseAdmin.getFirestore(), "day", 20);
+    await deleteCollection(firebaseAdmin.getFirestore(), "edits", 20);
+
     if(setup == undefined) return await interaction.reply({ ephemeral: true, content: "Setup not complete." });
     if(typeof setup == 'string') return await interaction.reply({ ephemeral: true, content: "An unexpected error occurred." });
     if(game.started) return await interaction.reply({ ephemeral: true, content: "Game has already started." });
@@ -273,6 +282,12 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
     await interaction.deferReply({ ephemeral: true });
 
     const db = firebaseAdmin.getFirestore();
+
+    const invites = await db.collection('invites').listDocuments();
+
+    for(let i = 0; i < invites.length; i++) {
+        await invites[i].delete();
+    }
 
     const ref = db.collection('settings').doc('game');
 
@@ -336,6 +351,8 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
         });
     }
 
+    const playerList: string[] = [];
+
     for(let i = 0; i < which.signups.length; i++) {
         const member = await setup.secondary.guild.members.fetch(which.signups[i]).catch(() => undefined);
         const user = await getUser(which.signups[i]);
@@ -344,6 +361,11 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
         if(player == null) throw new Error("Member not found.");
         await player.roles.add(setup.primary.alive);
 
+        const dead = await setup.secondary.guild.members.fetch(which.signups[i]).catch(() => undefined);
+        if(dead == null) throw new Error("Member not found.");
+        await dead.roles.remove(setup.secondary.spec);
+        await dead.roles.remove(setup.secondary.access);
+
         const mafiaMember = await setup.tertiary.guild.members.fetch(which.signups[i]).catch(() => undefined);
         if(mafiaMember?.joinedTimestamp) {
             await mafiaMember.roles.remove(setup.tertiary.spec);
@@ -351,11 +373,13 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
             if(mafiaMember.kickable) {
                 await mafiaMember.kick();
             } else {
-                gameSetup.mafia.send("Failed to kick <@" + mafiaMember.id + ">.");
+                await gameSetup.mafia.send("Failed to kick <@" + mafiaMember.id + ">.");
             }
         }
 
         if(user == null) throw new Error("Member not found.");
+
+        playerList.push(user.nickname);
 
         if(!member) {
             if(user.channel) {
@@ -432,9 +456,11 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
         }
     }
 
-    await setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game has started!");
+    await refreshCommands(playerList);
 
-    return await interaction.editReply({ content: "Game has started!" });
+    await setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game is starting!");
+
+    return await interaction.editReply({ content: "Game is starting!" });
 }
 
 export async function getGameSetup(game: Signups, setup: Exclude<Awaited<ReturnType<typeof getSetup>>, string>) {
@@ -469,6 +495,8 @@ export async function endGame(interaction: ChatInputCommandInteraction) {
     await ref.update({
         started: false,
         locked: false,
+        players: [],
+        day: 0,
     });
 
     await setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game has ended!");
@@ -514,6 +542,7 @@ export async function endGame(interaction: ChatInputCommandInteraction) {
 
         if(member != null) {
             member.roles.add(setup.secondary.spec);
+            member.roles.remove(setup.secondary.access);
         }
 
         const mafiaMember = await setup.tertiary.guild.members.fetch(which.signups[i]).catch(() => undefined);
@@ -783,4 +812,184 @@ export async function refreshSignup(name: string) {
         embeds: [embed],
         components: [row]
     });
+}
+
+export async function refreshPlayers() {
+    const game = await getGame();
+
+    if(game.started == false) throw new Error("Game has not started.");
+
+    const list = [] as User[];
+
+    for(let i = 0; i < game.players.length; i++) {
+        const user = await getUser(game.players[i].id);
+
+        if(user == null) throw new Error("User not registered.");
+
+        list.push(user);
+    }
+
+    await refreshCommands(list.map(user => user.nickname));
+}
+
+export async function setAllignments() {
+    const embed = new EmbedBuilder()
+        .setTitle("Set Allignments")
+        .setColor(Colors.Orange)
+        .setDescription('Once allignments have been set, click confirm to continue.')
+        .setFooter({ text: 'Green: Town, Blue: Neutral, Red: Mafia, Gray: None' })
+
+    const rows = [] as ActionRowBuilder<ButtonBuilder>[]
+
+    const game = await getGame();
+
+    if(game.game == null) throw new Error("Game not found.");
+
+    const which = await getGameByID(game.game);
+    const setup = await getSetup();
+
+    if(setup == undefined) throw new Error("Setup not complete.");
+    if(typeof setup == 'string') throw new Error("An unexpected error occurred.");
+    if(!game.started) throw new Error("Game has not started.");
+    if(which == null) throw new Error("Game not found.");
+    if(which.signups.length == 0) throw new Error("Game must have more than one player.");
+
+    const gameSetup = await getGameSetup(which, setup);
+    
+    for(let i = 0; i < which.signups.length; i = i + 5) {
+        const users = [await getPlayer(which.signups.at(i) ?? "", game), await getPlayer(which.signups.at(i + 1) ?? "", game), await getPlayer(which.signups.at(i + 2) ?? "", game), await getPlayer(which.signups.at(i + 3) ?? "", game), await getPlayer(which.signups.at(i + 4) ?? "", game)];
+
+        const row = new ActionRowBuilder<ButtonBuilder>();
+
+        for(let j = 0; j < users.length; j++) {
+            const user = users[j];
+
+            if(user == undefined) continue;
+
+            const button = new ButtonBuilder()
+                .setLabel((await getUser(user.id))?.nickname ?? "<@" + user.id + ">")
+                .setStyle((() => {
+                    switch(user.alignment) {
+                        case 'town':
+                            return ButtonStyle.Success;
+                        case 'neutral':
+                            return ButtonStyle.Primary;
+                        case 'mafia':
+                            return ButtonStyle.Danger;
+                        default:
+                            return ButtonStyle.Secondary;
+                    }
+                })())
+                .setCustomId(JSON.stringify({ name: 'change-alignment', id: user.id }));
+
+            row.addComponents([
+                button
+            ])
+        }
+
+        rows.push(row);
+    }
+
+    rows.push(new ActionRowBuilder<ButtonBuilder>()
+        .addComponents([
+            new ButtonBuilder()
+                .setLabel("----------------------------")
+                .setStyle(ButtonStyle.Secondary)
+                .setCustomId(JSON.stringify({ name: 'placeholder'}))
+                .setDisabled()
+        ])
+    )
+
+    rows.push(new ActionRowBuilder<ButtonBuilder>()
+        .addComponents([
+            new ButtonBuilder()
+                .setLabel("Confirm")
+                .setStyle(ButtonStyle.Primary)
+                .setCustomId(JSON.stringify({ name: 'confirm-alignments' }))
+        ])
+    )
+
+    await gameSetup.spec.send({ embeds: [embed], components: rows.filter((v, i) => i < 5) });
+    if(rows.length > 4) await gameSetup.spec.send({ components: rows.filter((v, i) => i > 4 && i < 10) });
+    if(rows.length > 9) await gameSetup.spec.send({ components: rows.filter((v, i) => i > 9 && i < 15) });
+    if(rows.length > 14) await gameSetup.spec.send({ components: rows.filter((v, i) => i > 14 && i < 20) });
+}
+
+async function getPlayer(id: string, game: Awaited<ReturnType<typeof getGame>>) {
+    for(let i = 0; i < game.players.length; i++) {
+        if(game.players[i].id == id) {
+            return game.players[i];
+        }
+    }
+}
+
+//https://github.com/firebase/firebase-admin-node/issues/361
+
+async function deleteCollection(db: Firestore, collectionPath: string, batchSize: number) {
+    const collectionRef = db.collection(collectionPath);
+    const query = collectionRef.orderBy('__name__').limit(batchSize);
+
+    return new Promise((resolve, reject) => {
+        deleteQueryBatch(db, query, batchSize, resolve, reject);
+    });
+}
+
+async function deleteQueryBatch(db: Firestore, query: Query, batchSize: number, resolve, reject) {
+    query.get().then((snapshot) => {
+
+      // When there are no documents left, we are done
+      if (snapshot.size === 0) {
+        return 0
+      }
+
+      // Delete documents in a batch
+      const batch = db.batch()
+      const subCollectionPromises: Promise<void>[] = []
+
+      for (const doc of snapshot.docs) {
+
+        // Check if this doc has subcollections
+        const subCollectionPromise = doc.ref.listCollections().then(subCollections => {
+          const promises: Promise<void>[] = []
+
+          if (subCollections) {
+            for (const subCollection of subCollections) {
+              const subQuery = subCollection.orderBy('__name__').limit(batchSize)
+              const subPromise = new Promise<void>((res, rej) => {
+                deleteQueryBatch(db, subQuery, batchSize, res, rej)
+              })
+              promises.push(subPromise)
+            }
+          }
+
+          return Promise.all(promises)
+        }).then(() => {
+          // And delete the document only if all subcollections deleted succesfully
+          batch.delete(doc.ref)
+        })
+
+        subCollectionPromises.push(subCollectionPromise)
+
+      }
+
+      return Promise.all(subCollectionPromises).then(() => {
+        return batch.commit().then(() => {
+          return snapshot.size
+        })
+      })
+
+    }).then((numDeleted) => {
+
+      if (numDeleted === 0) {
+        resolve()
+        return
+      }
+
+      // Recurse on the next process tick, to avoid
+      // exploding the stack.
+      process.nextTick(() => {
+        deleteQueryBatch(db, query, batchSize, resolve, reject)
+      })
+
+    }).catch(reject);
 }

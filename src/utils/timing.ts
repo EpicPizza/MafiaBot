@@ -1,13 +1,18 @@
 import { firebaseAdmin } from "../firebase";
 import { unlockGame } from "./game";
+import { DateTime } from 'luxon';
+const parseHumanRelativeTime = require('parse-human-relative-time')(DateTime)
 
 //i'll deal with this later; 
 
-export async function parse(input: string): Promise<Date> {
-    return new Date(new Date().valueOf() + (1000 * 5));
+export function parse(input: string): Date {
+    const tz = 'America/Los_Angeles'
+    const dt = DateTime.fromJSDate(new Date()).setZone(tz);
+
+    return (parseHumanRelativeTime(input, dt) as DateTime).toJSDate();
 } 
 
-export async function setFutureLock(date: Date) {
+export async function setFutureLock(date: Date, increment: boolean) {
     const db = firebaseAdmin.getFirestore();
 
     const ref = db.collection('settings').doc("lock");
@@ -20,6 +25,7 @@ export async function setFutureLock(date: Date) {
 
     await ref.update({
         when: date,
+        increment: increment,
     });
 }
 
@@ -36,7 +42,7 @@ export async function checkFutureLock() {
 
     if(data.when.toDate().valueOf() < new Date().valueOf()) {
         try {
-            await unlockGame();
+            await unlockGame(data.increment);
 
             await ref.update({
                 when: null,

@@ -19,7 +19,7 @@ for (const file of commandFiles) {
     const data: Data[] = command.data;
 
     if ('data' in command && 'execute' in command ) {
-        data.forEach(command => { if(command.type == 'slash') { commands.push(command.command.toJSON()); } });
+        data.forEach(command => { if(command.type == 'slash' || command.type == 'context') { commands.push(command.command.toJSON()); } });
     } else {
         console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
     }
@@ -30,22 +30,23 @@ const rest = new REST().setToken(process.env.DEV == 'TRUE' ? process.env.DEVTOKE
 
 // and deploy your commands!
 (async () => {
-	try {
-		console.log(`Started refreshing ${commands.length} application (/) commands.`);
+    try {
+        console.log(`Started refreshing ${commands.length} application (/) commands.`);
 
-		// The put method is used to fully refresh all commands in the guild with the current set
+        // The put method is used to fully refresh all commands in the guild with the current set
         //await rest.put(Routes.applicationCommands(process.env.DEV == 'TRUE' ? process.env.DEVCLIENT as string : process.env.CLIENT as string), { body: [] });
 
-		const data = await rest.put(
+        const data = await rest.put(
             (process.env.DEV == 'TRUE') ? Routes.applicationGuildCommands(process.env.DEVCLIENT as string, process.env.DEVGUILD as string) : Routes.applicationCommands(process.env.CLIENT as string),
-			{ body: commands },
-		) as any[];
+            { body: commands },
+        ) as any[];
 
-		console.log(`Successfully reloaded ${data.length} application (/) commands.`);
-	} catch (error) {
-		// And of course, make sure you catch and log any errors!
-		console.error(error);
-	}
-
+        console.log(`Successfully reloaded ${data.length} application (/) commands.`);
+    } catch (error) {
+        // And of course, make sure you catch and log any errors!
+        console.error(error);
+    }
+    
     process.exit();
+
 })();
