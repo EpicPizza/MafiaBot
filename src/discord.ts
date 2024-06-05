@@ -1,9 +1,14 @@
-import { ChannelType, Client, Collection, Events, GatewayIntentBits, Message, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, WebhookClient } from "discord.js";
+import { ChannelType, Client, Collection, Events, GatewayIntentBits, Message, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, TextChannel, WebhookClient } from "discord.js";
 import dotenv from 'dotenv';
 import fs from 'node:fs';
 import path from 'node:path';
 import { z, type ZodObject } from "zod";
 import { archiveMessage } from "./archive";
+import { checkFutureLock } from "./utils/timing";
+import { firebaseAdmin } from "./firebase";
+import { getSetup } from "./utils/setup";
+import { editOverwrites, generateOverwrites, getGame } from "./utils/game";
+import { getUser } from "./utils/user";
 
 dotenv.config();
 
@@ -62,6 +67,10 @@ for(const file of commandFiles) {
 
 client.on(Events.ClientReady, () => {
     console.log("Bot is ready!");
+
+    setInterval(() => {
+        checkFutureLock();
+    }, 1000 * 3)
 })
 
 client.on(Events.MessageDelete, async (message) => {
@@ -85,6 +94,84 @@ client.on(Events.MessageDelete, async (message) => {
     client.destroy();
 
     await webhook.delete();
+})
+
+client.on(Events.GuildMemberAdd, async (member) => {
+    console.log("STEP 1", member.user.username);
+
+    const db = firebaseAdmin.getFirestore();
+
+    const ref = db.collection('invites').orderBy('timestamp', 'desc').where('id', '==', member.id);
+
+    const docs = (await ref.get()).docs;
+
+    if(docs.length < 1) return;
+
+    const data = docs[0].data();
+
+    if(!data) return;
+
+    console.log("STEP 2", data);
+
+    const setup = await getSetup();
+
+    if(typeof setup == 'string') return;
+
+    const user = await getUser(member.id);
+
+    if(!user) return;
+
+    console.log("STEP 3", user.nickname);
+
+    switch(data.type) {
+        case 'joining':
+            console.log("STEP 4", data.type);
+
+            const game = await getGame();
+
+            if(!game.started) return;
+
+            if(setup.secondary.guild.id != member.guild.id) return;
+
+            console.log("STEP 5", user.channel);
+            
+            if(user.channel != null) {
+                const channel = await setup.secondary.guild.channels.fetch(user.channel).catch(() => null);
+
+                if(channel == null) {
+                    const channel = await setup.secondary.guild.channels.create({ 
+                        parent: setup.secondary.dms, 
+                        name: user.nickname.toLowerCase(),
+                        permissionOverwrites: generateOverwrites(user.id)
+                    });
+    
+                    await db.collection('users').doc(user.id).update({
+                        channel: channel.id,
+                    });
+
+                    await channel.send("Welcome <@" + user.id + ">! Check out pins in main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod.");
+                } else {
+                    await (channel as TextChannel).permissionOverwrites.create(user.id, editOverwrites());
+                }
+            } else {
+                const channel = await setup.secondary.guild.channels.create({ 
+                    parent: setup.secondary.dms, 
+                    name: user.nickname.toLowerCase(),
+                    permissionOverwrites: generateOverwrites(user.id)
+                });
+
+                await db.collection('users').doc(user.id).update({
+                    channel: channel.id,
+                });
+
+                await channel.send("Welcome <@" + user.id + ">! Check out pins in main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod.");
+            }
+            break;
+        case "spectate":
+            if(setup.tertiary.guild.id != member.guild.id) return;
+
+            await member.roles.add(setup.tertiary.spec);
+    }
 })
 
 client.on(Events.InteractionCreate, async interaction => {
@@ -123,8 +210,16 @@ client.on(Events.InteractionCreate, async interaction => {
 
         try {
             await command.execute(interaction);
-        } catch(e) {
-            console.log(e);
+        } catch(e: any) {
+            try {
+                console.log(e);
+
+                if(interaction.deferred || interaction.replied) {
+                    await interaction.editReply(e.message as string)
+                } else {
+                    await interaction.reply({ content: e.message as string, ephemeral: true });
+                }
+            } catch(e) {} //trying to pickup commands from any point is kinda weird, so i put try catch just in case
         }
     } else if(interaction.isModalSubmit()) {
         let name: string;
@@ -161,8 +256,16 @@ client.on(Events.InteractionCreate, async interaction => {
 
         try {
             await command.execute(interaction);
-        } catch(e) {
-            console.log(e);
+        } catch(e: any) {
+            try {
+                console.log(e);
+
+                if(interaction.deferred || interaction.replied) {
+                    await interaction.editReply(e.message as string)
+                } else {
+                    await interaction.reply({ content: e.message as string, ephemeral: true });
+                }
+            } catch(e) {}
         }
     } else if(interaction.isChatInputCommand()) {
         const command = client.commands.get(`slash-${interaction.commandName}`);
@@ -175,8 +278,16 @@ client.on(Events.InteractionCreate, async interaction => {
 
         try {
             await command(interaction);
-        } catch(e) {
-            console.log(e);
+        } catch(e: any) {
+            try {
+                console.log(e);
+
+                if(interaction.deferred || interaction.replied) {
+                    await interaction.editReply(e.message as string)
+                } else {
+                    await interaction.reply({ content: e.message as string, ephemeral: true });
+                }
+            } catch(e) {}
         }
     } else {
         if(interaction.isRepliable()) {

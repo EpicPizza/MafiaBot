@@ -6,7 +6,8 @@ interface User {
     emoji: string | false,
     settings: {
         auto_confirm: false,
-    }
+    },
+    channel: string | null;
 }
 
 export async function createUser(id: string, nickname: string) {
@@ -20,7 +21,8 @@ export async function createUser(id: string, nickname: string) {
         emoji: false,
         settings: {
             auto_confirm: false,
-        }
+        },
+        channel: null,
     })
 }
 
@@ -44,7 +46,7 @@ export async function getUser(id: string): Promise<User | undefined> {
 
     const data = doc.data();
 
-    if(!doc.exists) {
+    if(!doc.exists || doc.data()?.nickname == null) {
         return undefined;
     } else if(data) {
         return data as User;

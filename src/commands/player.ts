@@ -3,11 +3,12 @@ import { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { z } from "zod";
 import { createUser, editUser, getUser } from "../utils/user";
-import { addPlayer, refreshSignup } from "../utils/game";
+import { addSignup, refreshSignup } from "../utils/game";
 
 const setNickname = z.object({
     name: z.literal('set-nickname'),
     autoSignUp: z.boolean(),
+    game: z.string().optional(),
 })
 
 module.exports = {
@@ -104,9 +105,11 @@ module.exports = {
             const id = JSON.parse(interaction.customId) as z.infer<typeof setNickname>;
 
             if(id.autoSignUp) {
-                await addPlayer({ id: interaction.user.id });
+                if(id.game == null) return await interaction.reply({ ephemeral: true, content: "Game not found." });
 
-                await refreshSignup();
+                await addSignup({ id: interaction.user.id, game: id.game });
+
+                await refreshSignup(id.game);
 
                 if(interaction.isFromMessage()) {
                     await interaction.update({ content: 'You are now signed up!', embeds: [], components: [] });
