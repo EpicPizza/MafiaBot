@@ -39,6 +39,10 @@ export type Data = ({
     type: 'modal',
     name: string,
     command: ZodObject<any>,
+} | {
+    type: 'select',
+    name: string,
+    command: ZodObject<any>,
 });
 
 const CustomId = z.object({
@@ -73,234 +77,304 @@ for(const file of commandFiles) {
     const data: Data[] = command.data;
     const execute = command.execute as Function;
 
-    data.forEach((command) => client.commands.set(command.name, command.type == 'button' || command.type == 'modal' ? ({ execute: execute, zod: command.command }) : execute))
+    data.forEach((command) => client.commands.set(command.name, command.type == 'button' || command.type == 'modal' || command.type == 'select' ? ({ execute: execute, zod: command.command }) : execute))
 }
 
 client.on(Events.ClientReady, async () => {
     console.log("Bot is ready!");
 
-    const game = await getGame();
-
-    cache.day = game.day;   
-    cache.started = game.started;
-
-    setInterval(async () => {
-        await checkFutureLock();
-
+    try {
         const game = await getGame();
-        const setup = await getSetup();
-
-        if(typeof setup == 'string') return;
 
         cache.day = game.day;   
         cache.started = game.started;
-        cache.channel = setup.primary.chat.id;
+    } catch(e) {
+        console.log(e);
+    }
+
+    setInterval(async () => {
+        try {
+            await checkFutureLock();
+
+            const game = await getGame();
+            const setup = await getSetup();
+
+            if(typeof setup == 'string') return;
+
+            cache.day = game.day;   
+            cache.started = game.started;
+            cache.channel = setup.primary.chat.id;
+        } catch(e) {
+            console.log(e);
+        }
     }, 1000 * 15)
 });
 
 client.on(Events.MessageCreate, async (message) => {
-    if(!cache.started) return;
+    try {
+        if(message.content.startsWith("?dm")) {
+            const setup = await getSetup();
 
-    if(message.author && message.author.bot == true) return;
+            if(typeof setup == 'string') return await message.react("⚠️");
 
-    const db = firebaseAdmin.getFirestore();
+            if(message.channel.type != ChannelType.GuildText) return;
 
-    const ref = db.collection('day').doc(cache.day.toString()).collection('players').doc(message.author.id);
+            if(!(setup.secondary.dms.id == message.channel.parentId || setup.secondary.archivedDms.id == message.channel.parentId)) return;
 
-    if((await ref.get()).exists) {
-        ref.update({
-            messages: FieldValue.increment(1),
-            words: FieldValue.increment(message.content.split(" ").length)
-        })
-    } else {
-        ref.set({
-            messages: 1,
-            words: message.content.split(" ").length,
-        })
+            const db = firebaseAdmin.getFirestore();
+
+            const user = message.content.substring(4, message.content.length);
+
+            const member = await setup.primary.guild.members.fetch(user).catch(() => undefined);
+
+            if(member == undefined) return await message.react("❎")
+
+            const ref = db.collection('users').doc(member.id);
+
+            if((await ref.get()).exists) {
+                await ref.update({
+                    channel: message.channel.id,
+                })
+            } else {
+                await ref.set({
+                    channel: message.channel.id,
+                    id: member.id,
+                    nickname: null,
+                    emoji: false,
+                    settings: {
+                        auto_confirm: false,
+                    },
+                })
+            }
+
+            await message.react('✅');
+        }
+
+        if(!cache.started) return;
+
+        if(message.author && message.author.bot == true) return;
+
+        const db = firebaseAdmin.getFirestore();
+
+        const ref = db.collection('day').doc(cache.day.toString()).collection('players').doc(message.author.id);
+
+        if((await ref.get()).exists) {
+            ref.update({
+                messages: FieldValue.increment(1),
+                words: FieldValue.increment(message.content.split(" ").length)
+            })
+        } else {
+            ref.set({
+                messages: 1,
+                words: message.content.split(" ").length,
+            })
+        }
+    } catch(e) {
+        console.log(e);
     }
 })
 
 client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
-    if(!cache.started) return;
+    try {
+        if(!cache.started) return;
 
-    console.log(newMessage.content);
+        console.log(newMessage.content);
 
-    if(newMessage.author && newMessage.author.bot == true) return;
-    if(newMessage.channelId != cache.channel) return;
+        if(newMessage.author && newMessage.author.bot == true) return;
+        if(newMessage.channelId != cache.channel) return;
 
-    const db = firebaseAdmin.getFirestore();
+        const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('edits').doc(newMessage.id);
+        const ref = db.collection('edits').doc(newMessage.id);
 
-    if((await ref.get()).exists) {
-        await ref.update({
-            edits: FieldValue.arrayUnion({
-                content: newMessage.content ?? "No Content",
-                timestamp: newMessage.editedTimestamp ?? new Date().valueOf()
-            }),
-        })
-    } else {
-        await ref.set({
-            edits: [{
-                content: newMessage.content ?? "No Content",
-                timestamp: newMessage.editedTimestamp ?? new Date().valueOf()
-            }],
-        })
+        if((await ref.get()).exists) {
+            await ref.update({
+                edits: FieldValue.arrayUnion({
+                    content: newMessage.content ?? "No Content",
+                    timestamp: newMessage.editedTimestamp ?? new Date().valueOf()
+                }),
+            })
+        } else {
+            await ref.set({
+                edits: [{
+                    content: newMessage.content ?? "No Content",
+                    timestamp: newMessage.editedTimestamp ?? new Date().valueOf()
+                }],
+            })
+        }
+    } catch(e) {
+        console.log(e);
     }
 })
 
 client.on(Events.MessageDelete, async (message) => {
-    if(!cache.started) return;
+    try {
+        if(!cache.started) return;
 
-    const channel = message.channel;
+        const channel = message.channel;
 
-    if(message.author && message.author.bot == true) return;
-    if(message.channelId != cache.channel) return;
+        if(message.author && message.author.bot == true) return;
+        if(message.channelId != cache.channel) return;
 
-    const setup = await getSetup();
+        const setup = await getSetup();
 
-    if(typeof setup == 'string') return;
+        if(typeof setup == 'string') return;
 
-    if(channel.id != setup.primary.chat.id) return;
+        if(channel.id != setup.primary.chat.id) return;
 
-    const db = firebaseAdmin.getFirestore();
+        const db = firebaseAdmin.getFirestore();
 
-    const doc = await db.collection('edits').doc(message.id).get();
+        const doc = await db.collection('edits').doc(message.id).get();
 
-    const webhook = await setup.primary.chat.createWebhook({
-        name: 'Mafia Bot Snipe',
-    });
+        const webhook = await setup.primary.chat.createWebhook({
+            name: 'Mafia Bot Snipe',
+        });
 
-    const client = new WebhookClient({
-        id: webhook.id,
-        token: webhook.token,
-    })
+        const client = new WebhookClient({
+            id: webhook.id,
+            token: webhook.token,
+        })
 
-    const result = await archiveMessage(setup.primary.chat, message as any, client);
+        const result = await archiveMessage(setup.primary.chat, message as any, client);
 
-    client.destroy();
+        client.destroy();
 
-    await webhook.delete();
+        await webhook.delete();
 
-    if(doc.exists && doc.data()) {
-        db.collection('edits').doc(result.id).set(
-            doc.data() ?? {}
-        )
+        if(doc.exists && doc.data()) {
+            db.collection('edits').doc(result.id).set(
+                doc.data() ?? {}
+            )
+        }
+    } catch(e) {
+        console.log(e);
     }
 })
 
 client.on(Events.GuildMemberAdd, async (member) => {
-    console.log("STEP 1", member.user.username);
+    try {
+        console.log("STEP 1", member.user.username);
 
-    const db = firebaseAdmin.getFirestore();
+        const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('invites').orderBy('timestamp', 'desc').where('id', '==', member.id);
+        const ref = db.collection('invites').orderBy('timestamp', 'desc').where('id', '==', member.id);
 
-    const docs = (await ref.get()).docs;
+        const docs = (await ref.get()).docs;
 
-    if(docs.length < 1) return;
+        if(docs.length < 1) return;
 
-    const data = docs[0].data();
-    const second = docs.length > 1 ? docs[1].data() : undefined;
+        const data = docs[0].data();
+        const second = docs.length > 1 ? docs[1].data() : undefined;
 
-    if(!data) return;
+        if(!data) return;
 
-    console.log("STEP 2", data);
+        console.log("STEP 2", data);
 
-    const setup = await getSetup();
+        const setup = await getSetup();
 
-    if(typeof setup == 'string') return;
+        if(typeof setup == 'string') return;
 
-    const user = await getUser(member.id);
+        const user = await getUser(member.id);
 
-    if(!user) return;
+        if(!user) return;
 
-    console.log("STEP 3", user.nickname);
+        console.log("STEP 3", user.nickname);
 
-    switch(data.type) {
-        case 'joining':
-            console.log("STEP 4", data.type);
+        switch(data.type) {
+            case 'joining':
+                console.log("STEP 4", data.type);
 
-            const game = await getGame();
+                const game = await getGame();
 
-            if(!game.started) return;
+                if(!game.started) return;
 
-            if(setup.secondary.guild.id != member.guild.id) return;
+                if(setup.secondary.guild.id != member.guild.id) return;
 
-            console.log("STEP 5", user.channel);
-            
-            if(user.channel != null) {
-                const channel = await setup.secondary.guild.channels.fetch(user.channel).catch(() => null);
+                console.log("STEP 5", user.channel);
+                
+                if(user.channel != null) {
+                    const channel = await setup.secondary.guild.channels.fetch(user.channel).catch(() => null);
 
-                if(channel == null) {
+                    if(channel == null) {
+                        const channel = await setup.secondary.guild.channels.create({ 
+                            parent: setup.secondary.dms, 
+                            name: user.nickname.toLowerCase(),
+                            permissionOverwrites: generateOverwrites(user.id)
+                        });
+        
+                        await db.collection('users').doc(user.id).update({
+                            channel: channel.id,
+                        });
+
+                        await channel.send("Welcome <@" + user.id + ">! Check out the pins in the main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod.");
+                    } else {
+                        await (channel as TextChannel).permissionOverwrites.create(user.id, editOverwrites());
+
+                        await (channel as TextChannel).send("Welcome <@" + user.id + ">! Check out the pins in the main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod.");
+                    }
+                } else {
                     const channel = await setup.secondary.guild.channels.create({ 
                         parent: setup.secondary.dms, 
                         name: user.nickname.toLowerCase(),
                         permissionOverwrites: generateOverwrites(user.id)
                     });
-    
+
                     await db.collection('users').doc(user.id).update({
                         channel: channel.id,
                     });
 
-                    await channel.send("Welcome <@" + user.id + ">! Check out pins in main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod.");
-                } else {
-                    await (channel as TextChannel).permissionOverwrites.create(user.id, editOverwrites());
+                    await channel.send("Welcome <@" + user.id + ">! Check out the pins in the main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod.");
                 }
-            } else {
-                const channel = await setup.secondary.guild.channels.create({ 
-                    parent: setup.secondary.dms, 
-                    name: user.nickname.toLowerCase(),
-                    permissionOverwrites: generateOverwrites(user.id)
-                });
+                break;
+            case "spectate":
+                if(second && second.type == "dead-spectate" && setup.secondary.guild.id == member.guild.id) {
+                    await member.roles.add(setup.secondary.spec);
+                    await member.roles.remove(setup.secondary.access);
+                }
 
-                await db.collection('users').doc(user.id).update({
-                    channel: channel.id,
-                });
+                if(setup.tertiary.guild.id != member.guild.id) return;
 
-                await channel.send("Welcome <@" + user.id + ">! Check out pins in main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod.");
-            }
-            break;
-        case "spectate":
-            if(second && second.type == "dead-spectate" && setup.secondary.guild.id == member.guild.id) {
-                await member.roles.add(setup.secondary.spec);
-                await member.roles.remove(setup.secondary.access);
-            }
+                await member.roles.add(setup.tertiary.spec);
+                break;
+            case "mafia":
+                if(setup.tertiary.guild.id != member.guild.id) return;
 
-            if(setup.tertiary.guild.id != member.guild.id) return;
+                await member.roles.add(setup.tertiary.access);
+                break;
+            case "mafia-mod":
+                if(second && second.type == "dead-mod" && setup.secondary.guild.id == member.guild.id) {
+                    await member.roles.add(setup.secondary.mod);
+                    await member.roles.add(setup.secondary.spec);
+                    await member.roles.remove(setup.secondary.access);
+                }
 
-            await member.roles.add(setup.tertiary.spec);
-            break;
-        case "mafia":
-            if(setup.tertiary.guild.id != member.guild.id) return;
+                if(setup.tertiary.guild.id != member.guild.id) return;
 
-            await member.roles.add(setup.tertiary.access);
-            break;
-        case "mafia-mod":
-            if(second && second.type == "dead-mod" && setup.secondary.guild.id == member.guild.id) {
+                await member.roles.add(setup.tertiary.mod);
+                await member.roles.add(setup.tertiary.spec);
+                break;
+            case "dead-mod":
+                if(setup.secondary.guild.id != member.guild.id) return;
+
                 await member.roles.add(setup.secondary.mod);
                 await member.roles.add(setup.secondary.spec);
                 await member.roles.remove(setup.secondary.access);
-            }
+                break;
+            case "dead-spectate":
+                if(setup.secondary.guild.id != member.guild.id) return;
 
-            if(setup.tertiary.guild.id != member.guild.id) return;
-
-            await member.roles.add(setup.tertiary.mod);
-            await member.roles.add(setup.tertiary.spec);
-            break;
-        case "dead-mod":
-            if(setup.secondary.guild.id != member.guild.id) return;
-
-            await member.roles.add(setup.secondary.mod);
-            await member.roles.add(setup.secondary.spec);
-            await member.roles.remove(setup.secondary.access);
-            break;
-        case "dead-spectate":
-            if(setup.secondary.guild.id != member.guild.id) return;
-
-            await member.roles.add(setup.secondary.spec);
-            await member.roles.remove(setup.secondary.access);
-            break;
+                await member.roles.add(setup.secondary.spec);
+                await member.roles.remove(setup.secondary.access);
+                break;
+            default:
+                if(setup.secondary.guild.id == member.guild.id || setup.tertiary.guild.id == member.guild.id) {
+                    if(member.kickable && cache.started) {
+                        await member.kick();
+                    }
+                }
+        }
+    } catch(e) {
+        console.log(e);
     }
 })
 
@@ -380,6 +454,52 @@ client.on(Events.InteractionCreate, async interaction => {
             console.log(e);
 
             interaction.reply({ content: `An error occurred while processing modal submit, ${name}.`, ephemeral: true });
+
+            return;
+        }
+
+        try {
+            await command.execute(interaction);
+        } catch(e: any) {
+            try {
+                console.log(e);
+
+                if(interaction.deferred || interaction.replied) {
+                    await interaction.editReply(e.message as string)
+                } else {
+                    await interaction.reply({ content: e.message as string, ephemeral: true });
+                }
+            } catch(e) {}
+        }
+    } else if(interaction.isStringSelectMenu()) {
+        let name: string;
+
+        try {
+            const command = CustomId.parse(JSON.parse(interaction.customId));
+
+            name = command.name;
+        } catch(e) {
+            console.log(e);
+
+            await interaction.reply({ content: "An error occurred while processing select menu submit.", ephemeral: true})
+
+            return;
+        }
+
+        const command = client.commands.get(`select-${name}`);
+
+        if(command == undefined || typeof command != 'object') {
+            await interaction.reply({ content: "Select menu handler not found.", ephemeral: true });
+
+            return;
+        }
+
+        try {
+            command.zod.parse(JSON.parse(interaction.customId));
+        } catch(e) {
+            console.log(e);
+
+            interaction.reply({ content: `An error occurred while processing select menu submit, ${name}.`, ephemeral: true });
 
             return;
         }

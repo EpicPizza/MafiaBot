@@ -1,11 +1,11 @@
-import { APIActionRowComponent, APIButtonComponent, ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChannelType, ChatInputCommandInteraction, Colors, CommandInteraction, ComponentType, EmbedBuilder, Interaction, ModalBuilder, ModalSubmitInteraction, SlashCommandBuilder, SlashCommandSubcommandBuilder, TextChannel, TextInputBuilder, TextInputStyle } from "discord.js";
+import { APIActionRowComponent, APIButtonComponent, ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChannelType, ChatInputCommandInteraction, Colors, CommandInteraction, ComponentType, EmbedBuilder, Interaction, ModalBuilder, ModalSubmitInteraction, SlashCommandBuilder, SlashCommandSubcommandBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, TextChannel, TextInputBuilder, TextInputStyle } from "discord.js";
 import client, { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { z } from "zod";
 import { createUser, editUser, getUser } from "../utils/user";
-import { activateSignup, archiveGame, closeSignups, createGame, endGame, getGame, getGameByID, getGameByName, getGameSetup, lockGame, openSignups, refreshSignup, setAllignments, startGame, unlockGame } from "../utils/game";
-import { DateTime, Zone } from 'luxon';
-import { parse, setFutureLock } from "../utils/timing";
+import { activateSignup, archiveGame, closeSignups, createGame, endGame, getGame, getGameByID, getGameByName, getGameSetup, lockGame, openSignups, refreshSignup, removeSignup, setAllignments, startGame, unlockGame } from "../utils/game";
+import { DateTime, SystemZone, Zone } from 'luxon';
+import { getFuture, parse, setFuture } from "../utils/timing";
 import { getSetup } from "../utils/setup";
 import dnt from 'date-and-time';
 import meridiem from 'date-and-time/plugin/meridiem'
@@ -89,18 +89,6 @@ module.exports = {
                     subcommand
                         .setName("unlock")
                         .setDescription("Unlocks the mafia game.")
-                        .addBooleanOption(option =>
-                            option
-                                .setName("advance")
-                                .setRequired(true)
-                                .setDescription("Go to next day?")
-                        )
-                        .addStringOption(option =>
-                            option
-                                .setName("when")
-                                .setRequired(true)
-                                .setDescription("When to unlock? Enter \"now\" for imediently.")
-                        )
                 )
                 .addSubcommand(subcommand =>
                     subcommand
@@ -123,6 +111,23 @@ module.exports = {
                                 .setDescription('Member to add spectator.')
                                 .setRequired(true)
                         )
+                )
+                .addSubcommand(subcommand =>
+                    subcommand
+                        .setName('kick')
+                        .setDescription('Remove a signup.')
+                        .addStringOption(option =>
+                            option  
+                                .setName('member')
+                                .setDescription('Nickname or ID of member to kick.')
+                                .setRequired(true)
+                        )
+                        .addStringOption(option =>
+                            option  
+                                .setName('game')
+                                .setDescription('Name of the game.')
+                                .setRequired(true)
+                        )                
                 )
                 
         },
@@ -147,6 +152,23 @@ module.exports = {
             command: z.object({
                 name: z.literal('confirm-alignments'),
             })
+        },
+        {
+            type: 'select',
+            name: 'select-future',
+            command: z.object({
+                name: z.literal("future"),
+                type: z.boolean()
+            })
+        },
+        {
+            type: 'button',
+            name: 'button-unlock',
+            command: z.object({
+                name: z.literal("unlock"),
+                type: z.boolean(),
+                value: z.string()
+            })
         }
     ] satisfies Data[],
 
@@ -154,8 +176,9 @@ module.exports = {
         const setup  = await getSetup();
         if(typeof setup == 'string') throw new Error("Setup Incomplete");
 
-        if(setup.primary.mod.members.get(interaction.user.id) == undefined) throw new Error("You're not a mod!");
-        
+        const member = await setup.primary.guild.members.fetch(interaction.user.id);
+
+        if(!member?.roles.cache.has(setup.primary.mod.id)) throw new Error("You're not a mod!");
 
         if(interaction.isChatInputCommand()) {
             const subcommand = interaction.options.getSubcommand();
@@ -207,32 +230,55 @@ module.exports = {
                 await endGame(interaction);
 
                 //await refreshSignup(name);
+            } else if(subcommand == "kick") {
+                const value = interaction.options.getString('member');
+
+                if(value == null || value == "") throw new Error("Member must be specified.");
+
+                if(name == null) throw new Error("Game needs to be specified.");
+
+                if(name.length < 2) throw new Error("Member id or nickname too short.");
+
+                const game = await getGameByName(name);
+
+                if(game == null) throw new Error("Game not found.");
+
+                let ping = "";
+
+                for(let i = 0; i < game.signups.length; i++) {
+                    const user = await getUser(game.signups[i]);
+
+                    if(game.signups[i] == value) {
+                        await removeSignup({ id: value, game: game.name });
+
+                        ping = "<@" + value + ">";
+                    } else if(user?.nickname.toLowerCase() == value.toLowerCase()) {
+                        await removeSignup({ id: user.id, game: game.name });
+
+                        ping = "<@" + user.id + ">"
+                    }
+                }
+
+                if(ping == "") return await interaction.reply({ ephemeral: true, content: "Signup not found." });
+
+                await refreshSignup(game.name);
+
+                return await interaction.reply({ content: ping + " has been kicked from " + game.name + ".", ephemeral: true });
             } else if(subcommand == "unlock") {
                 const game = await getGame();
 
                 if(!game.started) throw new Error("Game not started.");
                 if(game.day == 0) throw new Error("Setup allignments first.");
+                if(!game.locked) throw new Error("Game is already unlocked.");
 
-                const increment = interaction.options.getBoolean('advance') ?? false;
-                const when = interaction.options.getString("when") ?? "now";
-
-                if(when == "now") {
-                    await unlockGame(increment);
-
-                    await interaction.reply({ ephemeral: true, content: "Game unlocked!" });
-                } else {
-                    const date = parse(when);
-
-                    await setFutureLock(date, increment);
-
-                    await interaction.reply({ content: "Game will unlock at " + dnt.format(date, "h:mm A, M/DD/YY") + "." });
-                }
+                await handleLocking(interaction, false);
             } else if(subcommand == "lock") {
-                await lockGame();
+                const game = await getGame();
 
-                if(!interaction.replied) {
-                    await interaction.reply({ ephemeral: true, content: "Game locked!" });   
-                }
+                if(!game.started) throw new Error("Game not started.");
+                if(game.locked) throw new Error("Game is already locked.");
+
+                await handleLocking(interaction, true);
             } else if(subcommand == "spectator") {
                 const db = firebaseAdmin.getFirestore();
 
@@ -264,7 +310,7 @@ module.exports = {
 
                     if(channel == undefined || channel.type != ChannelType.GuildText) throw new Error("Unable to make invite for dead chat.");
 
-                    const invite = await setup.secondary.guild.invites.create(channel, { maxUses: 1 });
+                    const invite = await setup.secondary.guild.invites.create(channel, { maxUses: 1, unique: true });
 
                     await db.collection('invites').add({
                         id: spectator.id,
@@ -285,7 +331,7 @@ module.exports = {
 
                     if(channel == undefined || channel.type != ChannelType.GuildText) throw new Error("Unable to make invite for dead chat.");
 
-                    const invite = await setup.tertiary.guild.invites.create(channel, { maxUses: 1 });
+                    const invite = await setup.tertiary.guild.invites.create(channel, { maxUses: 1, unique: true });
 
                     await db.collection('invites').add({
                         id: spectator.id,
@@ -305,7 +351,7 @@ module.exports = {
                     dm.send("You're now a spectator, here are invites to the servers you're not in:\n" + message);
                 }
 
-                await interaction.reply({ ephemeral: true, content: "Spectator has been added." });
+                await interaction.reply({ ephemeral: true, content: "Spectator has been added. You may need to rerun this command after a game starts (since invites reset)." });
             
                 }
         } else if(interaction.isButton()) {
@@ -405,7 +451,7 @@ module.exports = {
 
                             await channel.send("You are mafia! \nYou now have access to mafia chat.");
                         } else {
-                            const invite = await setup.tertiary.guild.invites.create((await gameSetup).mafia, { maxUses: 1 });
+                            const invite = await setup.tertiary.guild.invites.create((await gameSetup).mafia, { maxUses: 1, unique: true });
 
                             const db = firebaseAdmin.getFirestore();
 
@@ -425,6 +471,82 @@ module.exports = {
                 })
 
                 await interaction.update({ components: components });
+            } else if(id.name == "unlock") {
+                const id = JSON.parse(interaction.customId) as { name: "unlock", value: string, type: boolean };
+
+                const date = id.value == "now" ? "now" : new Date(parseInt(id.value ?? new Date().valueOf()));
+
+                if(date == "now") {
+                    await unlockGame(id.type);
+
+                    await interaction.update({
+                        components: [],
+                        embeds: [],
+                        content: "Channel unlocked.",
+                    })
+                } else {
+                    await setFuture(date, id.type, false);
+
+                    await interaction.update({
+                        content: "Channel will unlock at <t:" + Math.round(date.valueOf() / 1000) + ":T>, <t:" + Math.round(date.valueOf() / 1000) + ":d>.",
+                        components: [],
+                        embeds: [],
+                    });
+    
+                    await setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game will unlock at <t:" + Math.round(date.valueOf() / 1000) + ":T>, <t:" + Math.round(date.valueOf() / 1000) + ":d>!")
+                }
+            }
+        } else if(interaction.isStringSelectMenu()) {
+            const id = JSON.parse(interaction.customId) as { name: "future", type: boolean };
+
+            const value = interaction.values[0];
+
+            const date = value == "now" ? "now" : new Date(parseInt(value ?? new Date().valueOf()));
+
+            if(id.type == false) {
+                const embed = new EmbedBuilder()
+                    .setTitle("Would like to also advance day once channel unlocks?")
+                    .setDescription(date == "now" ? "Channel will be unlocked immediently." : "Channel will unlock at <t:" + Math.round(date.valueOf() / 1000) + ":T>, <t:" + Math.round(date.valueOf() / 1000) + ":d>.")
+                    .setColor(Colors.Orange)
+                    .setFooter({ text: "Game begins at day 1, do not advance if this is the first unlock that starts the game." })
+
+                const row = new ActionRowBuilder<ButtonBuilder>()
+                    .setComponents([
+                        new ButtonBuilder()
+                            .setLabel("Yes")
+                            .setStyle(ButtonStyle.Success)
+                            .setCustomId(JSON.stringify({ name: "unlock", value: date.valueOf().toString(), type: true })),
+                        new ButtonBuilder()
+                            .setLabel("No")
+                            .setStyle(ButtonStyle.Danger)
+                            .setCustomId(JSON.stringify({ name: "unlock", value: date.valueOf().toString(), type: false }))
+                    ])
+
+                await interaction.update({
+                    embeds: [embed],
+                    components: [row],
+                })
+            } else {
+                if(date == "now") {
+                    await lockGame();
+
+                    await interaction.update({
+                        content: "Channel locked.",
+                        components: [],
+                        embeds: [],
+                    });
+                } else {
+                    await setFuture(date, false, true);
+
+                    await interaction.update({
+                        content: "Channel will lock at <t:" + Math.round(date.valueOf() / 1000) + ":T>, <t:" + Math.round(date.valueOf() / 1000) + ":d>.",
+                        components: [],
+                        embeds: [],
+                    });
+
+                    await setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game will lock at <t:" + Math.round(date.valueOf() / 1000) + ":T>, <t:" + Math.round(date.valueOf() / 1000) + ":d>!")
+                }
+                
             }
         }
     }
@@ -476,4 +598,51 @@ async function createSignups(interaction: CommandInteraction | ButtonInteraction
     if(message == undefined || message.guildId == undefined) return;
 
     await activateSignup({ id: message.id, name: game.name });
+}
+
+async function handleLocking(interaction: ChatInputCommandInteraction, type: boolean) {
+    const timing = await getFuture();
+
+    const embed = new EmbedBuilder()
+        .setTitle('Choose a time to ' + (type ? "lock" : "unlock") + " channel.")
+        .setColor(Colors.Orange)
+        .setDescription("Options are in PST." + (timing ? "\n\nThis will overwrite current " + (timing.type ? "lock" : "unlock") + " at <t:" + Math.round(timing.when.valueOf() / 1000) + ":T>, <t:" + Math.round(timing.when.valueOf() / 1000) + ":d>." : " "))
+
+    const date = new Date();
+    
+    date.setMinutes(0);
+    date.setSeconds(0);
+    date.setMilliseconds(0);
+
+    //dnt.format(date, "h:mm A, M/DD/YY")
+
+    const select = new StringSelectMenuBuilder()
+        .setCustomId(JSON.stringify({ name: "future", type: type }))
+        .setPlaceholder('When to ' + (type ? "lock" : "unlock") + " channel?")
+        .setOptions(
+            new StringSelectMenuOptionBuilder()
+                .setLabel("Now")
+                .setDescription((type ? "Lock" : "Unlock") + " the channel now.")
+                .setValue("now"),
+        )
+
+    for(let i = 0; i < 24; i++) {
+        date.setHours(date.getHours() + 1);
+
+        select.addOptions(
+            new StringSelectMenuOptionBuilder()
+                .setLabel(dnt.format(date, "h:mm A, M/DD/YY"))
+                .setDescription((type ? "Lock" : "Unlock") + " the channel " + dnt.format(date, "h:mm A, M/DD/YY") + ".")
+                .setValue(date.valueOf().toString())
+        )
+    }
+
+    const row = new ActionRowBuilder<StringSelectMenuBuilder>()
+        .addComponents(select)
+
+    await interaction.reply({
+        ephemeral: true,
+        embeds: [embed],
+        components: [row]
+    })
 }

@@ -1,5 +1,5 @@
 import { firebaseAdmin } from "../firebase";
-import { unlockGame } from "./game";
+import { lockGame, unlockGame } from "./game";
 import { DateTime } from 'luxon';
 const parseHumanRelativeTime = require('parse-human-relative-time')(DateTime)
 
@@ -12,7 +12,7 @@ export function parse(input: string): Date {
     return (parseHumanRelativeTime(input, dt) as DateTime).toJSDate();
 } 
 
-export async function setFutureLock(date: Date, increment: boolean) {
+export async function setFuture(date: Date, increment: boolean, locking: boolean) {
     const db = firebaseAdmin.getFirestore();
 
     const ref = db.collection('settings').doc("lock");
@@ -21,12 +21,29 @@ export async function setFutureLock(date: Date, increment: boolean) {
 
     if(!data) throw new Error("Database not setup.");
 
-    if(data.when != null) return data.when.toDate() as Date;
-
     await ref.update({
         when: date,
         increment: increment,
+        type: locking,
     });
+}
+
+export async function getFuture() {
+    const db = firebaseAdmin.getFirestore();
+
+    const ref = db.collection('settings').doc("lock");
+
+    const data = (await ref.get()).data();
+
+    if(!data) throw new Error("Database not setup.");
+
+    if(data.when == null) return undefined;
+
+    return { 
+        when: data.when.toDate() as Date,
+        increment: data.increment as boolean,
+        type: data.type as boolean,  
+    }
 }
 
 export async function checkFutureLock() {
@@ -42,7 +59,11 @@ export async function checkFutureLock() {
 
     if(data.when.toDate().valueOf() < new Date().valueOf()) {
         try {
-            await unlockGame(data.increment);
+            if(data.type) {
+                await lockGame();
+            } else {
+                await unlockGame(data.increment);
+            }
 
             await ref.update({
                 when: null,

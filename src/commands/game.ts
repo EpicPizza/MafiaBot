@@ -18,7 +18,7 @@ module.exports = {
                 .addSubcommand(subcommand =>
                     subcommand
                         .setName("signup")
-                        .setDescription("Sign up for mafia!")
+                        .setDescription("Sign up for a mafia game!")
                         .addStringOption(option =>
                             option  
                                 .setName('game')
@@ -29,7 +29,7 @@ module.exports = {
                 .addSubcommand(subcommand =>
                     subcommand
                         .setName("leave")
-                        .setDescription("Leave mafia.")
+                        .setDescription("Leave mafia game.")
                         .addStringOption(option =>
                             option  
                                 .setName('game')
@@ -60,6 +60,11 @@ module.exports = {
                             option
                                 .setName('complete')
                                 .setDescription('Shows each account connected to each player.')
+                        )
+                        .addStringOption(option =>
+                            option  
+                                .setName('game')
+                                .setDescription('Name of the game (signups).')
                         )
                 )
                 .addSubcommand(subcommand =>
@@ -101,11 +106,11 @@ module.exports = {
 
             if(subcommand == "stats") return handleStatsList(interaction);
 
+            if(subcommand == "hint") return await interaction.reply("Someone is mafia.");
+
             const game = interaction.options.getString("game");
 
             if(game == null) throw new Error("Game not specified.");
-
-            if(subcommand == "hint") return await interaction.reply("Someone is mafia.");
 
             return await handleSignup(interaction, game, subcommand == "signup");
         } else if(interaction.isButton()) {
@@ -121,20 +126,37 @@ module.exports = {
 }
 
 async function handlePlayerList(interaction: ChatInputCommandInteraction) {
-    const game = await getGame();
 
     const complete = interaction.options.getBoolean('complete') ?? false;
 
-    if(game.started == false) throw new Error("Game has not started.");
-
     const users = [] as { nickname: string, id: string }[];
 
-    for(let i = 0; i < game.players.length; i++) {
-        const user = await getUser(game.players[i].id);
+    const reference = interaction.options.getString("game");
 
-        if(user == null) throw new Error("User not registered.");
+    if(reference == null || reference == "") {
+        const game = await getGame();
 
-        users.push({ id: user.id, nickname: user.nickname });
+        if(game.started == false) throw new Error("Game has not started.");
+
+        for(let i = 0; i < game.players.length; i++) {
+            const user = await getUser(game.players[i].id);
+    
+            if(user == null) throw new Error("User not registered.");
+    
+            users.push({ id: user.id, nickname: user.nickname });
+        }    
+    } else {
+        const game = await getGameByName(reference);
+
+        if(game == null) throw new Error("Game not found.");
+
+        for(let i = 0; i < game.signups.length; i++) {
+            const user = await getUser(game.signups[i]);
+    
+            if(user == null) throw new Error("User not registered.");
+    
+            users.push({ id: user.id, nickname: user.nickname });
+        }    
     }
 
     const embed = new EmbedBuilder()
@@ -144,6 +166,7 @@ async function handlePlayerList(interaction: ChatInputCommandInteraction) {
             users.reduce((previous, current) => previous += current.nickname +  " - <@"  + current.id + "> \n", "") :
             users.reduce((previous, current) => previous += current.nickname +  "\n", "")
         )
+        .setFooter({ text: reference == null || reference == "" ? "Showing current game players." : "Showing signups for " + reference + "." });
 
     await interaction.reply({ embeds: [embed] });
 }
@@ -210,8 +233,8 @@ async function handleVoteList(interaction: ChatInputCommandInteraction) {
     const embed = new EmbedBuilder()
         .setTitle("Votes")
         .setColor(Colors.Gold)
-        .setDescription(message)
-        .setFooter({ text: game.day == day ? "Showing votes for current day." : "Showing votes for day " + day + "." });
+        .setDescription(message == "" ? "No votes recorded." : message)
+        .setFooter({ text: game.day == day ? "Showing votes for current day (" + day + ")." : "Showing votes for day " + day + "." });
 
     await interaction.reply({ embeds: [embed] });
 }
@@ -274,7 +297,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction) {
         .setTitle("Stats")
         .setColor(Colors.Gold)
         .setDescription(message == '' ? "No Stats" : message)
-        .setFooter({ text: game.day == day ? "Showing stats for current day." : "Showing votes for day " + day + "." });
+        .setFooter({ text: game.day == day ? "Showing stats for current day (" + day + ")." : "Showing votes for day " + day + "." });
 
     await interaction.reply({ embeds: [embed] });
 }

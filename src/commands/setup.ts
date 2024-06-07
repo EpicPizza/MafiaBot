@@ -111,6 +111,11 @@ module.exports = {
                 )
                 .addSubcommand(subcommand =>
                     subcommand
+                        .setName("database")
+                        .setDescription("Setup database.")
+                )
+                .addSubcommand(subcommand =>
+                    subcommand
                         .setName('mod')
                         .setDescription('Setup mod.')
                         .addUserOption(option =>
@@ -138,13 +143,57 @@ module.exports = {
     ] satisfies Data[],
 
     execute: async (interaction: ChatInputCommandInteraction | ButtonInteraction) => {
-        const setup = await getSetup();
+        if(interaction.isChatInputCommand() && interaction.options.getSubcommand() == "database") {
+            const db = firebaseAdmin.getFirestore();
 
-        if(typeof setup == 'string') throw new Error("Setup Incomplete");
+            const ref = db.collection('settings');
 
-        const member = await setup.primary.guild.members.fetch(interaction.user.id).catch(() => undefined);
+            await ref.doc('lock').set({
+                increment: false,
+                when: null,
+                setup: false,
+            })
 
-        if(member == undefined || !member.permissions.has(PermissionFlagsBits.ManageChannels)) throw new Error("You are not admin!");
+            await ref.doc('setup').set({
+                primary: {
+                    alive: null,
+                    chat: null,
+                    gang: null,
+                    guild: null,
+                    mod: null
+                },
+                secondary: {
+                    access: null,
+                    archive: null,
+                    archivedDms: null,
+                    dms: null,
+                    guild: null,
+                    mod: null,
+                    ongoing: null,
+                    spec: null,
+                },
+                tertiary: {
+                    access: null,
+                    archive: null,
+                    guild: null,
+                    mod: null,
+                    ongoing: null,
+                    spec: null
+                }
+            });
+
+            await ref.doc('game').set({
+                day: 0,
+                game: null,
+                locked: false,
+                players: [],
+                started: false,
+            })
+
+            return await interaction.reply({ content: "Database setup.", ephemeral: true });
+        }
+
+        if(interaction.member && interaction.memberPermissions && !interaction.memberPermissions.has(PermissionFlagsBits.ManageChannels)) throw new Error("You are not admin!");
 
         const db = firebaseAdmin.getFirestore();
 
@@ -355,11 +404,15 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
             await refreshSignup(interaction.options.getString("game") ?? "12948201380912840192380192840912830912803921312");
 
             await interaction.reply({ ephemeral: true, content: "Signups refreshed." });
-        } else if(subcommand == "votes") {
+        } else if(subcommand == "players") {
             await refreshPlayers();
 
             await interaction.reply({ ephemeral: true, content: "Refreshed players."});
         } else if(subcommand == "mod") {
+            const setup = await getSetup();
+
+            if(typeof setup == 'string') throw new Error("Setup Incomplete");
+
             const mod = interaction.options.getUser('member');
             const remove = interaction.options.getBoolean('remove') ?? false;
 
@@ -390,7 +443,7 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
 
                 if(channel == undefined || channel.type != ChannelType.GuildText) throw new Error("Unable to make invite for dead chat.");
 
-                const invite = await setup.secondary.guild.invites.create(channel, { maxUses: 1 });
+                const invite = await setup.secondary.guild.invites.create(channel, { maxUses: 1, unique: true });
 
                 await db.collection('invites').add({
                     id: mod.id,
@@ -416,7 +469,7 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
 
                 if(channel == undefined || channel.type != ChannelType.GuildText) throw new Error("Unable to make invite for dead chat.");
 
-                const invite = await setup.tertiary.guild.invites.create(channel, { maxUses: 1 });
+                const invite = await setup.tertiary.guild.invites.create(channel, { maxUses: 1, unique: true });
 
                 await db.collection('invites').add({
                     id: mod.id,
@@ -445,7 +498,7 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
                 }
             }
 
-            await interaction.reply({ ephemeral: true, content: "Mod has been " + (remove ? "removed" : "added") + "." });
+            await interaction.reply({ ephemeral: true, content: "Mod has been " + (remove ? "removed" : "added") + ". You may need to rerun this command after a game starts (since invites reset)." });
         }
     } 
 }

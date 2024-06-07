@@ -2,10 +2,10 @@
   "name": "mafiabot",
   "version": "1.0.0",
   "description": "A mafia bot for #FRCBayAreaGang.",
-  "main": "src/discord.ts",
+  "main": "build/discord.js",
   "scripts": {
     "dev": "ts-node src/setup.ts && nodemon src/discord.ts",
-    "prod": "node build/setup.js && node build/discord.js",
+    "worker": "node build/setup.js && node build/discord.js",
     "build": "tsc"
   },
   "author": "",

@@ -69,30 +69,38 @@ module.exports = {
 
                 const vote = votes.find(vote => vote.id == interaction.user.id);
 
+                let voted = false;
+
                 if(vote == undefined) {
                     setVote({ for: user.id, id: interaction.user.id, day: game.day });
                     
                     votes.push({ for: user.id, id: interaction.user.id });
+
+                    voted = true;
                 } else {
                     removeVote({ id: interaction.user.id, day: game.day });
 
                     votes = votes.filter(vote => vote.id != interaction.user.id);
 
+                    voted = false;
+
                     if(vote.for != user.id) {
                         setVote({ for: user.id, id: interaction.user.id, day: game.day });
                     
                         votes.push({ for: user.id, id: interaction.user.id });
+
+                        voted = true;
                     }
                 }
 
                 let specific = votes.filter(vote => vote.for == user.id);
                 let half = Math.ceil(list.length / 2);
 
-                await setup.primary.chat.send(voter.nickname + " " + (vote == undefined ? "voted for " : "removed their vote for ") + user.nickname + "! " + user.nickname + " has " + specific.length + " vote" + (specific.length == 1 ? "" : "s") + "." + (half - specific.length < 4 && half - specific.length > 0 ? " " + (half - specific.length) + " vote" + (half - specific.length == 1 ? "" : "s") + " until hammer!" : ""));
+                await setup.primary.chat.send(voter.nickname + " " + (voted ? "voted for " : "removed their vote for ") + user.nickname + "! " + user.nickname + " has " + specific.length + " vote" + (specific.length == 1 ? "" : "s") + "." + (half - specific.length < 4 && half - specific.length > 0 ? " " + (half - specific.length) + " vote" + (half - specific.length == 1 ? "" : "s") + " until hammer!" : ""));
 
                 if(specific.length >= half) {
                     await lockGame();
-                    await setup.primary.chat.send(voter.nickname + " has been hammered!");
+                    await setup.primary.chat.send(user.nickname + " has been hammered!");
                 }
         
                 await interaction.reply({ ephemeral: true, content: "Vote counted." });

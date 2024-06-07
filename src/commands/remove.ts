@@ -28,6 +28,11 @@ module.exports = {
     execute: async (interaction: ChatInputCommandInteraction ) => {
         const game = await getGame();
 
+        const setup  = await getSetup();
+        if(typeof setup == 'string') throw new Error("Setup Incomplete");
+
+        if(setup.primary.mod.members.get(interaction.user.id) == undefined) throw new Error("You're not a mod!");
+
         if(game.started == false) throw new Error("Game has not started.");
 
         const player = interaction.options.getString('player');

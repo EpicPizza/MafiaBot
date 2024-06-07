@@ -56,6 +56,7 @@ export function generateOverwrites(id: string) {
         {
             id: id,
             allow: [
+                PermissionsBitField.Flags.ViewChannel,
                 PermissionsBitField.Flags.SendMessages,
                 PermissionsBitField.Flags.AddReactions, 
                 PermissionsBitField.Flags.AttachFiles, 
@@ -74,6 +75,7 @@ export function generateOverwrites(id: string) {
 
 export function editOverwrites() {
     return {
+        ViewChannel: true,
         SendMessages: true,
         AddReactions: true, 
         AttachFiles: true, 
@@ -198,9 +200,6 @@ export async function archiveGame(interaction: ChatInputCommandInteraction, name
 
     await ref.delete();
 
-    await db.collection('settings').doc('game').update({
-        game: null,
-    })
 
     await interaction.reply({ ephemeral: true, content: "Game archived." });
 }
@@ -216,9 +215,11 @@ export async function createGame(interaction: ChatInputCommandInteraction) {
 
     const name = interaction.options.getString("game") ? interaction.options.getString("game") as string : "Untitled Game " + getRandom(1, 9) + getRandom(1, 9) + getRandom(1, 9);
 
-    console.log(name);
+    const exists = await getGameByName(name);
 
-    const requirements = z.string().max(20, "Max length 20 characters.").regex(/[\p{Letter}\p{Mark}]+/gu, "Only letters and - allowed. No spaces.");
+    if(exists) throw new Error("Duplicate game names not allowed.");
+
+    const requirements = z.string().max(20, "Max length 20 characters.").regex(/^[a-zA-Z]+$/, "Only letters and - allowed. No spaces.");
 
     const check = requirements.safeParse(name);
 
@@ -266,15 +267,15 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
     await deleteCollection(firebaseAdmin.getFirestore(), "day", 20);
     await deleteCollection(firebaseAdmin.getFirestore(), "edits", 20);
 
-    if(setup == undefined) return await interaction.reply({ ephemeral: true, content: "Setup not complete." });
-    if(typeof setup == 'string') return await interaction.reply({ ephemeral: true, content: "An unexpected error occurred." });
-    if(game.started) return await interaction.reply({ ephemeral: true, content: "Game has already started." });
-    if(which == null) return await interaction.reply({ ephemeral: true, content: "Game not found." });
-    if(which.signups.length == 0) return await interaction.reply({ ephemeral: true, content: "Game must have more than one player." });
+    if(setup == undefined) throw new Error("Setup not complete.");
+    if(typeof setup == 'string') throw new Error("An unexpected error occurred.");
+    if(game.started) throw new Error("Game has already started.");
+    if(which == null) throw new Error("Game not found.");
+    if(which.signups.length == 0) throw new Error("Game must have more than one player.");
 
     for(let i = 0; i < which.signups.length; i++) { //chances someone is not the server is not zero (cough cough someone cough), check here to prevent game from starting if there is someone missing
         const player = await setup.primary.guild.members.fetch(which.signups[i]).catch(() => undefined);
-        if(player == null) throw new Error("Member not found.");
+        if(player == null) throw new Error("Member not found. <@" + which.signups[i] + ">");
     }
 
     const gameSetup = await getGameSetup(which, setup);
@@ -283,10 +284,18 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
 
     const db = firebaseAdmin.getFirestore();
 
-    const invites = await db.collection('invites').listDocuments();
+    const inviteRefs = await db.collection('invites').listDocuments();
+
+    for(let i = 0; i < inviteRefs.length; i++) {
+        await inviteRefs[i].delete();
+    }
+
+    const invites = Array.from(await setup.tertiary.guild.invites.fetch());
 
     for(let i = 0; i < invites.length; i++) {
-        await invites[i].delete();
+        if(invites[i][1].deletable) {
+            invites[i][1].delete();
+        }
     }
 
     const ref = db.collection('settings').doc('game');
@@ -362,9 +371,10 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
         await player.roles.add(setup.primary.alive);
 
         const dead = await setup.secondary.guild.members.fetch(which.signups[i]).catch(() => undefined);
-        if(dead == null) throw new Error("Member not found.");
-        await dead.roles.remove(setup.secondary.spec);
-        await dead.roles.remove(setup.secondary.access);
+        if(dead != null) {
+            await dead.roles.remove(setup.secondary.spec);
+            await dead.roles.remove(setup.secondary.access);
+        }
 
         const mafiaMember = await setup.tertiary.guild.members.fetch(which.signups[i]).catch(() => undefined);
         if(mafiaMember?.joinedTimestamp) {
@@ -381,9 +391,11 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
 
         playerList.push(user.nickname);
 
+        if(!await setup.secondary.guild.channels.fetch(user.channel ?? "").catch(() => undefined)) user.channel = null;
+
         if(!member) {
             if(user.channel) {
-                const invite = await setup.secondary.guild.invites.create(user.channel, { maxUses: 1 });
+                const invite = await setup.secondary.guild.invites.create(user.channel, { maxUses: 1, unique: true });
 
                 await db.collection('invites').add({
                     id: user.id,
@@ -406,7 +418,7 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
                     channel: channel.id,
                 });
 
-                const invite = await setup.secondary.guild.invites.create(channel.id, { maxUses: 1 });
+                const invite = await setup.secondary.guild.invites.create(channel.id, { maxUses: 1, unique: true });
 
                 await db.collection('invites').add({
                     id: user.id,
@@ -451,7 +463,7 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
                     channel: channel.id,
                 });
 
-                channel.send("Welcome <@" + user.id + ">! Check out pins in main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod.");
+                channel.send("Welcome <@" + user.id + ">! Check out the pins in the main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod.");
             }
         }
     }
@@ -497,6 +509,7 @@ export async function endGame(interaction: ChatInputCommandInteraction) {
         locked: false,
         players: [],
         day: 0,
+        game: null,
     });
 
     await setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game has ended!");
@@ -552,7 +565,7 @@ export async function endGame(interaction: ChatInputCommandInteraction) {
         } else {
             console.log(setup.tertiary.guild, gameSetup.mafia.id);
 
-            const invite = await setup.tertiary.guild.invites.create(gameSetup.mafia.id, { maxUses: 1 });
+            const invite = await setup.tertiary.guild.invites.create(gameSetup.mafia.id, { maxUses: 1, unique: true });
 
             await db.collection('invites').add({
                 id: user.id,
@@ -563,6 +576,9 @@ export async function endGame(interaction: ChatInputCommandInteraction) {
             const dm = await client.users.cache.get(which.signups[i])?.createDM();
 
             if(!dm) return await gameSetup.spec.send("Unable to send dms to " + user.nickname + ".");
+
+            console.log(user.nickname);
+            console.log(invite.code);
 
             dm.send("Here's a server invite to spectate mafia chat: \nhttps://discord.com/invite/" + invite.code);
         }
@@ -618,11 +634,11 @@ export async function getGameByID(id: string) {
 export async function addSignup(options: { id: string, game: string }) {
     const db = firebaseAdmin.getFirestore();
 
-    const id = await getGameID(options.game);
+    const game = await getGameByName(options.game);
 
-    if(id == null) return false;
+    if(game == null) return false;
 
-    const ref = db.collection('settings').doc('game').collection('games').doc(id);
+    const ref = db.collection('settings').doc('game').collection('games').doc(game.id);
 
     await db.runTransaction(async t => {
         const doc = await t.get(ref);
