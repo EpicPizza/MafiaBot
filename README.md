@@ -4,7 +4,7 @@ This bot is made using discord.js library and typescript. Unless someone else re
 
 ## Production
 
-Not sure where I will running the bot, Heroku is kinda expensive now.
+~~Not sure where I will running the bot, Heroku is kinda expensive now.~~ Heroku easy to use and somehow cheaper than google cloud.
 
 ## Commands
 
@@ -25,10 +25,9 @@ Not sure where I will running the bot, Heroku is kinda expensive now.
 | `DEVGUILD`                | Guild id of server development bot is in.              |
 | `FIREBASE_ADMIN`          | Key for firebase admin.                                |
 
-## Database - OUT OF DATE
+## Database
 
-Uh, maybe I'll make a command to setup it later. For now it's pretty simple.
+Once you've added firebase admin credentials, run the /setup database command then fill out all null values in settings > setup. Use /setup check to check which values are missing.
 
-| Location                  | Values                                                 |
-| :------------------------ | :------------------------------------------------------|
-| settings > game           | started: false                                         |
+
+
