@@ -395,7 +395,7 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
 
         if(!member) {
             if(user.channel) {
-                const invite = await setup.secondary.guild.invites.create(user.channel, { maxUses: 1, unique: true });
+                const invite = await setup.secondary.guild.invites.create(user.channel, { unique: true });
 
                 await db.collection('invites').add({
                     id: user.id,
@@ -418,7 +418,7 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
                     channel: channel.id,
                 });
 
-                const invite = await setup.secondary.guild.invites.create(channel.id, { maxUses: 1, unique: true });
+                const invite = await setup.secondary.guild.invites.create(channel.id, { unique: true });
 
                 await db.collection('invites').add({
                     id: user.id,
@@ -565,7 +565,7 @@ export async function endGame(interaction: ChatInputCommandInteraction) {
         } else {
             console.log(setup.tertiary.guild, gameSetup.mafia.id);
 
-            const invite = await setup.tertiary.guild.invites.create(gameSetup.mafia.id, { maxUses: 1, unique: true });
+            const invite = await setup.tertiary.guild.invites.create(gameSetup.mafia.id, { unique: true });
 
             await db.collection('invites').add({
                 id: user.id,

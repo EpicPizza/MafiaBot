@@ -443,7 +443,7 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
 
                 if(channel == undefined || channel.type != ChannelType.GuildText) throw new Error("Unable to make invite for dead chat.");
 
-                const invite = await setup.secondary.guild.invites.create(channel, { maxUses: 1, unique: true });
+                const invite = await setup.secondary.guild.invites.create(channel, { unique: true });
 
                 await db.collection('invites').add({
                     id: mod.id,
@@ -469,7 +469,7 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
 
                 if(channel == undefined || channel.type != ChannelType.GuildText) throw new Error("Unable to make invite for dead chat.");
 
-                const invite = await setup.tertiary.guild.invites.create(channel, { maxUses: 1, unique: true });
+                const invite = await setup.tertiary.guild.invites.create(channel, { unique: true });
 
                 await db.collection('invites').add({
                     id: mod.id,

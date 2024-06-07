@@ -310,7 +310,7 @@ module.exports = {
 
                     if(channel == undefined || channel.type != ChannelType.GuildText) throw new Error("Unable to make invite for dead chat.");
 
-                    const invite = await setup.secondary.guild.invites.create(channel, { maxUses: 1, unique: true });
+                    const invite = await setup.secondary.guild.invites.create(channel, { unique: true });
 
                     await db.collection('invites').add({
                         id: spectator.id,
@@ -331,7 +331,7 @@ module.exports = {
 
                     if(channel == undefined || channel.type != ChannelType.GuildText) throw new Error("Unable to make invite for dead chat.");
 
-                    const invite = await setup.tertiary.guild.invites.create(channel, { maxUses: 1, unique: true });
+                    const invite = await setup.tertiary.guild.invites.create(channel, { unique: true });
 
                     await db.collection('invites').add({
                         id: spectator.id,
@@ -451,7 +451,7 @@ module.exports = {
 
                             await channel.send("You are mafia! \nYou now have access to mafia chat.");
                         } else {
-                            const invite = await setup.tertiary.guild.invites.create((await gameSetup).mafia, { maxUses: 1, unique: true });
+                            const invite = await setup.tertiary.guild.invites.create((await gameSetup).mafia, { unique: true });
 
                             const db = firebaseAdmin.getFirestore();
 
