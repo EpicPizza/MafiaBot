@@ -273,7 +273,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction) {
 
     const docs = (await ref.get()).docs;
 
-    let list = [] as { name: string, messages: number, words: number}[];
+    let list = [] as { name: string, id: string, messages: number, words: number, show: boolean }[];
 
     for(let i = 0; i < docs.length; i++) {
         const data = docs[i].data();
@@ -283,13 +283,19 @@ async function handleStatsList(interaction: ChatInputCommandInteraction) {
         if(data) {
             list.push({
                 name: user ? user.nickname : "<@" + docs[i].id + ">",
+                id: docs[i].id,
                 messages: data.messages,
-                words: data.words
+                words: data.words,
+                show: true,
             })
         }
     }
 
     list = list.filter(stat => stat.words > 0);
+    list = list.sort((a, b) => b.messages - a.messages);
+    list = list.filter(stat => which.signups.includes(stat.id));
+
+    const id = (await db.collection('graphs').add({ stats: list, day: game.day, name: game.game, timestamp: interaction.createdAt.valueOf() })).id;
 
     const message = list.reduce((previous, current) => previous += current.name + " » " + current.messages + " message" + (current.messages== 1 ? "" : "s") + " containing " + current.words + " word" + (current.words== 1 ? "" : "s") + "\n", "");
 
@@ -299,7 +305,15 @@ async function handleStatsList(interaction: ChatInputCommandInteraction) {
         .setDescription(message == '' ? "No Stats" : message)
         .setFooter({ text: game.day == day ? "Showing stats for current day (" + day + ")." : "Showing votes for day " + day + "." });
 
-    await interaction.reply({ embeds: [embed] });
+    const row = new ActionRowBuilder<ButtonBuilder>()
+        .addComponents([
+            new ButtonBuilder()
+                .setLabel("Graph")
+                .setStyle(ButtonStyle.Link)
+                .setURL((process.env.DEV == "TRUE" ? process.env.DEVDOMAIN as string : process.env.DOMAIN as string) + "/stats/" + id)
+        ])
+
+    await interaction.reply({ embeds: [embed], components: [row] });
 }
 
 async function leaveSignup(interaction: ButtonInteraction | ChatInputCommandInteraction, name: string) {

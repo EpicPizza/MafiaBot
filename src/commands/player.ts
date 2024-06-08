@@ -100,11 +100,11 @@ module.exports = {
 
             if(interaction.fields.getTextInputValue('nickname') == "") return await interaction.reply("An error occured, please try again.");
 
-            const requirements = z.string().max(20, "Max length 20 characters.").min(1, "Min length two characters.").regex(/^[a-zA-Z]+$/, "Only letters and - allowed. No spaces.");
+            const requirements = z.string().max(20, "Max length 20 characters.").min(1, "Min length two characters.").regex(/^[a-zA-Z]+$/, "Only letters allowed. No spaces.");
 
             const nickname = requirements.safeParse(interaction.fields.getTextInputValue('nickname'));
 
-            if(!nickname.success) throw new Error("Can only include letters. Max 20, min 2 characters.");
+            if(!nickname.success) throw new Error(nickname.error.flatten().formErrors.join(" "));
 
             const user = await getUser(interaction.user.id);
 
@@ -146,6 +146,10 @@ module.exports = {
 }
 
 async function showModal(interaction: ButtonInteraction | ChatInputCommandInteraction,autoSignUp: boolean, game: string | undefined = undefined) {
+    const current = await getGame();
+
+    if(current.started) throw new Error("Cannot change nickname while game is underway.");
+
     const user = await getUser(interaction.user.id);
     
     const modal = new ModalBuilder()

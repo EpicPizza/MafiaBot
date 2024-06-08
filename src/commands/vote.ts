@@ -96,7 +96,7 @@ module.exports = {
                 let specific = votes.filter(vote => vote.for == user.id);
                 let half = Math.ceil(list.length / 2);
 
-                await setup.primary.chat.send(voter.nickname + " " + (voted ? "voted for " : "removed their vote for ") + user.nickname + "! " + user.nickname + " has " + specific.length + " vote" + (specific.length == 1 ? "" : "s") + "." + (half - specific.length < 4 && half - specific.length > 0 ? " " + (half - specific.length) + " vote" + (half - specific.length == 1 ? "" : "s") + " until hammer!" : ""));
+                await setup.primary.chat.send(voter.nickname + " " + (voted ? "voted for " : "removed their vote for ") + user.nickname + "!" + (half - specific.length < 4 && half - specific.length > 0 ? " " + (half - specific.length) + " vote" + (half - specific.length == 1 ? "" : "s") + " until hammer!" : ""));
 
                 if(specific.length >= half) {
                     await lockGame();

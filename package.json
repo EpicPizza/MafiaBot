@@ -15,6 +15,7 @@
     "date-and-time": "^3.3.0",
     "discord.js": "^14.15.2",
     "dotenv": "^16.4.5",
+    "express": "^4.19.2",
     "firebase-admin": "^12.1.1",
     "luxon": "^3.4.4",
     "parse-human-relative-time": "^3.0.2",

@@ -219,12 +219,12 @@ export async function createGame(interaction: ChatInputCommandInteraction) {
 
     if(exists) throw new Error("Duplicate game names not allowed.");
 
-    const requirements = z.string().max(20, "Max length 20 characters.").regex(/^[a-zA-Z]+$/, "Only letters and - allowed. No spaces.");
+    const requirements = z.string().max(20, "Max length 20 characters.").regex(/^[a-zA-Z_]+( [a-zA-Z_]+)*$/, "Only letters and spaces allowed.");
 
     const check = requirements.safeParse(name);
 
     if(!check.success) {
-        return await interaction.reply({ ephemeral: true, content: "Name Error - " + check.error.message });
+        return await interaction.reply({ ephemeral: true, content: "Name Error - " + check.error.flatten().formErrors.join(" ") });
     }
 
     await interaction.deferReply({ ephemeral: true });
