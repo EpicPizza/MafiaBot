@@ -295,7 +295,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction) {
     list = list.sort((a, b) => b.messages - a.messages);
     list = list.filter(stat => which.signups.includes(stat.id));
 
-    const id = (await db.collection('graphs').add({ stats: list, day: game.day, name: game.game, timestamp: interaction.createdAt.valueOf() })).id;
+    const id = (await db.collection('graphs').add({ stats: list, day: game.day, name: which.name, timestamp: interaction.createdAt.valueOf() })).id;
 
     const message = list.reduce((previous, current) => previous += current.name + " » " + current.messages + " message" + (current.messages== 1 ? "" : "s") + " containing " + current.words + " word" + (current.words== 1 ? "" : "s") + "\n", "");
 
