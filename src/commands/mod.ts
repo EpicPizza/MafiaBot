@@ -629,6 +629,13 @@ async function handleLocking(interaction: ChatInputCommandInteraction, type: boo
     for(let i = 0; i < 24; i++) {
         date.setHours(date.getHours() + 1);
 
+        if(date.getHours() > 22) {
+            date.setHours(10);
+            date.setDate(date.getDate() + 1);
+        } else if(date.getHours() < 10) {
+            date.setHours(10)
+        }
+
         select.addOptions(
             new StringSelectMenuOptionBuilder()
                 .setLabel(dnt.format(date, "h:mm A, M/DD/YY"))
