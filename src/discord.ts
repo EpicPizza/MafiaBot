@@ -112,6 +112,10 @@ client.on(Events.ClientReady, async () => {
 
 client.on(Events.MessageCreate, async (message) => {
     try {
+        if(message.content == "?test") {
+            return await message.reply("Hi, please use slash commands to run this bot.");
+        }
+
         if(message.content.startsWith("?dm")) {
             const setup = await getSetup();
 

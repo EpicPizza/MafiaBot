@@ -131,7 +131,7 @@ module.exports = {
                             
                         )
                 )
-                .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels)
+                .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
         },
         {
             type: 'button',
@@ -193,7 +193,7 @@ module.exports = {
             return await interaction.reply({ content: "Database setup.", ephemeral: true });
         }
 
-        if(interaction.member && interaction.memberPermissions && !interaction.memberPermissions.has(PermissionFlagsBits.ManageChannels)) throw new Error("You are not admin!");
+        if(interaction.member && interaction.memberPermissions && !interaction.memberPermissions.has(PermissionFlagsBits.ManageRoles)) throw new Error("You are not admin!");
 
         const db = firebaseAdmin.getFirestore();
 
