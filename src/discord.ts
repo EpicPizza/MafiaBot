@@ -1,4 +1,4 @@
-import { ChannelType, Client, Collection, ContextMenuCommandBuilder, Events, GatewayIntentBits, Message, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, TextChannel, WebhookClient } from "discord.js";
+import { ChannelType, Client, Collection, ContextMenuCommandBuilder, EmbedBuilder, Events, GatewayIntentBits, Message, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, TextChannel, WebhookClient } from "discord.js";
 import dotenv from 'dotenv';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -114,6 +114,27 @@ client.on(Events.MessageCreate, async (message) => {
     try {
         if(message.content == "?test") {
             return await message.reply("Hi, please use slash commands to run this bot.");
+        }
+
+        if(message.content == "?check") {
+            const setup = await getSetup();
+
+            if(typeof setup == 'string') return await message.react("⚠️");
+
+            if(message.channel.type == ChannelType.GuildText && setup.secondary.dms.id != message.channel.parentId) return await message.react("⚠️");
+
+            const db = firebaseAdmin.getFirestore();
+
+            const ref = db.collection('users').where('channel', '==', message.channelId);
+
+            const docs = (await ref.get()).docs;
+
+            const embed = new EmbedBuilder()
+                .setTitle("Matched Users")
+                .setColor('Orange')
+                .setDescription(docs.length == 0 ? "No users matched." : docs.reduce((prev, current) => { return prev + "<@" + current.id + ">\n" }, ""))
+
+            message.reply({ embeds: [embed] });
         }
 
         if(message.content.startsWith("?dm")) {
