@@ -296,8 +296,8 @@ Tertiary ongoing category: https://discord.com/channels/${setup.tertiary.guild.i
 Tertiary archive category: https://discord.com/channels/${setup.tertiary.guild.id}/${setup.tertiary.archive.id}
 
 Primary mod role: <@&${setup.primary.mod.id}>
-Primary mod alive: <@&${setup.primary.alive.id}>
-Primary mod gang: <@&${setup.primary.gang.id}>
+Primary alive role: <@&${setup.primary.alive.id}>
+Primary gang role: <@&${setup.primary.gang.id}>
 Secondary mod role: <@&${setup.secondary.mod.id}>
 Secondary spec role: <@&${setup.secondary.spec.id}>
 Secondary access role: <@&${setup.secondary.access.id}>
