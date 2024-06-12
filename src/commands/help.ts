@@ -199,11 +199,11 @@ const help = `This bot is primarly used through slash commands. Each category of
 3. Follow instructions by mod in dms.
 4. Use player commands to play 👍.`
 
-const playerCommandsInGame = `**/game players** View remaining players of current mafia game (specify game name to view original signups). Complete option will also give all @.
+const playerCommandsInGame = `**/players** View remaining players of current mafia game (specify game name to view original signups). Complete option will also give all @.
 
-**/game votes** View current votes (and specify day to view votes from that day).
+**/votes** View current votes (and specify day to view votes from that day).
 
-**/game stats** View message and word count for each player (and specify day to view stats from that day).
+**/stats** View message and word count for each player (and specify day to view stats from that day).
 
 **/vote** Vote for a player. Specify the same player to remove your vote, or a new player to change your vote.
 
@@ -213,11 +213,11 @@ const playerCommandsPreGame = `**/player nickname** Add/edit your nickname. You'
 
 **/player info** Check the nickname or @ of a player with their nickname or @.
 
-**/game signup** Signup for a game with the game name.
+**/signup** Signup for a game with the game name.
 
-**/game leave** Remove signup for a game with the game name.
+**/leave** Remove signup for a game with the game name.
 
-**/game players** Specify game name to view signups for a game.`
+**/players** Specify game name to view signups for a game.`
 
 const modCommandsPreGame =`**/mod create** Creates a new game. Also makes spectator and mafia channels for that game.
 
