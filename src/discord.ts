@@ -120,8 +120,8 @@ client.on(Events.MessageCreate, async (message) => {
             const setup = await getSetup();
 
             if(typeof setup == 'string') return await message.react("⚠️");
-
-            if(message.channel.type == ChannelType.GuildText && setup.secondary.dms.id != message.channel.parentId) return await message.react("⚠️");
+            if(message.channel.type != ChannelType.GuildText ) return await message.react("⚠️");
+            if(setup.secondary.dms.id != message.channel.parentId) return await message.react("⚠️");
 
             const db = firebaseAdmin.getFirestore();
 
