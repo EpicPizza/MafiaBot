@@ -336,6 +336,30 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
 
             if(typeof setup == 'string' || setup == undefined) return await interaction.editReply({ content: setup ? setup : "Something went wrong." });
 
+            await setup.primary.chat.permissionOverwrites.create(setup.primary.mod, {
+                ViewChannel: true,
+                ManageChannels: true,
+                ManageRoles: true,
+                ManageWebhooks: true,
+                SendMessages: true,
+                SendMessagesInThreads: true,
+                CreatePublicThreads: true,
+                CreatePrivateThreads: true,
+                EmbedLinks: true,
+                AttachFiles: true,
+                AddReactions: true,
+                UseExternalEmojis: true,
+                UseExternalStickers: true,
+                MentionEveryone: true,
+                ManageMessages: true,
+                ManageThreads: true,
+                ReadMessageHistory: true,
+                SendTTSMessages: true,
+                SendVoiceMessages: true,
+                SendPolls: true,
+                UseApplicationCommands: true,
+            });
+
             if(global.started == false) {
                 await setup.primary.chat.permissionOverwrites.create(setup.primary.alive, {});
 
