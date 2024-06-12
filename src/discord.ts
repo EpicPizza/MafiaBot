@@ -7,7 +7,7 @@ import { archiveMessage } from "./archive";
 import { checkFutureLock } from "./utils/timing";
 import { firebaseAdmin } from "./firebase";
 import { getSetup } from "./utils/setup";
-import { editOverwrites, generateOverwrites, getGame } from "./utils/game";
+import { editOverwrites, generateOverwrites, getGlobal } from "./utils/game";
 import { getUser } from "./utils/user";
 import { FieldValue } from "firebase-admin/firestore";
 
@@ -84,10 +84,10 @@ client.on(Events.ClientReady, async () => {
     console.log("Bot is ready!");
 
     try {
-        const game = await getGame();
+        const global = await getGlobal();
 
-        cache.day = game.day;   
-        cache.started = game.started;
+        cache.day = global.day;   
+        cache.started = global.started;
     } catch(e) {
         console.log(e);
     }
@@ -96,13 +96,13 @@ client.on(Events.ClientReady, async () => {
         try {
             await checkFutureLock();
 
-            const game = await getGame();
+            const global = await getGlobal();
             const setup = await getSetup();
 
             if(typeof setup == 'string') return;
 
-            cache.day = game.day;   
-            cache.started = game.started;
+            cache.day = global.day;   
+            cache.started = global.started;
             cache.channel = setup.primary.chat.id;
         } catch(e) {
             console.log(e);
@@ -284,9 +284,9 @@ client.on(Events.GuildMemberAdd, async (member) => {
             case 'joining':
                 console.log("STEP 4", data.type);
 
-                const game = await getGame();
+                const global = await getGlobal();
 
-                if(!game.started) return;
+                if(!global.started) return;
 
                 if(setup.secondary.guild.id != member.guild.id) return;
 

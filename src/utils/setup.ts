@@ -1,7 +1,6 @@
 import { CategoryChannel, ChannelType, Guild, PermissionsBitField, Role, TextChannel } from "discord.js";
 import client from "../discord";
 import { firebaseAdmin } from "../firebase";
-import { getGame } from "./game";
 import { z } from "zod";
 
 const PartialSetup = z.object({
@@ -59,9 +58,9 @@ export async function getSetup() {
 
     const setup = parse.data;
 
-    const primary = fetchGuild(setup.primary.guild, [ PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.EmbedLinks, PermissionsBitField.Flags.ManageRoles ], "Primary server");
-    const secondary = fetchGuild(setup.secondary.guild, [ PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.EmbedLinks, PermissionsBitField.Flags.ManageChannels, PermissionsBitField.Flags.ManageRoles, PermissionsBitField.Flags.CreateInstantInvite ], "Secondary server");
-    const tertiary = fetchGuild(setup.tertiary.guild, [ PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.EmbedLinks, PermissionsBitField.Flags.ManageChannels, PermissionsBitField.Flags.KickMembers, PermissionsBitField.Flags.CreateInstantInvite ], "Tertiary server");
+    const primary = fetchGuild(setup.primary.guild, [ PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.EmbedLinks, PermissionsBitField.Flags.ManageRoles ], "Primary server");
+    const secondary = fetchGuild(setup.secondary.guild, [ PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.EmbedLinks, PermissionsBitField.Flags.ManageChannels, PermissionsBitField.Flags.ManageRoles, PermissionsBitField.Flags.CreateInstantInvite ], "Secondary server");
+    const tertiary = fetchGuild(setup.tertiary.guild, [ PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.EmbedLinks, PermissionsBitField.Flags.ManageChannels, PermissionsBitField.Flags.KickMembers, PermissionsBitField.Flags.CreateInstantInvite ], "Tertiary server");
 
     const alive = fetchRole(setup.primary.alive, setup.primary.guild, "Primary alive role");
     const primaryMod = fetchRole(setup.primary.mod, setup.primary.guild, "Primary mod role");

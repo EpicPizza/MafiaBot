@@ -2,7 +2,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatIn
 import { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { set, z } from "zod";
-import { activateSignup, addSignup, getGame, getGameByName, lockGame, refreshSignup, removeSignup } from "../utils/game";
+import { activateSignup, addSignup, getGlobal, getGameByName, lockGame, refreshSignup, removeSignup } from "../utils/game";
 import { User, getUser } from "../utils/user";
 import { getVotes, refreshCommands, removeVote, setVote } from "../utils/vote";
 import { getSetup } from "../utils/setup";
@@ -26,9 +26,9 @@ module.exports = {
     ] satisfies Data[],
 
     execute: async (interaction: ChatInputCommandInteraction ) => {
-        const game = await getGame();
+        const global = await getGlobal();
 
-        if(game.started == false) throw new Error("Game has not started.");
+        if(global.started == false) throw new Error("Game has not started.");
         
         const setup = await getSetup();
 
@@ -42,8 +42,8 @@ module.exports = {
 
         const list = [] as User[];
 
-        for(let i = 0; i < game.players.length; i++) {
-            const user = await getUser(game.players[i].id);
+        for(let i = 0; i < global.players.length; i++) {
+            const user = await getUser(global.players[i].id);
 
             if(user == null) throw new Error("User not registered.");
 
@@ -65,27 +65,27 @@ module.exports = {
 
                 if(typeof setup == 'string') throw new Error("Setup Incomplete");
 
-                let votes = await getVotes({ day: game.day });
+                let votes = await getVotes({ day: global.day });
 
                 const vote = votes.find(vote => vote.id == interaction.user.id);
 
                 let voted = false;
 
                 if(vote == undefined) {
-                    setVote({ for: user.id, id: interaction.user.id, day: game.day });
+                    setVote({ for: user.id, id: interaction.user.id, day: global.day });
                     
                     votes.push({ for: user.id, id: interaction.user.id });
 
                     voted = true;
                 } else {
-                    removeVote({ id: interaction.user.id, day: game.day });
+                    removeVote({ id: interaction.user.id, day: global.day });
 
                     votes = votes.filter(vote => vote.id != interaction.user.id);
 
                     voted = false;
 
                     if(vote.for != user.id) {
-                        setVote({ for: user.id, id: interaction.user.id, day: game.day });
+                        setVote({ for: user.id, id: interaction.user.id, day: global.day });
                     
                         votes.push({ for: user.id, id: interaction.user.id });
 

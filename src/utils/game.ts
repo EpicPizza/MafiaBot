@@ -8,7 +8,7 @@ import { getSetup } from "./setup";
 import { z } from "zod";
 import { refreshCommands } from "./vote";
 
-export async function getGame(t: Transaction | undefined = undefined) {
+export async function getGlobal(t: Transaction | undefined = undefined) {
     const db = firebaseAdmin.getFirestore();
 
     const ref = db.collection('settings').doc('game');
@@ -89,13 +89,13 @@ export function editOverwrites() {
 }
 
 export async function unlockGame(increment: boolean = false) {
-    const game = await getGame();
+    const global = await getGlobal();
     const setup = await getSetup();
 
     if(setup == undefined) throw new Error("Setup not complete.");
     if(typeof setup == 'string') throw new Error("An unexpected error occurred.");
-    if(!game.started) return await setup.primary.chat.send("Failed to unlock channel, game has not started.");
-    if(!game.locked) throw new Error("Already unlocked.");
+    if(!global.started) return await setup.primary.chat.send("Failed to unlock channel, game has not started.");
+    if(!global.locked) throw new Error("Already unlocked.");
 
     const db = firebaseAdmin.getFirestore();
 
@@ -104,11 +104,11 @@ export async function unlockGame(increment: boolean = false) {
     await ref.update({
         started: true,
         locked: false,
-        day: increment ? game.day + 1 : game.day,
+        day: increment ? global.day + 1 : global.day,
     });
 
-    await db.collection('day').doc((increment ? game.day + 1 : game.day).toString()).set({
-        game: game.game,
+    await db.collection('day').doc((increment ? global.day + 1 : global.day).toString()).set({
+        game: global.game,
     })
 
     await setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game has unlocked!");
@@ -142,13 +142,13 @@ export async function unlockGame(increment: boolean = false) {
 }
 
 export async function lockGame() {
-    const game = await getGame();
+    const global = await getGlobal();
     const setup = await getSetup();
 
     if(setup == undefined) throw new Error("Setup not complete.");
     if(typeof setup == 'string') throw new Error("An unexpected error occurred.");
-    if(!game.started) return await setup.primary.chat.send("Failed to unlock channel, game has not started.");
-    if(game.locked) throw new Error("Already locked.");
+    if(!global.started) return await setup.primary.chat.send("Failed to unlock channel, game has not started.");
+    if(global.locked) throw new Error("Already locked.");
 
     const db = firebaseAdmin.getFirestore();
 
@@ -182,11 +182,11 @@ export async function lockGame() {
 export async function archiveGame(interaction: ChatInputCommandInteraction, name: string) {
     const setup = await getSetup();
     const game = await getGameByName(name);
-    const main = await getGame();
+    const global = await getGlobal();
 
     if(typeof setup == 'string') throw new Error("Setup Incomplete");
-    if(game == null || main == null) throw new Error("Game not found.");
-    if(main.game == game.id && main.started) throw new Error("Game in progress.");
+    if(game == null || global == null) throw new Error("Game not found.");
+    if(global.game == game.id && global.started) throw new Error("Game in progress.");
 
     const spec = await setup.secondary.guild.channels.fetch(game.channels.spec).catch(() => undefined);
     if(spec != undefined && spec.type == ChannelType.GuildText) await spec.setParent(setup.secondary.archive, { lockPermissions: true });
@@ -224,7 +224,7 @@ export async function createGame(interaction: ChatInputCommandInteraction) {
     const check = requirements.safeParse(name);
 
     if(!check.success) {
-        return await interaction.reply({ ephemeral: true, content: "Name Error - " + check.error.flatten().formErrors.join(" ") });
+        throw new Error("Name Error - " + check.error.flatten().formErrors.join(" "));
     }
 
     await interaction.deferReply({ ephemeral: true });
@@ -260,8 +260,8 @@ function getRandom(min: number, max: number) {
 }
 
 export async function startGame(interaction: ChatInputCommandInteraction, name: string, lock: boolean = false) {
-    const game = await getGame();
-    const which = await getGameByName(name);
+    const global = await getGlobal();
+    const game = await getGameByName(name);
     const setup = await getSetup();
 
     await deleteCollection(firebaseAdmin.getFirestore(), "day", 20);
@@ -269,16 +269,16 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
 
     if(setup == undefined) throw new Error("Setup not complete.");
     if(typeof setup == 'string') throw new Error("An unexpected error occurred.");
-    if(game.started) throw new Error("Game has already started.");
-    if(which == null) throw new Error("Game not found.");
-    if(which.signups.length == 0) throw new Error("Game must have more than one player.");
+    if(global.started) throw new Error("Game has already started.");
+    if(game == null) throw new Error("Game not found.");
+    if(game.signups.length == 0) throw new Error("Game must have more than one player.");
 
-    for(let i = 0; i < which.signups.length; i++) { //chances someone is not the server is not zero (cough cough someone cough), check here to prevent game from starting if there is someone missing
-        const player = await setup.primary.guild.members.fetch(which.signups[i]).catch(() => undefined);
-        if(player == null) throw new Error("Member not found. <@" + which.signups[i] + ">");
+    for(let i = 0; i < game.signups.length; i++) { //chances someone is not the server is not zero (cough cough someone cough), check here to prevent game from starting if there is someone missing
+        const player = await setup.primary.guild.members.fetch(game.signups[i]).catch(() => undefined);
+        if(player == null) throw new Error("Member not found. <@" + game.signups[i] + ">");
     }
 
-    const gameSetup = await getGameSetup(which, setup);
+    const gameSetup = await getGameSetup(game, setup);
 
     await interaction.deferReply({ ephemeral: true });
 
@@ -303,16 +303,16 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
     await ref.update({
         started: true,
         locked: lock,
-        game: which.id,
-        players: which.signups.map((signup) => { return { id: signup, allignment: null } }),
+        game: game.id,
+        players: game.signups.map((signup) => { return { id: signup, allignment: null } }),
         day: 0,
     });
 
-    await db.collection('settings').doc('game').collection('games').doc(which.id).update({
+    await db.collection('settings').doc('game').collection('games').doc(game.id).update({
         closed: true,
     })
 
-    await refreshSignup(which.name);
+    await refreshSignup(game.name);
 
     if(lock) {
         await setup.primary.chat.permissionOverwrites.create(setup.primary.alive.id, {});
@@ -362,21 +362,21 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
 
     const playerList: string[] = [];
 
-    for(let i = 0; i < which.signups.length; i++) {
-        const member = await setup.secondary.guild.members.fetch(which.signups[i]).catch(() => undefined);
-        const user = await getUser(which.signups[i]);
+    for(let i = 0; i < game.signups.length; i++) {
+        const member = await setup.secondary.guild.members.fetch(game.signups[i]).catch(() => undefined);
+        const user = await getUser(game.signups[i]);
 
-        const player = await setup.primary.guild.members.fetch(which.signups[i]).catch(() => undefined);
+        const player = await setup.primary.guild.members.fetch(game.signups[i]).catch(() => undefined);
         if(player == null) throw new Error("Member not found.");
         await player.roles.add(setup.primary.alive);
 
-        const dead = await setup.secondary.guild.members.fetch(which.signups[i]).catch(() => undefined);
+        const dead = await setup.secondary.guild.members.fetch(game.signups[i]).catch(() => undefined);
         if(dead != null) {
             await dead.roles.remove(setup.secondary.spec);
             await dead.roles.remove(setup.secondary.access);
         }
 
-        const mafiaMember = await setup.tertiary.guild.members.fetch(which.signups[i]).catch(() => undefined);
+        const mafiaMember = await setup.tertiary.guild.members.fetch(game.signups[i]).catch(() => undefined);
         if(mafiaMember?.joinedTimestamp) {
             await mafiaMember.roles.remove(setup.tertiary.spec);
             await mafiaMember.roles.remove(setup.tertiary.access);
@@ -403,7 +403,7 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
                     timestamp: new Date().valueOf(),
                 });
                 
-                const dm = await client.users.cache.get(which.signups[i])?.createDM();
+                const dm = await client.users.cache.get(game.signups[i])?.createDM();
 
                 if(!dm) return await gameSetup.spec.send("Unable to send dms to " + user.nickname + ".");
 
@@ -426,7 +426,7 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
                     timestamp: new Date().valueOf(),
                 });
 
-                const dm = await client.users.cache.get(which.signups[i])?.createDM();
+                const dm = await client.users.cache.get(game.signups[i])?.createDM();
 
                 if(!dm) return await gameSetup.spec.send("Unable to send dms to " + user.nickname + ".");
 
@@ -487,16 +487,16 @@ export async function getGameSetup(game: Signups, setup: Exclude<Awaited<ReturnT
 }
 
 export async function endGame(interaction: ChatInputCommandInteraction) {
-    const game = await getGame();
-    const which = await getGameByID(game.game ?? "bruh");
+    const global = await getGlobal();
+    const game = await getGameByID(global.game ?? "bruh");
     const setup = await getSetup();
 
-    if(setup == undefined) return await interaction.reply({ ephemeral: true, content: "Setup not complete." });
-    if(typeof setup == 'string') return await interaction.reply({ ephemeral: true, content: "An unexpected error occurred." });
-    if(!game.started) return await interaction.reply({ ephemeral: true, content: "Game has not started." });
-    if(which == null) return await interaction.reply({ ephemeral: true, content: "Game not found." });
+    if(setup == undefined) throw new Error("Setup not complete.");
+    if(typeof setup == 'string') throw new Error("An unexpected error occurred." );
+    if(!global.started) throw new Error("Game has not started." );
+    if(game == null) throw new Error("Game not found.");
 
-    const gameSetup = await getGameSetup(which, setup);
+    const gameSetup = await getGameSetup(game, setup);
 
     await interaction.deferReply({ ephemeral: true });
 
@@ -545,11 +545,11 @@ export async function endGame(interaction: ChatInputCommandInteraction) {
         await channels[i].setParent(setup.secondary.archivedDms, { lockPermissions: true });
     }
 
-    for(let i = 0; i < which.signups.length; i++) {
-        const member = await setup.secondary.guild.members.fetch(which.signups[i]).catch(() => undefined);
-        const user = await getUser(which.signups[i]);
+    for(let i = 0; i < game.signups.length; i++) {
+        const member = await setup.secondary.guild.members.fetch(game.signups[i]).catch(() => undefined);
+        const user = await getUser(game.signups[i]);
 
-        const player = await setup.primary.guild.members.fetch(which.signups[i]).catch(() => undefined);
+        const player = await setup.primary.guild.members.fetch(game.signups[i]).catch(() => undefined);
         if(player == null || user == null) throw new Error("Member not found.");
         await player.roles.remove(setup.primary.alive);
 
@@ -558,7 +558,7 @@ export async function endGame(interaction: ChatInputCommandInteraction) {
             member.roles.remove(setup.secondary.access);
         }
 
-        const mafiaMember = await setup.tertiary.guild.members.fetch(which.signups[i]).catch(() => undefined);
+        const mafiaMember = await setup.tertiary.guild.members.fetch(game.signups[i]).catch(() => undefined);
         if(mafiaMember) {
             await mafiaMember.roles.add(setup.tertiary.spec);
             await mafiaMember.roles.remove(setup.tertiary.access);
@@ -573,7 +573,7 @@ export async function endGame(interaction: ChatInputCommandInteraction) {
                 timestamp: new Date().valueOf(),
             });
                 
-            const dm = await client.users.cache.get(which.signups[i])?.createDM();
+            const dm = await client.users.cache.get(game.signups[i])?.createDM();
 
             if(!dm) return await gameSetup.spec.send("Unable to send dms to " + user.nickname + ".");
 
@@ -684,9 +684,9 @@ export async function removeSignup(options: { id: string, game: string }) {
 
 export async function openSignups(name: string) {
     const game = await getGameByName(name);
-    const main = await getGame();
+    const global = await getGlobal();
 
-    if(main.started) throw new Error("Game has already started, sign ups are closed.");
+    if(global.started) throw new Error("Game has already started, sign ups are closed.");
     if(game == null) throw new Error("Game not found." )
 
     const db = firebaseAdmin.getFirestore();
@@ -700,9 +700,9 @@ export async function openSignups(name: string) {
 
 export async function closeSignups(name: string) {
     const game = await getGameByName(name);
-    const main = await getGame();
+    const global = await getGlobal();
 
-    if(main.started) throw new Error("Game has already started, sign ups are closed.");
+    if(global.started) throw new Error("Game has already started, sign ups are closed.");
     if(game == null) throw new Error("Game not found.")
 
     const db = firebaseAdmin.getFirestore();
@@ -720,16 +720,16 @@ export async function editPlayer(options: { id: string, alignment: 'mafia' | 'ne
     const ref = db.collection('settings').doc('game');
 
     await db.runTransaction(async t => {
-        const game = await getGame(t);
+        const global = await getGlobal(t);
 
-        const player = game.players.find((value) => { value.id == options.id });
+        const player = global.players.find((value) => { value.id == options.id });
 
         if(player) {
             player.alignment = options.alignment;
         }
 
         t.update(ref, {
-            players: game.players
+            players: global.players
         })
     })
 }
@@ -831,14 +831,14 @@ export async function refreshSignup(name: string) {
 }
 
 export async function refreshPlayers() {
-    const game = await getGame();
+    const global = await getGlobal();
 
-    if(game.started == false) throw new Error("Game has not started.");
+    if(global.started == false) throw new Error("Game has not started.");
 
     const list = [] as User[];
 
-    for(let i = 0; i < game.players.length; i++) {
-        const user = await getUser(game.players[i].id);
+    for(let i = 0; i < global.players.length; i++) {
+        const user = await getUser(global.players[i].id);
 
         if(user == null) throw new Error("User not registered.");
 
@@ -857,23 +857,23 @@ export async function setAllignments() {
 
     const rows = [] as ActionRowBuilder<ButtonBuilder>[]
 
-    const game = await getGame();
+    const global = await getGlobal();
 
-    if(game.game == null) throw new Error("Game not found.");
+    if(global.game == null) throw new Error("Game not found.");
 
-    const which = await getGameByID(game.game);
+    const game = await getGameByID(global.game);
     const setup = await getSetup();
 
     if(setup == undefined) throw new Error("Setup not complete.");
     if(typeof setup == 'string') throw new Error("An unexpected error occurred.");
-    if(!game.started) throw new Error("Game has not started.");
-    if(which == null) throw new Error("Game not found.");
-    if(which.signups.length == 0) throw new Error("Game must have more than one player.");
+    if(!global.started) throw new Error("Game has not started.");
+    if(game == null) throw new Error("Game not found.");
+    if(game.signups.length == 0) throw new Error("Game must have more than one player.");
 
-    const gameSetup = await getGameSetup(which, setup);
+    const gameSetup = await getGameSetup(game, setup);
     
-    for(let i = 0; i < which.signups.length; i = i + 5) {
-        const users = [await getPlayer(which.signups.at(i) ?? "", game), await getPlayer(which.signups.at(i + 1) ?? "", game), await getPlayer(which.signups.at(i + 2) ?? "", game), await getPlayer(which.signups.at(i + 3) ?? "", game), await getPlayer(which.signups.at(i + 4) ?? "", game)];
+    for(let i = 0; i < game.signups.length; i = i + 5) {
+        const users = [await getPlayer(game.signups.at(i) ?? "", global), await getPlayer(game.signups.at(i + 1) ?? "", global), await getPlayer(game.signups.at(i + 2) ?? "", global), await getPlayer(game.signups.at(i + 3) ?? "", global), await getPlayer(game.signups.at(i + 4) ?? "", global)];
 
         const row = new ActionRowBuilder<ButtonBuilder>();
 
@@ -931,7 +931,7 @@ export async function setAllignments() {
     if(rows.length > 14) await gameSetup.spec.send({ components: rows.filter((v, i) => i > 14 && i < 20) });
 }
 
-async function getPlayer(id: string, game: Awaited<ReturnType<typeof getGame>>) {
+async function getPlayer(id: string, game: Awaited<ReturnType<typeof getGlobal>>) {
     for(let i = 0; i < game.players.length; i++) {
         if(game.players[i].id == id) {
             return game.players[i];

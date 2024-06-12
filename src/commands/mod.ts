@@ -3,7 +3,7 @@ import client, { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { z } from "zod";
 import { createUser, editUser, getUser } from "../utils/user";
-import { activateSignup, archiveGame, closeSignups, createGame, endGame, getGame, getGameByID, getGameByName, getGameSetup, lockGame, openSignups, refreshSignup, removeSignup, setAllignments, startGame, unlockGame } from "../utils/game";
+import { activateSignup, archiveGame, closeSignups, createGame, endGame, getGlobal, getGameByID, getGameByName, getGameSetup, lockGame, openSignups, refreshSignup, removeSignup, setAllignments, startGame, unlockGame } from "../utils/game";
 import { DateTime, SystemZone, Zone } from 'luxon';
 import { getFuture, parse, setFuture } from "../utils/timing";
 import { getSetup } from "../utils/setup";
@@ -265,18 +265,18 @@ module.exports = {
 
                 return await interaction.reply({ content: ping + " has been kicked from " + game.name + ".", ephemeral: true });
             } else if(subcommand == "unlock") {
-                const game = await getGame();
+                const global = await getGlobal();
 
-                if(!game.started) throw new Error("Game not started.");
-                if(game.day == 0) throw new Error("Setup allignments first.");
-                if(!game.locked) throw new Error("Game is already unlocked.");
+                if(!global.started) throw new Error("Game not started.");
+                if(global.day == 0) throw new Error("Setup allignments first.");
+                if(!global.locked) throw new Error("Game is already unlocked.");
 
                 await handleLocking(interaction, false);
             } else if(subcommand == "lock") {
-                const game = await getGame();
+                const global = await getGlobal();
 
-                if(!game.started) throw new Error("Game not started.");
-                if(game.locked) throw new Error("Game is already locked.");
+                if(!global.started) throw new Error("Game not started.");
+                if(global.locked) throw new Error("Game is already locked.");
 
                 await handleLocking(interaction, true);
             } else if(subcommand == "spectator") {
@@ -286,9 +286,9 @@ module.exports = {
 
                 if(spectator == undefined) throw new Error("A member must be specified");
 
-                const game = await getGame();
+                const global = await getGlobal();
 
-                if(game.players.filter(player => player.id == spectator.id).length > 0) throw new Error("Cannot give spectator to a player.");
+                if(global.players.filter(player => player.id == spectator.id).length > 0) throw new Error("Cannot give spectator to a player.");
 
 
                 const dm = await client.users.cache.get(spectator.id)?.createDM();
@@ -362,9 +362,9 @@ module.exports = {
 
                 return await createSignups(interaction, game);
             } else if(id.name == "change-alignment") {
-                const game = await getGame();
+                const global = await getGlobal();
 
-                if((game.day != 0 && game.started) || !game.started) throw new Error("Command cannot be run.");
+                if((global.day != 0 && global.started) || !global.started) throw new Error("Command cannot be run.");
 
                 const components = (interaction.message.toJSON() as any).components as APIActionRowComponent<APIButtonComponent>[]
                 const player = id.id as string;
@@ -397,16 +397,16 @@ module.exports = {
                 const ref = db.collection('settings').doc('game');
 
                 await db.runTransaction(async t => {
-                    const game = await getGame(t);
+                    const global = await getGlobal(t);
 
-                    for(let i = 0; i < game.players.length; i++) {
-                        if(game.players[i].id == player) {
-                            game.players[i].alignment = alignment;
+                    for(let i = 0; i < global.players.length; i++) {
+                        if(global.players[i].id == player) {
+                            global.players[i].alignment = alignment;
                         }
                     }
 
                     t.update(ref, {
-                        players: game.players
+                        players: global.players
                     })
                 })
 
@@ -424,20 +424,20 @@ module.exports = {
                     }
                 }
 
-                const game = await getGame();
+                const global = await getGlobal();
                 const setup = await getSetup();
-                const which = await getGameByID(game.game ?? "");
+                const which = await getGameByID(global.game ?? "");
                 
                 if(typeof setup == 'string') throw new Error("Setup Incomplete");
                 if(which == null) throw new Error("Game not found.");
 
                 const gameSetup = getGameSetup(which, setup);
 
-                for(let i = 0; i < game.players.length; i++) {
-                    if(game.players[i].alignment == 'mafia') {
-                        const mafiaMember = await setup.tertiary.guild.members.fetch(game.players[i].id).catch(() => undefined);
+                for(let i = 0; i < global.players.length; i++) {
+                    if(global.players[i].alignment == 'mafia') {
+                        const mafiaMember = await setup.tertiary.guild.members.fetch(global.players[i].id).catch(() => undefined);
 
-                        const user = await getUser(game.players[i].id);
+                        const user = await getUser(global.players[i].id);
 
                         if(user == undefined || user.channel == null) throw new Error("User not found/setup.");
 
@@ -553,16 +553,16 @@ module.exports = {
 }
 
 async function createSignups(interaction: CommandInteraction | ButtonInteraction, name: string) {
-    const main = await getGame();
+    const global = await getGlobal();
     const game = await getGameByName(name);
     const setup = await getSetup();
 
-    if(main == null || game == null) throw new Error("Could not find game.");
+    if(global == null || game == null) throw new Error("Could not find game.");
     if(typeof setup == 'string') throw new Error("Setup incomplete.");
 
     if(setup.primary.chat.id != interaction.channelId) throw new Error("Cannot create signups in this channel.");
 
-    if(main.started) {
+    if(global.started) {
         return await interaction.reply({
             content: "You cannot create signups for a game thats already started.",
             ephemeral: true,

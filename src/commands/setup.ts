@@ -2,7 +2,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, Channe
 import client, { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { set, z } from "zod";
-import { getGame, refreshPlayers, refreshSignup } from "../utils/game";
+import { getGlobal, refreshPlayers, refreshSignup } from "../utils/game";
 import { User, getUser } from "../utils/user";
 import { getPartialSetup, getSetup } from "../utils/setup";
 import { refreshCommands } from "../utils/vote";
@@ -332,11 +332,11 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
             await interaction.deferReply({ ephemeral: true });
 
             const setup = await getSetup();
-            const game = await getGame();
+            const global = await getGlobal();
 
             if(typeof setup == 'string' || setup == undefined) return await interaction.editReply({ content: setup ? setup : "Something went wrong." });
 
-            if(game.started == false) {
+            if(global.started == false) {
                 await setup.primary.chat.permissionOverwrites.create(setup.primary.alive, {});
 
                 await setup.primary.chat.permissionOverwrites.create(setup.primary.gang, {
@@ -353,7 +353,7 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
                     CreatePrivateThreads: false, 
                     SendMessagesInThreads: false
                 });
-            } else if(game.locked == true) {
+            } else if(global.locked == true) {
                 await setup.primary.chat.permissionOverwrites.create(setup.primary.alive, {});
 
                 await setup.primary.chat.permissionOverwrites.create(setup.primary.gang, {

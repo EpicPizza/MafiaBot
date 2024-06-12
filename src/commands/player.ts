@@ -3,7 +3,7 @@ import { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { z } from "zod";
 import { User, createUser, editUser, getUser, getUserByName } from "../utils/user";
-import { addSignup, getGame, refreshSignup } from "../utils/game";
+import { addSignup, getGlobal, refreshSignup } from "../utils/game";
 
 const setNickname = z.object({
     name: z.literal('set-nickname'),
@@ -94,9 +94,9 @@ module.exports = {
 
             await interaction.reply({ ephemeral: true, content: "Emoji set." })
         } else if(interaction.isModalSubmit()) {
-            const game = await getGame();
+            const global = await getGlobal();
 
-            if(game.started) throw new Error("Nickname cannot be edited durring a game.");
+            if(global.started) throw new Error("Nickname cannot be edited durring a game.");
 
             if(interaction.fields.getTextInputValue('nickname') == "") return await interaction.reply("An error occured, please try again.");
 
@@ -146,9 +146,9 @@ module.exports = {
 }
 
 async function showModal(interaction: ButtonInteraction | ChatInputCommandInteraction,autoSignUp: boolean, game: string | undefined = undefined) {
-    const current = await getGame();
+    const global = await getGlobal();
 
-    if(current.started) throw new Error("Cannot change nickname while game is underway.");
+    if(global.started) throw new Error("Cannot change nickname while game is underway.");
 
     const user = await getUser(interaction.user.id);
     

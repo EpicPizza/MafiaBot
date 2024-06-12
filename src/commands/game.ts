@@ -2,7 +2,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatIn
 import { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { z } from "zod";
-import { activateSignup, addSignup, getGame, getGameByID, getGameByName, getGameSetup, refreshSignup, removeSignup } from "../utils/game";
+import { activateSignup, addSignup, getGlobal, getGameByID, getGameByName, getGameSetup, refreshSignup, removeSignup } from "../utils/game";
 import { User, getUser } from "../utils/user";
 import { getSetup } from "../utils/setup";
 import { getVotes } from "../utils/vote";
@@ -134,7 +134,7 @@ async function handlePlayerList(interaction: ChatInputCommandInteraction) {
     const reference = interaction.options.getString("game");
 
     if(reference == null || reference == "") {
-        const game = await getGame();
+        const game = await getGlobal();
 
         if(game.started == false) throw new Error("Game has not started.");
 
@@ -172,7 +172,7 @@ async function handlePlayerList(interaction: ChatInputCommandInteraction) {
 }
 
 async function handleVoteList(interaction: ChatInputCommandInteraction) {
-    const game = await getGame();
+    const game = await getGlobal();
 
     if(game.started == false) throw new Error("Game has not started.");
 
@@ -240,7 +240,7 @@ async function handleVoteList(interaction: ChatInputCommandInteraction) {
 }
 
 async function handleStatsList(interaction: ChatInputCommandInteraction) {
-    const game = await getGame();
+    const game = await getGlobal();
 
     if(game.started == false) throw new Error("Game has not started.");
 
@@ -310,20 +310,20 @@ async function handleStatsList(interaction: ChatInputCommandInteraction) {
             new ButtonBuilder()
                 .setLabel("Graph")
                 .setStyle(ButtonStyle.Link)
-                .setURL((process.env.DEV == "TRUE" ? process.env.DEVDOMAIN as string : process.env.DOMAIN as string) + "/stats/" + id)
+                .setURL((process.env.DEV == "TRUE" ? process.env.DEVDOglobal as string : process.env.DOglobal as string) + "/stats/" + id)
         ])
 
     await interaction.reply({ embeds: [embed], components: [row] });
 }
 
 async function leaveSignup(interaction: ButtonInteraction | ChatInputCommandInteraction, name: string) {
-    const main = await getGame();
+    const global = await getGlobal();
     const game = await getGameByName(name);
 
-    if(main == null || game == null) throw new Error("Game not found.");
+    if(global == null || game == null) throw new Error("Game not found.");
 
     if(game.closed) return await interaction.reply({ ephemeral: true, content: "Sign ups are closed." });
-    if(main.started) return await interaction.reply({ ephemeral: true, content: "Game has started." });
+    if(global.started) return await interaction.reply({ ephemeral: true, content: "Game has started." });
 
     const user = await getUser(interaction.user.id);
 
@@ -348,13 +348,13 @@ async function leaveSignup(interaction: ButtonInteraction | ChatInputCommandInte
 }
 
 async function handleSignup(interaction: ButtonInteraction | ChatInputCommandInteraction, name: string, action: boolean | null = null) {
-    const main = await getGame();
+    const global = await getGlobal();
     const game = await getGameByName(name);
 
-    if(main == null || game == null) throw new Error("Game not found.");
+    if(global == null || game == null) throw new Error("Game not found.");
 
     if(game.closed) return await interaction.reply({ ephemeral: true, content: "Sign ups are closed." });
-    if(main.started) return await interaction.reply({ ephemeral: true, content: "Game has started." });
+    if(global.started) return await interaction.reply({ ephemeral: true, content: "Game has started." });
 
     const user = await getUser(interaction.user.id);
 
