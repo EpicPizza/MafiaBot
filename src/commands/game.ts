@@ -11,71 +11,28 @@ module.exports = {
     data: [
         { 
             type: 'slash',
-            name: 'slash-game',
+            name: 'slash-signup',
             command: new SlashCommandBuilder()
-                .setName('game')
-                .setDescription('Get information about a game.')
-                .addSubcommand(subcommand =>
-                    subcommand
-                        .setName("signup")
-                        .setDescription("Sign up for a mafia game!")
-                        .addStringOption(option =>
-                            option  
-                                .setName('game')
-                                .setDescription('Name of the game.')
-                                .setRequired(true)
-                        )
+                .setName("signup")
+                .setDescription("Sign up for a mafia game!")
+                .addStringOption(option =>
+                    option  
+                        .setName('game')
+                        .setDescription('Name of the game.')
+                        .setRequired(true)
                 )
-                .addSubcommand(subcommand =>
-                    subcommand
-                        .setName("leave")
-                        .setDescription("Leave mafia game.")
-                        .addStringOption(option =>
-                            option  
-                                .setName('game')
-                                .setDescription('Name of the game.')
-                                .setRequired(true)
-                        )
-                )
-                .addSubcommand(subcommand =>
-                    subcommand
-                        .setName('hint')
-                        .setDescription('Get a hint.')
-                )
-                .addSubcommand(subcommand =>
-                    subcommand
-                        .setName('votes')
-                        .setDescription('Show votes.')
-                        .addNumberOption(option =>
-                            option
-                                .setName('day')
-                                .setDescription('Which day to show votes from.')
-                        )
-                )
-                .addSubcommand(subcommand =>
-                    subcommand
-                        .setName('players')
-                        .setDescription('Show players.')
-                        .addBooleanOption(option => 
-                            option
-                                .setName('complete')
-                                .setDescription('Shows each account connected to each player.')
-                        )
-                        .addStringOption(option =>
-                            option  
-                                .setName('game')
-                                .setDescription('Name of the game (signups).')
-                        )
-                )
-                .addSubcommand(subcommand =>
-                    subcommand
-                        .setName('stats')
-                        .setDescription('Show stats.')
-                        .addNumberOption(option =>
-                            option
-                                .setName('day')
-                                .setDescription('Which day to show votes from.')
-                        )
+},
+        { 
+            type: 'slash',
+            name: 'slash-leave',
+            command: new SlashCommandBuilder()
+                .setName("leave")
+                .setDescription("Leave mafia game.")
+                .addStringOption(option =>
+                    option  
+                        .setName('game')
+                        .setDescription('Name of the game.')
+                        .setRequired(true)
                 )
         },
         {
@@ -98,21 +55,13 @@ module.exports = {
 
     execute: async (interaction: CommandInteraction | ButtonInteraction) => {
         if(interaction.isChatInputCommand()) {
-            const subcommand = interaction.options.getSubcommand();
-
-            if(subcommand == "votes") return handleVoteList(interaction);
-
-            if(subcommand == "players") return handlePlayerList(interaction);
-
-            if(subcommand == "stats") return handleStatsList(interaction);
-
-            if(subcommand == "hint") return await interaction.reply("Someone is mafia.");
+            const commandName = interaction.commandName;
 
             const game = interaction.options.getString("game");
 
             if(game == null) throw new Error("Game not specified.");
 
-            return await handleSignup(interaction, game, subcommand == "signup");
+            return await handleSignup(interaction, game, commandName == "signup");
         } else if(interaction.isButton()) {
             const id = JSON.parse(interaction.customId);
 
@@ -123,197 +72,6 @@ module.exports = {
             } 
         }
     } 
-}
-
-async function handlePlayerList(interaction: ChatInputCommandInteraction) {
-
-    const complete = interaction.options.getBoolean('complete') ?? false;
-
-    const users = [] as { nickname: string, id: string }[];
-
-    const reference = interaction.options.getString("game");
-
-    if(reference == null || reference == "") {
-        const game = await getGlobal();
-
-        if(game.started == false) throw new Error("Game has not started.");
-
-        for(let i = 0; i < game.players.length; i++) {
-            const user = await getUser(game.players[i].id);
-    
-            if(user == null) throw new Error("User not registered.");
-    
-            users.push({ id: user.id, nickname: user.nickname });
-        }    
-    } else {
-        const game = await getGameByName(reference);
-
-        if(game == null) throw new Error("Game not found.");
-
-        for(let i = 0; i < game.signups.length; i++) {
-            const user = await getUser(game.signups[i]);
-    
-            if(user == null) throw new Error("User not registered.");
-    
-            users.push({ id: user.id, nickname: user.nickname });
-        }    
-    }
-
-    const embed = new EmbedBuilder()
-        .setTitle("Players")
-        .setColor(Colors.Purple)
-        .setDescription(complete ? 
-            users.reduce((previous, current) => previous += current.nickname +  " - <@"  + current.id + "> \n", "") :
-            users.reduce((previous, current) => previous += current.nickname +  "\n", "")
-        )
-        .setFooter({ text: reference == null || reference == "" ? "Showing current game players." : "Showing signups for " + reference + "." });
-
-    await interaction.reply({ embeds: [embed] });
-}
-
-async function handleVoteList(interaction: ChatInputCommandInteraction) {
-    const game = await getGlobal();
-
-    if(game.started == false) throw new Error("Game has not started.");
-
-    const which = await getGameByID(game.game != null ? game.game : "bruh");
-
-    if(which == null) throw new Error("Game not found.");
-
-    const setup = await getSetup();
-
-    if(typeof setup == 'string') throw new Error("Setup Incomplete");
-    
-
-    const day = Math.round(interaction.options.getNumber("day") ?? game.day);
-
-    if(day > game.day) throw new Error("Not on day " + day + " yet!");
-    if(day < 1) throw new Error("Must be at least day 1.");
-
-    const users = new Map() as Map<string, User>;
-
-    for(let i = 0; i < which.signups.length; i++) {
-        const user = await getUser(which.signups[i]);
-
-        if(user == null) throw new Error("User not registered.");
-
-        users.set(user.id, user);
-    }
-
-    let list = await getVotes({ day: day });
-
-    const votes = new Map() as Map<string, string[]>;
-
-    for(let i = 0; i < list.length; i++) {
-        const counted = votes.get(list[i].for);
-
-        if(counted == undefined) {
-            votes.set(list[i].for, [list[i].id]);
-        } else {
-            votes.set(list[i].for, [...counted, list[i].id]);
-        }
-    }
-
-    let message = "";
-
-    const voting = Array.from(votes.keys());
-
-    for(let i = 0; i < voting.length; i++) {
-        const voted = votes.get(voting[i]) ?? [];
-
-        message += voted.length + " - " + (users.get(voting[i])?.nickname ?? "<@" + voting[i] + ">") + " « " + voted.reduce((previous, current) => previous += (users.get(current)?.nickname ?? "<@" + current + ">") + ", ", "");
-
-        console.log(message);
-
-        message = message.substring(0, message.length - 2);
-
-        message += "\n";
-    }
-
-    const embed = new EmbedBuilder()
-        .setTitle("Votes")
-        .setColor(Colors.Gold)
-        .setDescription(message == "" ? "No votes recorded." : message)
-        .setFooter({ text: game.day == day ? "Showing votes for current day (" + day + ")." : "Showing votes for day " + day + "." });
-
-    await interaction.reply({ embeds: [embed] });
-}
-
-async function handleStatsList(interaction: ChatInputCommandInteraction) {
-    const game = await getGlobal();
-
-    if(game.started == false) throw new Error("Game has not started.");
-
-    const which = await getGameByID(game.game != null ? game.game : "bruh");
-
-    if(which == null) throw new Error("Game not found.");
-
-    const setup = await getSetup();
-
-    if(typeof setup == 'string') throw new Error("Setup Incomplete");
-
-    const day = Math.round(interaction.options.getNumber("day") ?? game.day);
-
-    if(day > game.day) throw new Error("Not on day " + day + " yet!");
-    if(day < 1) throw new Error("Must be at least day 1.");
-
-    const users = new Map() as Map<string, User>;
-
-    for(let i = 0; i < which.signups.length; i++) {
-        const user = await getUser(which.signups[i]);
-
-        if(user == null) throw new Error("User not registered.");
-
-        users.set(user.id, user);
-    }
-
-    const db = firebaseAdmin.getFirestore();
-
-    const ref = db.collection('day').doc(day.toString()).collection('players');
-
-    const docs = (await ref.get()).docs;
-
-    let list = [] as { name: string, id: string, messages: number, words: number, show: boolean }[];
-
-    for(let i = 0; i < docs.length; i++) {
-        const data = docs[i].data();
-
-        const user = users.get(docs[i].id);
-
-        if(data) {
-            list.push({
-                name: user ? user.nickname : "<@" + docs[i].id + ">",
-                id: docs[i].id,
-                messages: data.messages,
-                words: data.words,
-                show: true,
-            })
-        }
-    }
-
-    list = list.filter(stat => stat.words > 0);
-    list = list.sort((a, b) => b.messages - a.messages);
-    list = list.filter(stat => which.signups.includes(stat.id));
-
-    const id = (await db.collection('graphs').add({ stats: list, day: game.day, name: which.name, timestamp: interaction.createdAt.valueOf() })).id;
-
-    const message = list.reduce((previous, current) => previous += current.name + " » " + current.messages + " message" + (current.messages== 1 ? "" : "s") + " containing " + current.words + " word" + (current.words== 1 ? "" : "s") + "\n", "");
-
-    const embed = new EmbedBuilder()
-        .setTitle("Stats")
-        .setColor(Colors.Gold)
-        .setDescription(message == '' ? "No Stats" : message)
-        .setFooter({ text: game.day == day ? "Showing stats for current day (" + day + ")." : "Showing votes for day " + day + "." });
-
-    const row = new ActionRowBuilder<ButtonBuilder>()
-        .addComponents([
-            new ButtonBuilder()
-                .setLabel("Graph")
-                .setStyle(ButtonStyle.Link)
-                .setURL((process.env.DEV == "TRUE" ? process.env.DEVDOglobal as string : process.env.DOglobal as string) + "/stats/" + id)
-        ])
-
-    await interaction.reply({ embeds: [embed], components: [row] });
 }
 
 async function leaveSignup(interaction: ButtonInteraction | ChatInputCommandInteraction, name: string) {
