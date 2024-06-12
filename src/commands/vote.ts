@@ -25,10 +25,10 @@ module.exports = {
         },
         {
             type: 'context',
-            name: 'context-vote',
+            name: 'context-Vote',
             command: new ContextMenuCommandBuilder()
                 .setName('Vote')
-                .setType(ApplicationCommandType.Message)
+                .setType(ApplicationCommandType.User)
         }
     ] satisfies Data[],
 
@@ -68,7 +68,7 @@ module.exports = {
 
             await interaction.reply({ ephemeral: true, content: "Command refreshed, wait a min to use again." });
         } else {
-            const user = list.find(user => user.nickname == player);
+            const user = list.find(user => user.nickname == player || user.id == player);
             const voter = list.find(user => user.id == interaction.user.id);
 
             if(!user || !voter) {
