@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, EmbedBuilder, SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
+import { ActionRowBuilder, ApplicationCommandType, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, ContextMenuCommandBuilder, ContextMenuCommandInteraction, EmbedBuilder, SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
 import { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { set, z } from "zod";
@@ -22,10 +22,17 @@ module.exports = {
                         .setRequired(true)
                         .setChoices({ value: "NEEDS REFRESH", name: "NEEDS REFRESH" })
                 )
+        },
+        {
+            type: 'context',
+            name: 'context-vote',
+            command: new ContextMenuCommandBuilder()
+                .setName('Vote')
+                .setType(ApplicationCommandType.Message)
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction ) => {
+    execute: async (interaction: ChatInputCommandInteraction | ContextMenuCommandInteraction) => {
         const global = await getGlobal();
 
         if(global.started == false) throw new Error("Game has not started.");
@@ -36,7 +43,13 @@ module.exports = {
 
         if(interaction.channelId != setup.primary.chat.id) throw new Error("Must vote in main chat.");
 
-        const player = interaction.options.getString('player');
+        const player = (() => {
+            if(interaction.isChatInputCommand()) {
+                return interaction.options.getString('player');
+            } else {
+                return interaction.targetId;
+            }
+        })();
 
         if(player == null) throw new Error("Choose a player.");
 
