@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, Colors, EmbedBuilder } from "discord.js";
 import { Data } from "../discord";
-import { getGameByName, getGlobal } from "../utils/game";
+import { getGameByName, getGlobal } from "../utils/main";
 import { getUser } from "../utils/user";
 
 module.exports = {
@@ -66,7 +66,7 @@ async function handlePlayerList(interaction: ChatInputCommandInteraction) {
     const embed = new EmbedBuilder()
         .setTitle("Players")
         .setColor(Colors.Purple)
-        .setDescription(complete ? 
+        .setDescription(users.length == 0 ? "No Players" : complete ? 
             users.reduce((previous, current) => previous += current.nickname +  " - <@"  + current.id + "> \n", "") :
             users.reduce((previous, current) => previous += current.nickname +  "\n", "")
         )

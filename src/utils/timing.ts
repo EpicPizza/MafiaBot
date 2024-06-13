@@ -1,5 +1,5 @@
 import { firebaseAdmin } from "../firebase";
-import { lockGame, unlockGame } from "./game";
+import { lockGame, unlockGame } from "./main";
 import { DateTime } from 'luxon';
 const parseHumanRelativeTime = require('parse-human-relative-time')(DateTime)
 

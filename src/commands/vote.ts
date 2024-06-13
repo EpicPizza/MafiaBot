@@ -2,7 +2,7 @@ import { ActionRowBuilder, ApplicationCommandType, ButtonBuilder, ButtonInteract
 import { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { set, z } from "zod";
-import { activateSignup, addSignup, getGlobal, getGameByName, lockGame, refreshSignup, removeSignup } from "../utils/game";
+import { getGlobal, getGameByName, lockGame } from "../utils/main";
 import { User, getUser } from "../utils/user";
 import { getVotes, refreshCommands, removeVote, setVote } from "../utils/vote";
 import { getSetup } from "../utils/setup";

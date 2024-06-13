@@ -2,10 +2,11 @@ import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatIn
 import { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { z } from "zod";
-import { activateSignup, addSignup, getGlobal, getGameByName, lockGame, refreshPlayers, refreshSignup, removeSignup } from "../utils/game";
+import { getGlobal, getGameByName, lockGame } from "../utils/main";
 import { User, getUser } from "../utils/user";
 import { getVotes, refreshCommands, removeVote, setVote } from "../utils/vote";
 import { getSetup } from "../utils/setup";
+import { refreshPlayers } from "../utils/games";
 
 module.exports = {
     data: [

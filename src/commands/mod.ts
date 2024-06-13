@@ -3,12 +3,13 @@ import client, { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { z } from "zod";
 import { createUser, editUser, getUser } from "../utils/user";
-import { activateSignup, archiveGame, closeSignups, createGame, endGame, getGlobal, getGameByID, getGameByName, getGameSetup, lockGame, openSignups, refreshSignup, removeSignup, setAllignments, startGame, unlockGame } from "../utils/game";
+import { endGame, getGlobal, getGameByID, getGameByName, setAllignments, startGame, unlockGame, lockGame } from "../utils/main";
 import { DateTime, SystemZone, Zone } from 'luxon';
 import { getFuture, parse, setFuture } from "../utils/timing";
 import { getSetup } from "../utils/setup";
 import dnt from 'date-and-time';
 import meridiem from 'date-and-time/plugin/meridiem'
+import { activateSignup, archiveGame, closeSignups, createGame, getGameSetup, openSignups, refreshSignup, removeSignup } from "../utils/games";
 
 dnt.plugin(meridiem);
 
@@ -221,7 +222,7 @@ module.exports = {
             } else if(subcommand == "start") {
                 if(name == null) throw new Error("Game needs to be specified.");
 
-                await startGame(interaction, name, true);
+                await startGame(interaction, name);
 
                 await setAllignments();
 
@@ -375,18 +376,12 @@ module.exports = {
                         const button = components[i].components[j];
 
                         if(button.style != ButtonStyle.Link && button.custom_id == interaction.customId) {
-                            if(button.style == ButtonStyle.Success) {
-                                button.style = ButtonStyle.Primary;
-                                alignment = 'neutral';
-                            } else if(button.style == ButtonStyle.Primary) {
+                            if(button.style == ButtonStyle.Secondary) {
                                 button.style = ButtonStyle.Danger;
                                 alignment = 'mafia';
                             } else if(button.style == ButtonStyle.Danger) {
                                 button.style = ButtonStyle.Secondary;
                                 alignment = null;
-                            } else {
-                                button.style = ButtonStyle.Success;
-                                alignment = 'town';
                             }
                         }
                     }

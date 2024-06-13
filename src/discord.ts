@@ -7,7 +7,7 @@ import { archiveMessage } from "./archive";
 import { checkFutureLock } from "./utils/timing";
 import { firebaseAdmin } from "./firebase";
 import { getSetup } from "./utils/setup";
-import { editOverwrites, generateOverwrites, getGlobal } from "./utils/game";
+import { editOverwrites, generateOverwrites, getGlobal } from "./utils/main";
 import { getUser } from "./utils/user";
 import { FieldValue } from "firebase-admin/firestore";
 

@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandBuilder } from "discord.js";
 import { Data } from "../discord";
-import { getGlobal, getGameByID } from "../utils/game";
+import { getGlobal, getGameByID } from "../utils/main";
 import { getSetup } from "../utils/setup";
 import { getUser, User } from "../utils/user";
 import { getVotes } from "../utils/vote";

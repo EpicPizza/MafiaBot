@@ -45,6 +45,8 @@ export async function getPartialSetup() {
     return setup.data;
 }
 
+export type Setup = Exclude<Awaited<ReturnType<typeof getSetup>>, string>;
+
 export async function getSetup() {
     const db = firebaseAdmin.getFirestore();
 

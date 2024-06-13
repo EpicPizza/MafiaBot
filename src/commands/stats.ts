@@ -1,6 +1,6 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandBuilder } from "discord.js";
 import { Data } from "../discord";
-import { getGameByID, getGlobal } from "../utils/game";
+import { getGameByID, getGlobal } from "../utils/main";
 import { firebaseAdmin } from "../firebase";
 import { getSetup } from "../utils/setup";
 import { getUser, User } from "../utils/user";
@@ -97,7 +97,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction) {
             new ButtonBuilder()
                 .setLabel("Graph")
                 .setStyle(ButtonStyle.Link)
-                .setURL((process.env.DEV == "TRUE" ? process.env.DEVDOglobal as string : process.env.DOglobal as string) + "/stats/" + id)
+                .setURL((process.env.DEV == "TRUE" ? process.env.DEVDOMAIN as string : process.env.DOMAIN as string) + "/stats/" + id)
         ])
 
     await interaction.reply({ embeds: [embed], components: [row] });

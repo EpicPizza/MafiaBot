@@ -3,7 +3,8 @@ import { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { z } from "zod";
 import { User, createUser, editUser, getUser, getUserByName } from "../utils/user";
-import { addSignup, getGlobal, refreshSignup } from "../utils/game";
+import { getGlobal } from "../utils/main";
+import { addSignup, refreshSignup } from "../utils/games";
 
 const setNickname = z.object({
     name: z.literal('set-nickname'),
@@ -18,7 +19,7 @@ module.exports = {
             name: 'slash-player',
             command: new SlashCommandBuilder()
                 .setName('player')
-                .setDescription('Everything related to the player.')
+                .setDescription('EverytrefreshSignuphing related to the player.')
                 .addSubcommand(subcommand => 
                     subcommand  
                         .setName('info')

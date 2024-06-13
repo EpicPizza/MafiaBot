@@ -2,10 +2,11 @@ import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, Channe
 import client, { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { set, z } from "zod";
-import { getGlobal, refreshPlayers, refreshSignup } from "../utils/game";
+import { getGlobal } from "../utils/main";
 import { User, getUser } from "../utils/user";
 import { getPartialSetup, getSetup } from "../utils/setup";
 import { refreshCommands } from "../utils/vote";
+import { refreshSignup, refreshPlayers } from "../utils/games";
 
 module.exports = {
     data: [
