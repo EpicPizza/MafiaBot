@@ -107,18 +107,20 @@ async function leaveSignup(interaction: ButtonInteraction | ChatInputCommandInte
 }
 
 async function handleSignup(interaction: ButtonInteraction | ChatInputCommandInteraction, name: string, action: boolean | null = null) {
+    await interaction.deferReply({ ephemeral: true });
+
     const global = await getGlobal();
     const game = await getGameByName(name);
 
     if(global == null || game == null) throw new Error("Game not found.");
 
-    if(game.closed) return await interaction.reply({ ephemeral: true, content: "Sign ups are closed." });
-    if(global.started) return await interaction.reply({ ephemeral: true, content: "Game has started." });
+    if(game.closed) return await interaction.editReply({ content: "Sign ups are closed." });
+    if(global.started) return await interaction.editReply({ content: "Game has started." });
 
     const user = await getUser(interaction.user.id);
 
     if(user == undefined) {
-        if(action === false) return await interaction.reply({ content: "Uh, why are you leaving a game, you haven't even signed up once.", ephemeral: true });
+        if(action === false) return await interaction.editReply({ content: "Uh, why are you leaving a game, you haven't even signed up once." });
 
         const embed = new EmbedBuilder()
         .setTitle("Looks like you are a new player!")
@@ -133,8 +135,7 @@ async function handleSignup(interaction: ButtonInteraction | ChatInputCommandInt
                     .setLabel("Add Nickname")
             ]);
 
-        await interaction.reply({
-            ephemeral: true,
+        await interaction.editReply({
             embeds: [embed],
             components: [row]
         })
@@ -155,20 +156,18 @@ async function handleSignup(interaction: ButtonInteraction | ChatInputCommandInt
                 .setDescription("If you've changed your mind, you can leave.")
                 .setColor(Colors.Red)
 
-            await interaction.reply({
-                ephemeral: true,
+            await interaction.editReply({
                 embeds: [embed],
                 components: [row]
             })
         } else if(entered && action === false) {
             await leaveSignup(interaction, game.name);
         } else if(!entered && action === false) {
-            await interaction.reply({ content: "You have not signed up.", ephemeral: true })
+            await interaction.editReply({ content: "You have not signed up." })
         } else {
             await addSignup({ id: user.id, game: game.name });
 
-            await interaction.reply({
-                ephemeral: true,
+            await interaction.editReply({
                 content: "You are now signed up!"
             });
 
