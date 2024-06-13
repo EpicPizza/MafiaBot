@@ -348,14 +348,14 @@ export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup
     await setupDeadPlayer(id, setup)
     await setupMafiaPlayer(mafiaPlayer, setup, gameSetup);
 
-    let channel = await setup.secondary.guild.channels.fetch(userProfile.channel ?? "") as TextChannel | null;
+    let channel = await setup.secondary.guild.channels.fetch(userProfile.channel ?? "");
     let newPlayer = channel == null;
 
-    if(!channel) {
+    if(channel == null || channel.type != ChannelType.GuildText) {
         channel = await setup.secondary.guild.channels.create({ 
             parent: setup.secondary.dms, 
             name: userProfile.nickname.toLowerCase()
-        }) as TextChannel;
+        });
 
         await db.collection('users').doc(userProfile.id).update({
             channel: channel.id,
