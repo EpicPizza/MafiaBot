@@ -117,7 +117,7 @@ client.on(Events.ClientReady, async () => {
         const message = await setup.primary.chat.messages.fetch(global.bulletin ?? "").catch(() => null);
 
         cache.games = games;
-        cache.channel = setup.primary.guild.id;
+        cache.channel = setup.primary.chat.id;
         cache.bulletin = message;
         cache.day = global.day;   
         cache.started = global.started;
@@ -157,7 +157,7 @@ client.on(Events.ClientReady, async () => {
 
             cache.games = games;
             cache.day = global.day;  
-            cache.channel = setup.primary.guild.id; 
+            cache.channel = setup.primary.chat.id; 
             cache.started = global.started;
 
             let resetBulletin = ((new Date()).valueOf() - cache.cooldown) > 1000 * 60 * 2;
