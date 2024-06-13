@@ -263,14 +263,14 @@ client.on(Events.MessageCreate, async (message) => {
 
         const db = firebaseAdmin.getFirestore();
 
-        if(!cache.started) return;
-
         if(message.author && message.author.bot == true) return;
         
         if(cache.channel != message.channelId) return;
 
         cache.cooldown = new Date().valueOf();
         cache.new = true;
+
+        if(!cache.started) return;
 
         const ref = db.collection('day').doc(cache.day.toString()).collection('players').doc(message.author.id);
 
