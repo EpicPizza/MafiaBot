@@ -145,12 +145,12 @@ client.on(Events.ClientReady, async () => {
             for(let doc = 0; doc < docs.length; doc++) {
                 const data = docs[doc].data();
 
-                if(!data) continue;
+                if(!data || !data.message.id) continue;
 
                 games.push({
                     name: data.name,
                     id: docs[doc].id,
-                    url: "https://discord.com/channels/" + setup.primary.guild.id + "/" + setup.primary.chat.id + "/" + data.message
+                    url: "https://discord.com/channels/" + setup.primary.guild.id + "/" + setup.primary.chat.id + "/" + data.message.id
                 })
             }
 
