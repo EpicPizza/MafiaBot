@@ -9,6 +9,8 @@ import { z } from "zod";
 import { refreshCommands } from "./vote";
 import { GameSetup, Signups, getGameSetup, refreshSignup } from "./games";
 
+const pings = false;
+
 export async function getGlobal(t: Transaction | undefined = undefined) {
     const db = firebaseAdmin.getFirestore();
 
@@ -19,18 +21,19 @@ export async function getGlobal(t: Transaction | undefined = undefined) {
     const data = doc.data();
 
     if(data) {
-        return data as Game;
+        return data as Global;
     }
 
     throw new Error("Could not find game on database.");
 }
 
-interface Game {
+interface Global {
     started: boolean,
     locked: boolean,
     players: Player[]
     day: number,
     game: string | null,
+    bulletin: string | null, 
 }
 
 interface Player {
@@ -98,7 +101,11 @@ export async function unlockGame(increment: boolean = false) {
         game: global.game,
     })
 
-    await setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game has unlocked!");
+    if(pings) {
+        await setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game has unlocked!");
+    } else {
+        await setup.primary.chat.send("Game has unlocked!");
+    }
 
     await setup.primary.chat.permissionOverwrites.create(setup.primary.alive.id, {
         SendMessages: true,
@@ -146,7 +153,7 @@ export async function lockGame() {
         locked: true,
     });
 
-    await setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game has locked!");
+    await setup.primary.chat.send("Game has locked!");
 
     await setup.primary.chat.permissionOverwrites.create(setup.primary.alive.id, {});
 
@@ -183,6 +190,8 @@ export async function checkSignups(signups: string[], setup: Setup) { //probably
     const fails = results.filter(result => result.status == "rejected");
 
     if(fails.length > 0) {
+        console.log(fails);
+
         throw new Error(fails.reduce<string>((accum, current) => accum + (current as unknown as PromiseRejectedResult).reason + "\n", ""));
     }
 }
@@ -203,6 +212,8 @@ export async function deleteInvites(setup: Setup) {
     const fails = results.filter(result => result.status == "rejected");
 
     if(fails.length > 0) {
+        console.log(fails);
+
         throw new Error(fails.reduce<string>((accum, current) => accum + (current as unknown as PromiseRejectedResult).reason + "\n", ""));
     }
 }
@@ -287,6 +298,8 @@ export async function setupPermissions(setup: Setup, lock: boolean) {
     const fails = results.filter(result => result.status == "rejected");
 
     if(fails.length > 0) {
+        console.log(fails);
+
         throw new Error(fails.reduce<string>((accum, current) => accum + (current as unknown as PromiseRejectedResult).reason + "\n", ""));
     }
 }
@@ -314,6 +327,8 @@ export async function getPlayerObjects(id: string, setup: Setup) {
     const fails = results.filter(result => result.status == "rejected");
 
     if(fails.length > 0) {
+        console.log(fails);
+
         throw new Error("<@" + id + "> not found.");
     }
 
@@ -381,7 +396,7 @@ export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup
 
         if(!dm) return await gameSetup.spec.send("Unable to send dms to " + userProfile.nickname + ".");
 
-        dm.send("Join the Dead Chat server to play in mafia! Here's a server invite: \nhttps://discord.com/invite/" + invite.code);
+        //dm.send("Join the Dead Chat server to play in mafia! Here's a server invite: \nhttps://discord.com/invite/" + invite.code);
     } else if(newPlayer) {
         channel.send("Welcome <@" + userProfile.id + ">! Check out the pins in the main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod.");
     }
@@ -449,6 +464,8 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
     const fails = results.filter(result => result.status == "rejected");
 
     if(fails.length > 0) {
+        console.log(fails);
+
         const embed = new EmbedBuilder()
             .setTitle("Game Start Failed")
             .setColor(Colors.Red)
@@ -496,6 +513,8 @@ export async function archiveChannels(setup: Setup) {
     const fails = results.filter(result => result.status == "rejected");
 
     if(fails.length > 0) {
+        console.log(fails);
+
         throw new Error(fails.reduce<string>((accum, current) => accum + (current as unknown as PromiseRejectedResult).reason + "\n", ""));
     }
 }
@@ -519,7 +538,7 @@ export async function setMafiaSpectator(mafiaPlayer: GuildMember | undefined, id
 
         if(!dm) return await gameSetup.spec.send("Unable to send dms to " + userProfile.nickname + ".");
 
-        dm.send("Here's a server invite to spectate mafia chat: \nhttps://discord.com/invite/" + invite.code);
+        //dm.send("Here's a server invite to spectate mafia chat: \nhttps://discord.com/invite/" + invite.code);
     }
 }
 
@@ -539,6 +558,8 @@ export async function clearPlayer(id: string, setup: Setup, gameSetup: GameSetup
     const fails = results.filter(result => result.status == "rejected");
 
     if(fails.length > 0) {
+        console.log(fails);
+
         throw new Error(fails.reduce<string>((accum, current) => accum + (current as unknown as PromiseRejectedResult).reason + "\n", ""));
     }
 }
@@ -562,7 +583,13 @@ export async function endGame(interaction: ChatInputCommandInteraction) {
     const promises = [] as Promise<any>[];
 
     promises.push(clearGame());
-    promises.push(setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game has ended!"));
+
+    if(pings) {
+        promises.push(setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game has ended!"));
+    } else {
+        promises.push(setup.primary.chat.send("Game has ended!"));
+    }
+    
     promises.push(setupPermissions(setup, false));
     promises.push(archiveChannels(setup));
 
@@ -575,6 +602,8 @@ export async function endGame(interaction: ChatInputCommandInteraction) {
     const fails = results.filter(result => result.status == "rejected");
 
     if(fails.length > 0) {
+        console.log(fails);
+
         const embed = new EmbedBuilder()
             .setTitle("Game Start Failed")
             .setColor(Colors.Red)
@@ -652,7 +681,7 @@ export async function setAllignments() {
     const embed = new EmbedBuilder()
         .setTitle("Set Allignments")
         .setColor(Colors.Orange)
-        .setDescription('Once allignments have been set, click confirm to continue.')
+        .setDescription('Click corresponding button to toggle player\'s allignment. Once confirm is clicked, an invite for the mafia server will be created.')
         .setFooter({ text: 'Red for Mafia, Gray for Town/Neutral/Whatever Applicable' })
 
     const rows = [] as ActionRowBuilder<ButtonBuilder>[]

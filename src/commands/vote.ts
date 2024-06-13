@@ -4,7 +4,7 @@ import { firebaseAdmin } from "../firebase";
 import { set, z } from "zod";
 import { getGlobal, getGameByName, lockGame } from "../utils/main";
 import { User, getUser } from "../utils/user";
-import { getVotes, refreshCommands, removeVote, setVote } from "../utils/vote";
+import { addVoteLog, getVotes, refreshCommands, removeVote, setVote } from "../utils/vote";
 import { getSetup } from "../utils/setup";
 
 module.exports = {
@@ -51,6 +51,8 @@ module.exports = {
             }
         })();
 
+        console.log("voting", player);
+
         if(player == null) throw new Error("Choose a player.");
 
         const list = [] as User[];
@@ -68,8 +70,12 @@ module.exports = {
 
             await interaction.reply({ ephemeral: true, content: "Command refreshed, wait a min to use again." });
         } else {
+            await interaction.deferReply();
+
             const user = list.find(user => user.nickname == player || user.id == player);
             const voter = list.find(user => user.id == interaction.user.id);
+
+            console.log("OBJECTS", user, voter);
 
             if(!user || !voter) {
                 throw new Error("Player not found.");
@@ -109,14 +115,18 @@ module.exports = {
                 let specific = votes.filter(vote => vote.for == user.id);
                 let half = Math.ceil(list.length / 2);
 
-                await setup.primary.chat.send(voter.nickname + " " + (voted ? "voted for " : "removed their vote for ") + user.nickname + "!" + (half - specific.length < 4 && half - specific.length > 0 ? " " + (half - specific.length) + " vote" + (half - specific.length == 1 ? "" : "s") + " until hammer!" : ""));
+                let message = (voted ? "Voted for " : "Removed vote for ") + user.nickname + "!" + (half - specific.length < 4 && half - specific.length > 0 ? " " + (half - specific.length) + " vote" + (half - specific.length == 1 ? "" : "s") + " until hammer!" : "");
+
+                await interaction.reply(message);
+
+                await addVoteLog({ message, id: interaction.user.id, day: global.day });
+                
+                if(half % 2 == 0) half += 0.5;
 
                 if(specific.length >= half) {
                     await lockGame();
                     await setup.primary.chat.send(user.nickname + " has been hammered!");
                 }
-        
-                await interaction.reply({ ephemeral: true, content: "Vote counted." });
             }   
         }
     } 

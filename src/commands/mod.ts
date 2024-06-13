@@ -428,7 +428,7 @@ module.exports = {
                 if(typeof setup == 'string') throw new Error("Setup Incomplete");
                 if(which == null) throw new Error("Game not found.");
 
-                const gameSetup = getGameSetup(which, setup);
+                const gameSetup = await getGameSetup(which, setup);
 
                 for(let i = 0; i < global.players.length; i++) {
                     if(global.players[i].alignment == 'mafia') {
@@ -448,8 +448,6 @@ module.exports = {
 
                             await channel.send("You are mafia! \nYou now have access to mafia chat.");
                         } else {
-                            const invite = await setup.tertiary.guild.invites.create((await gameSetup).mafia, { unique: true });
-
                             const db = firebaseAdmin.getFirestore();
 
                             await db.collection('invites').add({
@@ -457,11 +455,13 @@ module.exports = {
                                 type: 'mafia',
                                 timestamp: new Date().valueOf(),
                             });
-
-                            await channel.send("You are mafia! \nhttps://discord.com/invite/" + invite.code);
                         }
                     }
                 }
+
+                const invite = await setup.tertiary.guild.invites.create((await gameSetup).mafia, { unique: true });
+
+                await gameSetup.spec.send("Here is invite link for mafia server: \nhttps://discord.com/invite/" + invite.code + "\nUse the **/mod unlock** command to start the game when it's ready!");
 
                 await firebaseAdmin.getFirestore().collection('settings').doc('game').update({
                     day: 1,

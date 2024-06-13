@@ -1,4 +1,4 @@
-import { ChannelType, Client, Collection, ContextMenuCommandBuilder, EmbedBuilder, Events, GatewayIntentBits, Message, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, TextChannel, WebhookClient } from "discord.js";
+import { ActionRow, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, Client, Collection, Colors, ContextMenuCommandBuilder, EmbedBuilder, Events, GatewayIntentBits, GuildCacheMessage, Message, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, TextChannel, WebhookClient } from "discord.js";
 import dotenv from 'dotenv';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -21,6 +21,10 @@ const cache = {
     day: 0,
     started: false,
     channel: null as null | string,
+    games: [] as { name: string, id: string, url: string }[],
+    bulletin: null as Message | null,
+    cooldown: 0 as number,
+    new: true as boolean,
 }
 
 export type Data = ({
@@ -85,7 +89,35 @@ client.on(Events.ClientReady, async () => {
 
     try {
         const global = await getGlobal();
+        
+        const setup = await getSetup();
 
+        if(typeof setup == 'string') return;
+
+        const db = firebaseAdmin.getFirestore();
+
+        const ref = db.collection('settings').doc('game').collection('games');
+
+        const docs = (await ref.get()).docs;
+
+        const games = [] as { name: string, id: string, url: string }[];
+
+        for(let doc = 0; doc < docs.length; doc++) {
+            const data = docs[doc].data();
+
+            if(!data) continue;
+
+            games.push({
+                name: data.name,
+                id: docs[doc].id,
+                url: "https://discord.com/channels/" + setup.primary.guild.id + "/" + setup.primary.chat.id + "/" + data.message
+            })
+        };
+
+        const message = await setup.primary.chat.messages.fetch(global.bulletin ?? "").catch(() => null);
+
+        cache.games = games;
+        cache.bulletin = message;
         cache.day = global.day;   
         cache.started = global.started;
     } catch(e) {
@@ -97,13 +129,66 @@ client.on(Events.ClientReady, async () => {
             await checkFutureLock();
 
             const global = await getGlobal();
+        
             const setup = await getSetup();
 
             if(typeof setup == 'string') return;
 
+            const db = firebaseAdmin.getFirestore();
+
+            const ref = db.collection('settings').doc('game').collection('games');
+
+            const docs = (await ref.get()).docs;
+
+            const games = [] as { name: string, id: string, url: string }[];
+
+            for(let doc = 0; doc < docs.length; doc++) {
+                const data = docs[doc].data();
+
+                if(!data) continue;
+
+                games.push({
+                    name: data.name,
+                    id: docs[doc].id,
+                    url: "https://discord.com/channels/" + setup.primary.guild.id + "/" + setup.primary.chat.id + "/" + data.message
+                })
+            }
+
+            cache.games = games;
             cache.day = global.day;   
             cache.started = global.started;
-            cache.channel = setup.primary.chat.id;
+
+            let resetBulletin = ((new Date()).valueOf() - cache.cooldown) > 1000 * 60 * 2;
+
+            console.log(cache.started, cache.new, resetBulletin);
+
+            if(!cache.started && cache.new && resetBulletin) {
+                const ref = db.collection('settings').doc('game');
+
+                if(cache.bulletin) {
+                    await cache.bulletin.delete();
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle("Ongoing Games")
+                    .setDescription("Welcome to Mafia! Click an ongoing mafia game to go to its signups.")
+                    .setColor(Colors.Orange)
+                    
+                const row = new ActionRowBuilder<ButtonBuilder>()
+                    .addComponents(cache.games.map(game => {
+                        return new ButtonBuilder()
+                            .setLabel(game.name)
+                            .setURL(game.url)
+                            .setStyle(ButtonStyle.Link)
+                    }));
+
+                cache.bulletin = await setup.primary.chat.send({ embeds: [embed], components: [row] });
+                cache.new = false;
+
+                await ref.update({
+                    bulletin: cache.bulletin?.id ?? null,
+                })
+            }
         } catch(e) {
             console.log(e);
         }
@@ -111,6 +196,9 @@ client.on(Events.ClientReady, async () => {
 });
 
 client.on(Events.MessageCreate, async (message) => {
+    cache.cooldown = new Date().valueOf();
+    cache.new = true;
+
     try {
         if(message.content == "?test") {
             return await message.reply("Hi, please use slash commands to run this bot.");
@@ -175,11 +263,13 @@ client.on(Events.MessageCreate, async (message) => {
             await message.react('✅');
         }
 
+        const db = firebaseAdmin.getFirestore();
+
         if(!cache.started) return;
 
         if(message.author && message.author.bot == true) return;
-
-        const db = firebaseAdmin.getFirestore();
+        
+        if(cache.channel != message.channelId) return;
 
         const ref = db.collection('day').doc(cache.day.toString()).collection('players').doc(message.author.id);
 
@@ -211,6 +301,8 @@ client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
         const db = firebaseAdmin.getFirestore();
 
         const ref = db.collection('edits').doc(newMessage.id);
+
+        if(cache.channel != oldMessage.channelId) return;
 
         if((await ref.get()).exists) {
             await ref.update({

@@ -189,6 +189,7 @@ module.exports = {
                 locked: false,
                 players: [],
                 started: false,
+                bulletin: null,
             })
 
             return await interaction.reply({ content: "Database setup.", ephemeral: true });

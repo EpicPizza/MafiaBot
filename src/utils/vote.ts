@@ -37,6 +37,18 @@ export async function refreshCommands(players: string[]) {
     await setupCommands(commands);   
 }
 
+export async function addVoteLog(options: { id: string, message: string, day: number }) {
+    const db = firebaseAdmin.getFirestore();
+
+    const ref = db.collection('day').doc(options.day.toString()).collection('votes').doc('history').collection('logs');
+
+    await ref.add({
+        id: options.day,
+        message: options.message,
+        timestamp: new Date().valueOf,
+    })
+} 
+
 export async function setVote(options: { id: string, for: string, day: number }) {
     const db = firebaseAdmin.getFirestore();
 
