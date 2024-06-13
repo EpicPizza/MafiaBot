@@ -64,7 +64,7 @@ async function handlePlayerList(interaction: ChatInputCommandInteraction) {
     }
 
     const embed = new EmbedBuilder()
-        .setTitle("Players")
+        .setTitle("Players - " + users.length)
         .setColor(Colors.Purple)
         .setDescription(users.length == 0 ? "No Players" : complete ? 
             users.reduce((previous, current) => previous += current.nickname +  " - <@"  + current.id + "> \n", "") :
