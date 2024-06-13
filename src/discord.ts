@@ -160,6 +160,7 @@ client.on(Events.ClientReady, async () => {
 
             let resetBulletin = ((new Date()).valueOf() - cache.cooldown) > 1000 * 60 * 2;
 
+            console.log((new Date()).valueOf(), cache.cooldown);
             console.log(cache.started, cache.new, resetBulletin);
 
             if(!cache.started && cache.new && resetBulletin) {
