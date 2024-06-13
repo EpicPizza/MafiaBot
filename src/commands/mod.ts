@@ -407,6 +407,8 @@ module.exports = {
 
                 await interaction.update({ components: components });
             } else if(id.name == "confirm-alignments") {
+                interaction.deferUpdate();
+                
                 const components = (interaction.message.toJSON() as any).components as APIActionRowComponent<APIButtonComponent>[]
 
                 for(let i = 0; i < components.length; i++) {
