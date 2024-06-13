@@ -197,9 +197,6 @@ client.on(Events.ClientReady, async () => {
 });
 
 client.on(Events.MessageCreate, async (message) => {
-    cache.cooldown = new Date().valueOf();
-    cache.new = true;
-
     try {
         if(message.content == "?test") {
             return await message.reply("Hi, please use slash commands to run this bot.");
@@ -271,6 +268,9 @@ client.on(Events.MessageCreate, async (message) => {
         if(message.author && message.author.bot == true) return;
         
         if(cache.channel != message.channelId) return;
+
+        cache.cooldown = new Date().valueOf();
+        cache.new = true;
 
         const ref = db.collection('day').doc(cache.day.toString()).collection('players').doc(message.author.id);
 
