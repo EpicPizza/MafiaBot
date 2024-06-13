@@ -409,7 +409,7 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
 
                 dm.send("Looks like you left the server! Here's a server invite: \nhttps://discord.com/invite/" + invite.code);
 
-                await gameSetup.spec.send("DM sent to <@" + game.signups[i] + "> for dead chat invite.");
+                //await gameSetup.spec.send("DM sent to <@" + game.signups[i] + "> for dead chat invite.");
             } else {
                 const channel = await setup.secondary.guild.channels.create({ 
                     parent: setup.secondary.dms, 
@@ -434,7 +434,7 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
 
                 dm.send("Join the Dead Chat server to play in mafia! Here's a server invite: \nhttps://discord.com/invite/" + invite.code);
 
-                await gameSetup.spec.send("DM sent to <@" + game.signups[i] + "> for dead chat invite.");
+                //await gameSetup.spec.send("DM sent to <@" + game.signups[i] + "> for dead chat invite.");
             }
         } else {
             await member.roles.remove(setup.secondary.spec);
@@ -586,7 +586,7 @@ export async function endGame(interaction: ChatInputCommandInteraction) {
 
             dm.send("Here's a server invite to spectate mafia chat: \nhttps://discord.com/invite/" + invite.code);
 
-            await gameSetup.spec.send("DM sent to <@" + game.signups[i] + "> for spectate mafia chat invite.");
+            //await gameSetup.spec.send("DM sent to <@" + game.signups[i] + "> for spectate mafia chat invite.");
         }
     }
 
