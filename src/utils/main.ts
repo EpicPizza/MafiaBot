@@ -9,7 +9,7 @@ import { promise, z } from "zod";
 import { refreshCommands } from "./vote";
 import { GameSetup, Signups, getGameSetup, refreshSignup } from "./games";
 
-const pings = false;
+const pings = true;
 
 export async function getGlobal(t: Transaction | undefined = undefined) {
     const db = firebaseAdmin.getFirestore();
