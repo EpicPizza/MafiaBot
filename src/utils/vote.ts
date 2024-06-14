@@ -45,7 +45,7 @@ export async function addVoteLog(options: { id: string, message: string, day: nu
     await ref.add({
         id: options.day,
         message: options.message,
-        timestamp: new Date().valueOf,
+        timestamp: new Date().valueOf(),
     })
 } 
 
