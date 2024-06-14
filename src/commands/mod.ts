@@ -467,7 +467,7 @@ module.exports = {
                     day: 1,
                 })
 
-                await interaction.update({ components: components });
+                await interaction.editReply({ components: components });
             } else if(id.name == "unlock") {
                 const id = JSON.parse(interaction.customId) as { name: "unlock", value: string, type: boolean };
 
