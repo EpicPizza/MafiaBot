@@ -207,6 +207,8 @@ const playerCommandsInGame = `**/players** View remaining players of current maf
 
 **/vote** Vote for a player. Specify the same player to remove your vote, or a new player to change your vote.
 
+**/unvote** Remove your vote.
+
 **Snipe** Check edits for a message. Can be accessed in the apps section of message options.`;
 
 const playerCommandsPreGame = `**/player nickname** Add/edit your nickname. You'll be also asked to add a nickname on signup if you're a new player.

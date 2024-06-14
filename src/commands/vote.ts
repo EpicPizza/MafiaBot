@@ -23,6 +23,13 @@ module.exports = {
                         .setChoices({ value: "NEEDS REFRESH", name: "NEEDS REFRESH" })
                 )
         },
+        { 
+            type: 'slash',
+            name: 'slash-unvote',
+            command: new SlashCommandBuilder()
+                .setName('unvote')
+                .setDescription('Remove your vote.')
+        },
         {
             type: 'context',
             name: 'context-Vote',
@@ -33,6 +40,7 @@ module.exports = {
     ] satisfies Data[],
 
     execute: async (interaction: ChatInputCommandInteraction | ContextMenuCommandInteraction) => {
+
         const global = await getGlobal();
 
         if(global.started == false) throw new Error("Game has not started.");
@@ -52,8 +60,6 @@ module.exports = {
         })();
 
         console.log("voting", player);
-
-        if(player == null) throw new Error("Choose a player.");
 
         const list = [] as User[];
 
@@ -75,19 +81,27 @@ module.exports = {
             const user = list.find(user => user.nickname == player || user.id == player);
             const voter = list.find(user => user.id == interaction.user.id);
 
-            console.log("OBJECTS", user, voter);
+            let votes = await getVotes({ day: global.day });
+
+            const vote = votes.find(vote => vote.id == interaction.user.id);
+
+            if(vote && interaction.commandName == "unvote") {
+                removeVote({ id: interaction.user.id, day: global.day });
+
+                const previous = list.find(user => user.id == vote.for);
+
+                let message = "Removed vote for " + previous?.nickname ?? "<@" + vote.for + ">" + "!";
+
+                await addVoteLog({ message, id: interaction.user.id, day: global.day });
+
+                return await interaction.editReply(message);
+            } else if(interaction.commandName == "unvote") {
+                return await interaction.editReply("No vote found.");
+            }
 
             if(!user || !voter) {
                 throw new Error("Player not found.");
             } else {
-                const setup = await getSetup();
-
-                if(typeof setup == 'string') throw new Error("Setup Incomplete");
-
-                let votes = await getVotes({ day: global.day });
-
-                const vote = votes.find(vote => vote.id == interaction.user.id);
-
                 let voted = false;
 
                 if(vote == undefined) {
