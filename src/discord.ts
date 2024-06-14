@@ -146,7 +146,7 @@ client.on(Events.ClientReady, async () => {
             for(let doc = 0; doc < docs.length; doc++) {
                 const data = docs[doc].data();
 
-                if(!data || !data.message.id) continue;
+                if(!data || !data.message == null) continue;
 
                 games.push({
                     name: data.name,
