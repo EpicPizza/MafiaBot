@@ -456,7 +456,12 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
         promises.push(setupPlayer(game.signups[i], setup, gameSetup));
     }
 
-    promises.push(setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game is starting!"));
+    if(pings) {
+        promises.push(setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game is starting!"));
+    } else {
+        promises.push(setup.primary.chat.send("Game is starting!"));
+    }
+
     promises.push(refreshCommands(await getAllNicknames(setup, game)));
 
     const results = await Promise.allSettled(promises);

@@ -121,12 +121,12 @@ module.exports = {
 
                 await addVoteLog({ message, id: interaction.user.id, day: global.day });
                 
-                if(half % 2 == 0) half += 0.5;
+                /*if(half % 2 == 0) half += 0.5;
 
                 if(specific.length >= half) {
                     await lockGame();
                     await setup.primary.chat.send(user.nickname + " has been hammered!");
-                }
+                }*/
             }   
         }
     } 
