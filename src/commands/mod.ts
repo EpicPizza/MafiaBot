@@ -415,7 +415,7 @@ module.exports = {
                     for(let j = 0; j < components[i].components.length; j++) {
                         const button = components[i].components[j];
 
-                        if(button.style != ButtonStyle.Link && button.custom_id == interaction.customId) {
+                        if(button.style != ButtonStyle.Link && button.label == "Confirm") {
                             button.disabled = true;   
                         }
                     }
