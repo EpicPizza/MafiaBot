@@ -247,18 +247,8 @@ export async function finishSignups(game: Signups) {
 export async function setupPermissions(setup: Setup, lock: boolean) {
     const promises = [] as Promise<any>[];
 
-    if(!lock) {
-        promises.push(setup.primary.chat.permissionOverwrites.create(setup.primary.alive.id, {
-            SendMessages: true,
-            AddReactions: true, 
-            AttachFiles: true, 
-            EmbedLinks: true, 
-            SendPolls: true, 
-            SendVoiceMessages: true,
-            UseExternalEmojis: true,
-            SendTTSMessages: false,
-            UseApplicationCommands: true,
-        }));
+    if(lock) {
+        promises.push(setup.primary.chat.permissionOverwrites.create(setup.primary.alive.id, {}));
 
         promises.push(setup.primary.chat.permissionOverwrites.create(setup.primary.gang, {
             ViewChannel: true,

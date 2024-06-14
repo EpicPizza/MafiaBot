@@ -185,6 +185,16 @@ client.on(Events.ClientReady, async () => {
                             .setStyle(ButtonStyle.Link)
                     }));
 
+                if(row.components.length == 0) {
+                    row.addComponents([
+                        new ButtonBuilder()
+                            .setLabel("No Ongoing Games")
+                            .setCustomId(JSON.stringify({ name: "never "}))
+                            .setStyle(ButtonStyle.Secondary)
+                            .setDisabled(true)
+                    ])
+                }
+
                 cache.bulletin = await setup.primary.chat.send({ embeds: [embed], components: [row] });
                 cache.new = false;
 
