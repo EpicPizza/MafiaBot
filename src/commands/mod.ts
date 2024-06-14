@@ -416,7 +416,7 @@ module.exports = {
                         const button = components[i].components[j];
 
                         if(button.style != ButtonStyle.Link && button.label == "Confirm") {
-                            button.disabled = true;   
+                            components[i].components[j].disabled = true;   
                         }
                     }
                 }
@@ -461,7 +461,7 @@ module.exports = {
 
                 const invite = await setup.tertiary.guild.invites.create((await gameSetup).mafia, { unique: true });
 
-                await gameSetup.spec.send("Here is invite link for mafia server: \nhttps://discord.com/invite/" + invite.code + "\nUse the **/mod unlock** command to start the game when it's ready!");
+                await gameSetup.spec.send("Here is the invite link for mafia server: \nhttps://discord.com/invite/" + invite.code + "\nUse the **/mod unlock** command to start the game when it's ready!");
 
                 await firebaseAdmin.getFirestore().collection('settings').doc('game').update({
                     day: 1,
