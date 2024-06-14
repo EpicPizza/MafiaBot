@@ -247,7 +247,7 @@ export async function finishSignups(game: Signups) {
 export async function setupPermissions(setup: Setup, lock: boolean) {
     const promises = [] as Promise<any>[];
 
-    if(lock) {
+    if(!lock) {
         promises.push(setup.primary.chat.permissionOverwrites.create(setup.primary.alive.id, {
             SendMessages: true,
             AddReactions: true, 
@@ -260,7 +260,7 @@ export async function setupPermissions(setup: Setup, lock: boolean) {
             UseApplicationCommands: true,
         }));
 
-        promises.push(setup.primary.chat.permissionOverwrites.create(setup.primary.gang.id, {
+        await setup.primary.chat.permissionOverwrites.create(setup.primary.gang, {
             ViewChannel: true,
             SendMessages: false,
             AddReactions: true,
@@ -273,20 +273,20 @@ export async function setupPermissions(setup: Setup, lock: boolean) {
             CreatePublicThreads: false,
             CreatePrivateThreads: false, 
             SendMessagesInThreads: false
-        }));
+        });
     } else {
         promises.push(setup.primary.chat.permissionOverwrites.create(setup.primary.alive.id, {}));
 
         promises.push(setup.primary.chat.permissionOverwrites.create(setup.primary.gang.id, {
             ViewChannel: true,
-            SendMessages: true,
+            SendMessages: false,
             AddReactions: true,
-            AttachFiles: true,
-            EmbedLinks: true,
-            SendPolls: true,
-            SendVoiceMessages: true,
-            UseExternalEmojis: true,
-            UseApplicationCommands: true,
+            AttachFiles: false,
+            EmbedLinks: false,
+            SendPolls: false,
+            SendVoiceMessages: false,
+            UseExternalEmojis: false,
+            UseApplicationCommands: false,
             CreatePublicThreads: false,
             CreatePrivateThreads: false, 
             SendMessagesInThreads: false
@@ -396,7 +396,9 @@ export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup
 
         if(!dm) return await gameSetup.spec.send("Unable to send dms to " + userProfile.nickname + ".");
 
-        //dm.send("Join the Dead Chat server to play in mafia! Here's a server invite: \nhttps://discord.com/invite/" + invite.code);
+        if(pings) {
+            dm.send("Join the Dead Chat server to play in mafia! Here's a server invite: \nhttps://discord.com/invite/" + invite.code);
+        }
     } else if(newPlayer) {
         channel.send("Welcome <@" + userProfile.id + ">! Check out the pins in the main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod.");
     }
@@ -543,7 +545,9 @@ export async function setMafiaSpectator(mafiaPlayer: GuildMember | undefined, id
 
         if(!dm) return await gameSetup.spec.send("Unable to send dms to " + userProfile.nickname + ".");
 
-        //dm.send("Here's a server invite to spectate mafia chat: \nhttps://discord.com/invite/" + invite.code);
+        if(pings) {
+            dm.send("Here's a server invite to spectate mafia chat: \nhttps://discord.com/invite/" + invite.code);
+        }
     }
 }
 
