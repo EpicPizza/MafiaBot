@@ -1,6 +1,8 @@
-import { ActionRow, ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, EmbedBuilder, SlashCommandBuilder } from "discord.js";
+import { ActionRow, ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, EmbedBuilder, Message, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import { Data } from "../discord";
 import { z } from "zod";
+import { getSetup } from "../utils/setup";
+import { getGlobal } from "../utils/main";
 
 module.exports = {
     data: [
@@ -22,8 +24,31 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction | ButtonInteraction ) => {
-        if(interaction.isChatInputCommand()) {
+    execute: async (interaction: ChatInputCommandInteraction | ButtonInteraction | Message ) => { //this also accepts message in case someone is pinging bot
+        if('reactions' in interaction) {
+            const embed = new EmbedBuilder()
+            .setTitle("Mafia Bot Help")
+            .setColor(Colors.Green)
+            .setDescription(help);
+
+             const row = new ActionRowBuilder<ButtonBuilder>()
+                .addComponents([
+                    new ButtonBuilder()
+                        .setLabel("Player Commands")
+                        .setCustomId(JSON.stringify({ name: "help", page: global.started ? 1 : 2, id: interaction.author.id }))
+                        .setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .setLabel("Mod Commands")
+                        .setCustomId(JSON.stringify({ name: "help", page: global.started ? 3 : 4, id: interaction.author.id }))
+                        .setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .setLabel("Setup Commands")
+                        .setCustomId(JSON.stringify({ name: "help", page: 5, id: interaction.author.id }))
+                        .setStyle(ButtonStyle.Primary)
+                ])
+
+            await interaction.reply({ embeds: [embed], components: [row] })
+        } else if(interaction.isChatInputCommand()) {
             const embed = new EmbedBuilder()
                 .setTitle("Mafia Bot Help")
                 .setColor(Colors.Green)
@@ -33,11 +58,11 @@ module.exports = {
                 .addComponents([
                     new ButtonBuilder()
                         .setLabel("Player Commands")
-                        .setCustomId(JSON.stringify({ name: "help", page: 1, id: interaction.user.id }))
+                        .setCustomId(JSON.stringify({ name: "help", page: global.started ? 1 : 2, id: interaction.user.id }))
                         .setStyle(ButtonStyle.Primary),
                     new ButtonBuilder()
                         .setLabel("Mod Commands")
-                        .setCustomId(JSON.stringify({ name: "help", page: 3, id: interaction.user.id }))
+                        .setCustomId(JSON.stringify({ name: "help", page: global.started ? 3 : 4, id: interaction.user.id }))
                         .setStyle(ButtonStyle.Primary),
                     new ButtonBuilder()
                         .setLabel("Setup Commands")
@@ -51,6 +76,8 @@ module.exports = {
 
             if(command.id != interaction.user.id) return await interaction.reply({ ephemeral: true, content: "This is not your button! Run the /help command yourself." });
 
+            const global = await getGlobal();
+
             if(command.page == 0) {
                 const embed = new EmbedBuilder()
                     .setTitle("Mafia Bot Help")
@@ -61,11 +88,11 @@ module.exports = {
                     .addComponents([
                         new ButtonBuilder()
                             .setLabel("Player Commands")
-                            .setCustomId(JSON.stringify({ name: "help", page: 1, id: interaction.user.id }))
+                            .setCustomId(JSON.stringify({ name: "help", page: global.started ? 1 : 2, id: interaction.user.id }))
                             .setStyle(ButtonStyle.Primary),
                         new ButtonBuilder()
                             .setLabel("Mod Commands")
-                            .setCustomId(JSON.stringify({ name: "help", page: 4, id: interaction.user.id }))
+                            .setCustomId(JSON.stringify({ name: "help", page: global.started ? 3 : 4, id: interaction.user.id }))
                             .setStyle(ButtonStyle.Primary),
                         new ButtonBuilder()
                             .setLabel("Setup Commands")
@@ -190,7 +217,8 @@ module.exports = {
     }
 }
 
-const help = `This bot is primarly used through slash commands. Each category of commands is listed below. Note: setup commands are permission locked.
+const help = `This bot is primarly used through slash commands.  Each category of commands is listed below. Note: setup commands are admin only.
+
 
 ----------***How to Play***----------
 
@@ -221,7 +249,9 @@ const playerCommandsPreGame = `**/player nickname** Add/edit your nickname. You'
 
 **/players** Specify game name to view signups for a game.`
 
-const modCommandsPreGame =`**/mod create** Creates a new game. Also makes spectator and mafia channels for that game.
+const modCommandsPreGame =`**/games** See all games currently happening.
+
+**/mod create** Creates a new game. Also makes spectator and mafia channels for that game.
 
 **/mod signups** Creates signups for a new game. You can only have one signup button for each game, old buttons can be reactivated however.
 

@@ -144,6 +144,8 @@ module.exports = {
     ] satisfies Data[],
 
     execute: async (interaction: ChatInputCommandInteraction | ButtonInteraction) => {
+        if(!interaction.memberPermissions?.has(PermissionFlagsBits.ManageRoles)) throw new Error("You're not allowed to use this command!");
+
         if(interaction.isChatInputCommand() && interaction.options.getSubcommand() == "database") {
             const db = firebaseAdmin.getFirestore();
 

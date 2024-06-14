@@ -103,7 +103,7 @@ client.on(Events.ClientReady, async () => {
         try {
             await checkFutureLock();
 
-            client.user?.setActivity({ type: ActivityType.Watching, name: "/ongoing", });
+            client.user?.setActivity({ type: ActivityType.Watching, name: "/games", });
 
             const global = await getGlobal();
         
@@ -122,6 +122,16 @@ client.on(Events.ClientReady, async () => {
 
 client.on(Events.MessageCreate, async (message) => {
     try {
+        if(message.content == "?help" || message.content.includes("<@" + client.user?.id + ">")) {
+            const help = client.commands.get("slash-help");
+
+            if(help == undefined || typeof help != 'function') return message.react('⚠️')
+
+            await help(message);
+
+            return;
+        }
+
         if(message.content == "?test") {
             return await message.reply("Hi, please use slash commands to run this bot.");
         }

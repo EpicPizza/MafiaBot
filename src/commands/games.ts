@@ -7,9 +7,9 @@ module.exports = {
     data: [
         { 
             type: 'slash',
-            name: 'slash-ongoing',
+            name: 'slash-games',
             command: new SlashCommandBuilder()
-                .setName("ongoing")
+                .setName("games")
                 .setDescription("See all ongoing games.")
         }
     ] satisfies Data[],
@@ -40,8 +40,8 @@ module.exports = {
         };
 
         const embed = new EmbedBuilder()
-            .setTitle("Ongoing Games")
-            .setDescription("Welcome to Mafia! Click an ongoing mafia game to go to its signups.")
+            .setTitle("Games")
+            .setDescription("Welcome to Mafia! Click a mafia game to go to its signups.")
             .setColor(Colors.Orange)
             
         const row = new ActionRowBuilder<ButtonBuilder>()
@@ -55,7 +55,7 @@ module.exports = {
         if(row.components.length == 0) {
             row.addComponents([
                 new ButtonBuilder()
-                    .setLabel("No Ongoing Games")
+                    .setLabel("No Games")
                     .setCustomId(JSON.stringify({ name: "never "}))
                     .setStyle(ButtonStyle.Secondary)
                     .setDisabled(true)
