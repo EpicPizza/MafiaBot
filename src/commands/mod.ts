@@ -406,9 +406,7 @@ module.exports = {
                 })
 
                 await interaction.update({ components: components });
-            } else if(id.name == "confirm-alignments") {
-                interaction.deferUpdate();
-                
+            } else if(id.name == "confirm-alignments") {                
                 const components = (interaction.message.toJSON() as any).components as APIActionRowComponent<APIButtonComponent>[]
 
                 for(let i = 0; i < components.length; i++) {
@@ -467,7 +465,7 @@ module.exports = {
                     day: 1,
                 })
 
-                await interaction.editReply({ components: components });
+                await interaction.update({ components: components });
             } else if(id.name == "unlock") {
                 const id = JSON.parse(interaction.customId) as { name: "unlock", value: string, type: boolean };
 
