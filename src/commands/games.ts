@@ -10,7 +10,7 @@ module.exports = {
             name: 'slash-games',
             command: new SlashCommandBuilder()
                 .setName("games")
-                .setDescription("See all ongoing games.")
+                .setDescription("See all games.")
         }
     ] satisfies Data[],
 
