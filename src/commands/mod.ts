@@ -419,6 +419,8 @@ module.exports = {
                     }
                 }
 
+                await interaction.update({ components: components });
+
                 const global = await getGlobal();
                 const setup = await getSetup();
                 const which = await getGameByID(global.game ?? "");
@@ -463,9 +465,7 @@ module.exports = {
 
                 await firebaseAdmin.getFirestore().collection('settings').doc('game').update({
                     day: 1,
-                })
-
-                await interaction.update({ components: components });
+                });
             } else if(id.name == "unlock") {
                 const id = JSON.parse(interaction.customId) as { name: "unlock", value: string, type: boolean };
 
