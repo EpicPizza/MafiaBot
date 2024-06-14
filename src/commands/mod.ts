@@ -571,6 +571,7 @@ async function createSignups(interaction: CommandInteraction | ButtonInteraction
     const message = (interaction.isButton() ? await interaction.update({
         embeds: [embed],
         fetchReply: true,
+        components: [],
     }) : await interaction.reply({
         embeds: [embed],
         fetchReply: true,

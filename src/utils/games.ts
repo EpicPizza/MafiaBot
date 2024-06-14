@@ -183,7 +183,8 @@ export async function refreshSignup(name: string) {
     await message.suppressEmbeds(false); // in case embeds were suppressed
 
     await message.edit({
-        embeds: [embed]
+        embeds: [embed],
+        components: [],
     });
 }
 
