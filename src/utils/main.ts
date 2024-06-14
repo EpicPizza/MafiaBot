@@ -416,7 +416,7 @@ export async function getAllNicknames(setup: Setup, game: Signups) {
     for(let i = 0; i < game.signups.length; i++) {
         for(let j = 0; j < docs.length; j++) {
             if(game.signups[i] == docs[j].id) {
-                nicknames.push(docs[i].data().nickname);
+                nicknames.push(docs[j].data().nickname);
             }
         }
     }
