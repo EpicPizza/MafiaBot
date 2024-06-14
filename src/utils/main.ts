@@ -5,7 +5,7 @@ import Discord, { ActionRow, ActionRowComponent, BaseGuildTextChannel, ButtonSty
 import { ActionRowBuilder, ButtonBuilder, EmbedBuilder } from "@discordjs/builders";
 import { User, getUser } from "./user";
 import { Setup, getSetup } from "./setup";
-import { z } from "zod";
+import { promise, z } from "zod";
 import { refreshCommands } from "./vote";
 import { GameSetup, Signups, getGameSetup, refreshSignup } from "./games";
 
@@ -260,7 +260,7 @@ export async function setupPermissions(setup: Setup, lock: boolean) {
             UseApplicationCommands: true,
         }));
 
-        await setup.primary.chat.permissionOverwrites.create(setup.primary.gang, {
+        promises.push(setup.primary.chat.permissionOverwrites.create(setup.primary.gang, {
             ViewChannel: true,
             SendMessages: false,
             AddReactions: true,
@@ -273,20 +273,20 @@ export async function setupPermissions(setup: Setup, lock: boolean) {
             CreatePublicThreads: false,
             CreatePrivateThreads: false, 
             SendMessagesInThreads: false
-        });
+        }));
     } else {
-        promises.push(setup.primary.chat.permissionOverwrites.create(setup.primary.alive.id, {}));
+        promises.push(setup.primary.chat.permissionOverwrites.create(setup.primary.alive, {}));
 
-        promises.push(setup.primary.chat.permissionOverwrites.create(setup.primary.gang.id, {
+        promises.push(setup.primary.chat.permissionOverwrites.create(setup.primary.gang, {
             ViewChannel: true,
-            SendMessages: false,
+            SendMessages: true,
             AddReactions: true,
-            AttachFiles: false,
-            EmbedLinks: false,
-            SendPolls: false,
-            SendVoiceMessages: false,
-            UseExternalEmojis: false,
-            UseApplicationCommands: false,
+            AttachFiles: true,
+            EmbedLinks: true,
+            SendPolls: true,
+            SendVoiceMessages: true,
+            UseExternalEmojis: true,
+            UseApplicationCommands: true,
             CreatePublicThreads: false,
             CreatePrivateThreads: false, 
             SendMessagesInThreads: false
