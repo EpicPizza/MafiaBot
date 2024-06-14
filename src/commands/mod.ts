@@ -541,7 +541,6 @@ module.exports = {
 
                     await setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game will lock at <t:" + Math.round(date.valueOf() / 1000) + ":T>, <t:" + Math.round(date.valueOf() / 1000) + ":d>!")
                 }
-                
             }
         }
     }
@@ -569,23 +568,10 @@ async function createSignups(interaction: CommandInteraction | ButtonInteraction
         .setColor(game.closed ? Colors.DarkRed : Colors.Blue)
         .setDescription("Loading sign ups...");
 
-    const row = new ActionRowBuilder<ButtonBuilder>()
-        .addComponents(
-            [
-                new ButtonBuilder()
-                    .setCustomId(JSON.stringify({ name: "sign-up", game: game.name }))
-                    .setLabel("Sign Up")
-                    .setStyle(game.closed ? ButtonStyle.Danger : ButtonStyle.Primary)
-                    .setDisabled(game.closed)
-            ]
-        )
-
     const message = (interaction.isButton() ? await interaction.update({
-        components: [row],
         embeds: [embed],
         fetchReply: true,
     }) : await interaction.reply({
-        components: [row],
         embeds: [embed],
         fetchReply: true,
     }));

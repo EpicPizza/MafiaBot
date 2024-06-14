@@ -178,24 +178,12 @@ export async function refreshSignup(name: string) {
     const embed = new EmbedBuilder()
         .setTitle("Sign ups for " + game.name + (game.closed ? " are closed" : "") + "!")
         .setColor(game.closed ? Colors.DarkRed : Colors.Blue)
-        .setDescription(game.signups.length == 0 ? "No sign ups." : list );
-
-    const row = new ActionRowBuilder<ButtonBuilder>()
-        .addComponents(
-            [
-                new ButtonBuilder()
-                    .setCustomId(JSON.stringify({ name: "sign-up", game: game.name }))
-                    .setLabel("Sign Up")
-                    .setStyle(game.closed ? ButtonStyle.Danger : ButtonStyle.Primary)
-                    .setDisabled(game.closed)
-            ]
-        )
+        .setDescription((game.signups.length == 0 ? "No sign ups." : list ) + "\n\nSign up by using this command:\n**/signup game:" + game.name + "**");
 
     await message.suppressEmbeds(false); // in case embeds were suppressed
 
     await message.edit({
-        embeds: [embed],
-        components: [row]
+        embeds: [embed]
     });
 }
 

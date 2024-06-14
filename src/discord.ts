@@ -193,9 +193,9 @@ client.on(Events.ClientReady, async () => {
                             .setStyle(ButtonStyle.Secondary)
                             .setDisabled(true)
                     ])
-                }
+                } 
 
-                cache.bulletin = await setup.primary.chat.send({ embeds: [embed], components: [row] });
+                cache.bulletin = await setup.primary.chat.send({ flags: [ 4096 ], embeds: [embed], components: [row] });
                 cache.new = false;
 
                 await ref.update({
