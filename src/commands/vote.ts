@@ -117,7 +117,7 @@ module.exports = {
 
                 let message = (voted ? "Voted for " : "Removed vote for ") + user.nickname + "!";
 
-                await interaction.reply(message);
+                await interaction.editReply(message);
 
                 await addVoteLog({ message, id: interaction.user.id, day: global.day });
                 
