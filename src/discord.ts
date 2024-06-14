@@ -487,7 +487,7 @@ client.on(Events.GuildMemberAdd, async (member) => {
                 await member.roles.remove(setup.secondary.access);
                 break;
             default:
-                if(setup.secondary.guild.id == member.guild.id || setup.tertiary.guild.id == member.guild.id) {
+                if(setup.secondary.guild.id == member.guild.id /*|| setup.tertiary.guild.id == member.guild.id*/) {
                     if(member.kickable && cache.started) {
                         await member.kick();
                     }
