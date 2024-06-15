@@ -20,7 +20,6 @@ module.exports = {
                             option  
                                 .setName('game')
                                 .setDescription('Name of the game.')
-                                .setRequired(true)
                         )
                         .addBooleanOption(option => 
                             option
@@ -36,7 +35,6 @@ module.exports = {
                         option  
                             .setName('game')
                             .setDescription('Name of the game.')
-                            .setRequired(true)
                             .addChoices(games.map(game => { return { name: game.name, value: game.name }}))
                     )
                     .addBooleanOption(option => 
