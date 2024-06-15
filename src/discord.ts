@@ -125,7 +125,9 @@ client.on(Events.MessageReactionAdd, async (reaction) => {
     try {
         const db = firebaseAdmin.getFirestore();
 
-        const message = await reaction.message.fetch();
+        const message = reaction.message;
+
+        if(message.author?.id == null) return;
 
         if(message.author && message.author.bot == true) return;
         
