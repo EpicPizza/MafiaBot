@@ -121,6 +121,36 @@ client.on(Events.ClientReady, async () => {
     }, 1000 * 15)
 });
 
+client.on(Events.MessageReactionAdd, async (reaction) => {
+    try {
+        const db = firebaseAdmin.getFirestore();
+
+        const message = await reaction.message.fetch();
+
+        if(message.author && message.author.bot == true) return;
+        
+        if(cache.channel != message.channelId) return;
+
+        if(!cache.started) return;
+
+        const ref = db.collection('day').doc(cache.day.toString()).collection('players').doc(message.author.id);
+
+        if((await ref.get()).exists) {
+            ref.update({
+                reactions: FieldValue.arrayUnion(reaction.emoji.toString())
+            })
+        } else {
+            ref.set({
+                messages: 0,
+                words: 0,
+                reactions: FieldValue.arrayUnion(reaction.emoji.toString())
+            })
+        }
+    } catch(e) {
+        console.log(e);
+    }
+})
+
 client.on(Events.MessageCreate, async (message) => {
     try {
         if(message.content == "?help" || message.content.includes("<@" + client.user?.id + ">")) {
