@@ -619,8 +619,8 @@ async function handleLocking(interaction: ChatInputCommandInteraction, type: boo
 
         select.addOptions(
             new StringSelectMenuOptionBuilder()
-                .setLabel(date.toFormat("h:mm a, m/d/yy"))
-                .setDescription((type ? "Lock" : "Unlock") + " the channel " + date.toFormat("h:mm a, m/d/yy") + ".")
+                .setLabel(date.toFormat("h:mm a, L/d/yy"))
+                .setDescription((type ? "Lock" : "Unlock") + " the channel " + date.toFormat("h:mm a, L/d/yy") + ".")
                 .setValue(date.valueOf().toString())
         )
     }
