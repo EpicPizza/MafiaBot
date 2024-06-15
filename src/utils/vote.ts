@@ -16,7 +16,7 @@ export async function addVoteLog(options: { id: string, message: string, day: nu
     const ref = db.collection('day').doc(options.day.toString()).collection('votes').doc('history').collection('logs');
 
     await ref.add({
-        id: options.day,
+        id: options.id,
         message: options.message,
         timestamp: new Date().valueOf(),
     })
