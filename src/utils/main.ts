@@ -297,6 +297,7 @@ export async function setupPermissions(setup: Setup, lock: boolean) {
 export async function setupDeadPlayer(id: string, setup: Setup) {
     const dead = await setup.secondary.guild.members.fetch(id).catch(() => undefined);
     if(dead != null) {
+        await dead.roles.remove(setup.secondary.mod);
         await dead.roles.remove(setup.secondary.spec);
         await dead.roles.remove(setup.secondary.access);
     }
@@ -333,6 +334,7 @@ export async function getPlayerObjects(id: string, setup: Setup) {
 
 export async function setupMafiaPlayer(mafiaPlayer: GuildMember | undefined, setup: Setup, gameSetup: GameSetup) {
     if(mafiaPlayer?.joinedTimestamp) {
+        await mafiaPlayer.roles.remove(setup.tertiary.mod);
         await mafiaPlayer.roles.remove(setup.tertiary.spec);
         await mafiaPlayer.roles.remove(setup.tertiary.access);
 
@@ -700,7 +702,7 @@ export async function setAllignments() {
     const embed = new EmbedBuilder()
         .setTitle("Set Allignments")
         .setColor(Colors.Orange)
-        .setDescription('Click corresponding button to toggle player\'s allignment. Once confirm is clicked, an invite for the mafia server will be created.')
+        .setDescription('Click corresponding button to toggle player\'s allignment. Once confirm is clicked, an invite for the mafia server will be created for you to send to mafia players.')
         .setFooter({ text: 'Red for Mafia, Gray for Town/Neutral/Whatever Applicable' })
 
     const rows = [] as ActionRowBuilder<ButtonBuilder>[]
@@ -732,18 +734,7 @@ export async function setAllignments() {
 
             const button = new ButtonBuilder()
                 .setLabel((await getUser(user.id))?.nickname ?? "<@" + user.id + ">")
-                .setStyle((() => {
-                    switch(user.alignment) {
-                        case 'town':
-                            return ButtonStyle.Success;
-                        case 'neutral':
-                            return ButtonStyle.Primary;
-                        case 'mafia':
-                            return ButtonStyle.Danger;
-                        default:
-                            return ButtonStyle.Secondary;
-                    }
-                })())
+                .setStyle(ButtonStyle.Secondary)
                 .setCustomId(JSON.stringify({ name: 'change-alignment', id: user.id }));
 
             row.addComponents([
@@ -777,6 +768,8 @@ export async function setAllignments() {
     if(rows.length > 4) await gameSetup.spec.send({ components: rows.filter((v, i) => i > 4 && i < 10) });
     if(rows.length > 9) await gameSetup.spec.send({ components: rows.filter((v, i) => i > 9 && i < 15) });
     if(rows.length > 14) await gameSetup.spec.send({ components: rows.filter((v, i) => i > 14 && i < 20) });
+
+    await gameSetup.spec.send("Hi <@537672490223403009>, to make sure things go smoothly, here is a little reminder message. Just leave all of them grayed out, the bot will do nothing. Normally invites and roles are managed by the bot so it kicks anyone who isn't suppose to be in the mafia server, but i've disabled that for you and you can just use the mafia invite for whatever you want when it gives it to you.")
 }
 
 async function getPlayer(id: string, game: Awaited<ReturnType<typeof getGlobal>>) {
