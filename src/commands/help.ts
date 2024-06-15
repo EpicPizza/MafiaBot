@@ -219,7 +219,6 @@ module.exports = {
 
 const help = `This bot is primarly used through slash commands.  Each category of commands is listed below. Note: setup commands are admin only.
 
-
 ----------***How to Play***----------
 
 1. Signup for a game with the signup button.
