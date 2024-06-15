@@ -24,14 +24,12 @@ module.exports = {
                     );
     
                 const global = await getGlobal();
+
+                console.log(global);
             
                 if(global.game == null) return defaultCommand;
 
-                const setup = await getSetup();
-
-                if(typeof setup == 'string') return defaultCommand;
-
-                const nicknames = await getAllCurrentNicknames(setup, global);
+                const nicknames = await getAllCurrentNicknames(global);
 
                 if(nicknames.length == 0) return defaultCommand;
 

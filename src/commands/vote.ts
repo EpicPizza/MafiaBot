@@ -30,13 +30,7 @@ module.exports = {
             
                 if(global.game == null) return defaultCommand;
 
-                const setup = await getSetup();
-
-                console.log(setup);
-
-                if(typeof setup == 'string') return defaultCommand;
-
-                const nicknames = await getAllCurrentNicknames(setup, global);
+                const nicknames = await getAllCurrentNicknames(global);
 
                 console.log(nicknames);
 

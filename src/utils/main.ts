@@ -416,7 +416,7 @@ export async function getAllNicknames(setup: Setup, game: Signups) {
     return nicknames;
 }
 
-export async function getAllCurrentNicknames(setup: Setup, global: Global) {
+export async function getAllCurrentNicknames(global: Global) {
     const db = firebaseAdmin.getFirestore();
 
     const ref = db.collection('users');
