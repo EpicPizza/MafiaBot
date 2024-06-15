@@ -69,6 +69,8 @@ module.exports = {
         const global = await getGlobal();
 
         if(global.started == false) throw new Error("Game has not started.");
+
+        if(global.locked == true) throw new Error("Game is locked!");
         
         const setup = await getSetup();
 
