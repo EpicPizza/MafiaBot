@@ -25,6 +25,8 @@ module.exports = {
     ] satisfies Data[],
 
     execute: async (interaction: ChatInputCommandInteraction | ButtonInteraction | Message ) => { //this also accepts message in case someone is pinging bot
+        const global = await getGlobal();
+        
         if('reactions' in interaction) {
             const embed = new EmbedBuilder()
             .setTitle("Mafia Bot Help")
@@ -75,8 +77,6 @@ module.exports = {
             const command = JSON.parse(interaction.customId);
 
             if(command.id != interaction.user.id) return await interaction.reply({ ephemeral: true, content: "This is not your button! Run the /help command yourself." });
-
-            const global = await getGlobal();
 
             if(command.page == 0) {
                 const embed = new EmbedBuilder()
