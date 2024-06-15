@@ -5,7 +5,7 @@ import { getGameByName, getGameID, getGlobal } from "./main";
 import { z } from "zod";
 import { FieldValue } from "firebase-admin/firestore";
 import { User, getUser } from "./user";
-import { refreshCommands } from "./vote";
+import { register } from "../register";
 
 export interface Signups { 
     name: string, 
@@ -210,6 +210,7 @@ export async function archiveGame(interaction: ChatInputCommandInteraction, name
 
     await ref.delete();
 
+    await register();
 
     await interaction.reply({ ephemeral: true, content: "Game archived." });
 }
@@ -262,6 +263,8 @@ export async function createGame(interaction: ChatInputCommandInteraction) {
         }
     });
 
+    await register();
+
     await interaction.editReply({ content: name + " game created." })
 }
 
@@ -282,20 +285,25 @@ function getRandom(min: number, max: number) {
     return Math.floor((Math.random() * (max - min) + min)).toString();
 }
 
-export async function refreshPlayers() {
-    const global = await getGlobal();
+export async function getGames() {    
+    const db = firebaseAdmin.getFirestore();
 
-    if(global.started == false) throw new Error("Game has not started.");
+    const ref = db.collection('settings').doc('game').collection('games');
 
-    const list = [] as User[];
+    const docs = (await ref.get()).docs;
 
-    for(let i = 0; i < global.players.length; i++) {
-        const user = await getUser(global.players[i].id);
+    const games = [] as { name: string, id: string }[];
 
-        if(user == null) throw new Error("User not registered.");
+    for(let doc = 0; doc < docs.length; doc++) {
+        const data = docs[doc].data();
 
-        list.push(user);
-    }
+        if(!data) continue;
 
-    await refreshCommands(list.map(user => user.nickname));
+        games.push({
+            name: data.name,
+            id: docs[doc].id,
+        })
+    };
+
+    return games;
 }

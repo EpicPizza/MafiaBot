@@ -6,8 +6,8 @@ import { ActionRowBuilder, ButtonBuilder, EmbedBuilder } from "@discordjs/builde
 import { User, getUser } from "./user";
 import { Setup, getSetup } from "./setup";
 import { promise, z } from "zod";
-import { refreshCommands } from "./vote";
 import { GameSetup, Signups, getGameSetup, refreshSignup } from "./games";
+import { register } from "../register";
 
 const pings = true;
 
@@ -414,6 +414,26 @@ export async function getAllNicknames(setup: Setup, game: Signups) {
     return nicknames;
 }
 
+export async function getAllCurrentNicknames(setup: Setup, global: Global) {
+    const db = firebaseAdmin.getFirestore();
+
+    const ref = db.collection('users');
+
+    const docs = (await ref.get()).docs;
+    
+    const nicknames = [] as string[];
+
+    for(let i = 0; i < global.players.length; i++) {
+        for(let j = 0; j < docs.length; j++) {
+            if(global.players[i].id == docs[j].id) {
+                nicknames.push(docs[j].data().nickname);
+            }
+        }
+    }
+
+    return nicknames;
+}
+
 export async function startGame(interaction: ChatInputCommandInteraction, name: string) {
     await interaction.deferReply({ ephemeral: true });
 
@@ -454,7 +474,7 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
         promises.push(setup.primary.chat.send("Game is starting!"));
     }
 
-    promises.push(refreshCommands(await getAllNicknames(setup, game)));
+    promises.push(register());
 
     const results = await Promise.allSettled(promises);
 

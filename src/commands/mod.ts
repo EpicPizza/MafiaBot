@@ -10,6 +10,7 @@ import { getSetup } from "../utils/setup";
 import dnt from 'date-and-time';
 import meridiem from 'date-and-time/plugin/meridiem'
 import { activateSignup, archiveGame, closeSignups, createGame, getGameSetup, openSignups, refreshSignup, removeSignup } from "../utils/games";
+import { register } from "../register";
 
 dnt.plugin(meridiem);
 

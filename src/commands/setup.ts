@@ -5,8 +5,8 @@ import { set, z } from "zod";
 import { getGlobal } from "../utils/main";
 import { User, getUser } from "../utils/user";
 import { getPartialSetup, getSetup } from "../utils/setup";
-import { refreshCommands } from "../utils/vote";
-import { refreshSignup, refreshPlayers } from "../utils/games";
+import { refreshSignup } from "../utils/games";
+import { register } from "../register";
 
 module.exports = {
     data: [
@@ -107,8 +107,8 @@ module.exports = {
                 )
                 .addSubcommand(subcommand =>
                     subcommand
-                        .setName("players")
-                        .setDescription("Refresh players.")
+                        .setName("commands")
+                        .setDescription("Refresh commands.")
                 )
                 .addSubcommand(subcommand =>
                     subcommand
@@ -432,10 +432,10 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
             await refreshSignup(interaction.options.getString("game") ?? "12948201380912840192380192840912830912803921312");
 
             await interaction.reply({ ephemeral: true, content: "Signups refreshed." });
-        } else if(subcommand == "players") {
-            await refreshPlayers();
+        } else if(subcommand == "commands") {
+            await register();
 
-            await interaction.reply({ ephemeral: true, content: "Refreshed players."});
+            await interaction.reply({ ephemeral: true, content: "Refreshed commands."});
         } else if(subcommand == "mod") {
             const setup = await getSetup();
 

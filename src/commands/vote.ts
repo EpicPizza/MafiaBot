@@ -2,26 +2,51 @@ import { ActionRowBuilder, ApplicationCommandType, ButtonBuilder, ButtonInteract
 import { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { set, z } from "zod";
-import { getGlobal, getGameByName, lockGame } from "../utils/main";
+import { getGlobal, getGameByName, lockGame, getAllNicknames, getGameByID, getAllCurrentNicknames } from "../utils/main";
 import { User, getUser } from "../utils/user";
-import { addVoteLog, getVotes, refreshCommands, removeVote, setVote } from "../utils/vote";
+import { addVoteLog, getVotes, removeVote, setVote } from "../utils/vote";
 import { getSetup } from "../utils/setup";
+import { register } from "../register";
 
 module.exports = {
     data: [
         { 
             type: 'slash',
             name: 'slash-vote',
-            command: new SlashCommandBuilder()
-                .setName('vote')
-                .setDescription('Vote for a player.')
-                .addStringOption(option =>
-                    option  
-                        .setName('player')
-                        .setDescription('Which player to vote for?')
-                        .setRequired(true)
-                        .setChoices({ value: "NEEDS REFRESH", name: "NEEDS REFRESH" })
-                )
+            command: async () => {
+                const defaultCommand = new SlashCommandBuilder()
+                    .setName('vote')
+                    .setDescription('Vote for a player.')
+                    .addStringOption(option =>
+                        option  
+                            .setName('player')
+                            .setDescription('Which player to vote for?')
+                            .setRequired(true)
+                    )
+
+                const global = await getGlobal();
+            
+                if(global.game == null) return defaultCommand;
+
+                const setup = await getSetup();
+
+                if(typeof setup == 'string') return defaultCommand;
+
+                const nicknames = await getAllCurrentNicknames(setup, global);
+
+                if(nicknames.length == 0) return defaultCommand;
+
+                return new SlashCommandBuilder()
+                    .setName('vote')
+                    .setDescription('Vote for a player.')
+                    .addStringOption(option =>
+                        option  
+                            .setName('player')
+                            .setDescription('Which player to vote for?')
+                            .setRequired(true)
+                            .setChoices(nicknames.map(nickname => { return { name: nickname, value: nickname }}))
+                    )
+            }
         },
         { 
             type: 'slash',
@@ -72,7 +97,7 @@ module.exports = {
         }
 
         if(player == "NEEDS REFRESH") {
-            await refreshCommands(list.map(user => user.nickname));
+            await register();
 
             await interaction.reply({ ephemeral: true, content: "Command refreshed, wait a min to use again." });
         } else {
@@ -100,7 +125,11 @@ module.exports = {
             }
 
             if(!user || !voter) {
-                throw new Error("Player not found.");
+                if(!voter) {
+                    throw new Error("You're not part of this game!");
+                } else {
+                    throw new Error("Player not found.");
+                }
             } else {
                 let voted = false;
 

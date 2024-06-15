@@ -2,6 +2,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteracti
 import { firebaseAdmin } from "../firebase";
 import { Data } from "../discord";
 import { getSetup } from "../utils/setup";
+import { getGames } from "../utils/games";
 
 module.exports = {
     data: [
@@ -38,7 +39,7 @@ module.exports = {
                 url: "https://discord.com/channels/" + setup.primary.guild.id + "/" + setup.primary.chat.id + "/" + data.message.id
             })
         };
-
+        
         const embed = new EmbedBuilder()
             .setTitle("Games")
             .setDescription("Welcome to Mafia! Click a mafia game to go to its signups.")

@@ -6,35 +6,69 @@ import { getGlobal, getGameByID, getGameByName } from "../utils/main";
 import { User, getUser } from "../utils/user";
 import { getSetup } from "../utils/setup";
 import { getVotes } from "../utils/vote";
-import { addSignup, refreshSignup, removeSignup } from "../utils/games";
+import { addSignup, getGames, refreshSignup, removeSignup } from "../utils/games";
 
 module.exports = {
     data: [
         { 
             type: 'slash',
             name: 'slash-signup',
-            command: new SlashCommandBuilder()
-                .setName("signup")
-                .setDescription("Sign up for a mafia game!")
-                .addStringOption(option =>
-                    option  
-                        .setName('game')
-                        .setDescription('Name of the game.')
-                        .setRequired(true)
-                )
-},
+            command: async () => {
+                const games = await getGames();
+
+                if(games.length == 0) {
+                    return new SlashCommandBuilder()
+                        .setName("signup")
+                        .setDescription("Sign up for a mafia game!")
+                        .addStringOption(option =>
+                            option  
+                                .setName('game')
+                                .setDescription('Name of the game.')
+                                .setRequired(true)
+                        )
+                }
+
+                return new SlashCommandBuilder()
+                    .setName("signup")
+                    .setDescription("Sign up for a mafia game!")
+                    .addStringOption(option =>
+                        option  
+                            .setName('game')
+                            .setDescription('Name of the game.')
+                            .setRequired(true)
+                            .addChoices(games.map(game => { return { name: game.name, value: game.name }}))
+                    )
+            } 
+        },
         { 
             type: 'slash',
             name: 'slash-leave',
-            command: new SlashCommandBuilder()
-                .setName("leave")
-                .setDescription("Leave mafia game.")
-                .addStringOption(option =>
-                    option  
-                        .setName('game')
-                        .setDescription('Name of the game.')
-                        .setRequired(true)
-                )
+            command: async () => {
+                const games = await getGames();
+
+                if(games.length == 0) {
+                    return new SlashCommandBuilder()
+                        .setName("leave")
+                        .setDescription("Leave mafia game.")    
+                        .addStringOption(option =>
+                            option  
+                                .setName('game')
+                                .setDescription('Name of the game.')
+                                .setRequired(true)
+                        )
+                }
+
+                return new SlashCommandBuilder()
+                    .setName("leave")
+                    .setDescription("Leave mafia game.")
+                    .addStringOption(option =>
+                        option  
+                            .setName('game')
+                            .setDescription('Name of the game.')
+                            .setRequired(true)
+                            .addChoices(games.map(game => { return { name: game.name, value: game.name }}))
+                    )
+            }
         },
         {
             type: 'button',

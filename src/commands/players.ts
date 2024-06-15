@@ -2,25 +2,49 @@ import { SlashCommandBuilder, ChatInputCommandInteraction, Colors, EmbedBuilder 
 import { Data } from "../discord";
 import { getGameByName, getGlobal } from "../utils/main";
 import { getUser } from "../utils/user";
+import { getGames } from "../utils/games";
 
 module.exports = {
     data: [
         { 
             type: 'slash',
             name: 'slash-players',
-            command: new SlashCommandBuilder()
-                .setName("players")
-                .setDescription("Show players.")
-                .addBooleanOption(option => 
-                    option
-                        .setName('complete')
-                        .setDescription('Shows each account connected to each player.')
-                )
-                .addStringOption(option =>
-                    option  
-                        .setName('game')
-                        .setDescription('Name of the game (signups).')
-                )
+            command: async () => {
+                const games = await getGames();
+
+                if(games.length == 0) {
+                    return new SlashCommandBuilder()
+                        .setName("players")
+                        .setDescription("Show players.")
+                        .addStringOption(option =>
+                            option  
+                                .setName('game')
+                                .setDescription('Name of the game.')
+                                .setRequired(true)
+                        )
+                        .addBooleanOption(option => 
+                            option
+                                .setName('complete')
+                                .setDescription('Shows each account connected to each player.')
+                        )
+                }
+
+                return new SlashCommandBuilder()
+                    .setName("players")
+                    .setDescription("Show players.")
+                    .addStringOption(option =>
+                        option  
+                            .setName('game')
+                            .setDescription('Name of the game.')
+                            .setRequired(true)
+                            .addChoices(games.map(game => { return { name: game.name, value: game.name }}))
+                    )
+                    .addBooleanOption(option => 
+                        option
+                            .setName('complete')
+                            .setDescription('Shows each account connected to each player.')
+                    )
+            }
         }
     ] satisfies Data[],
 

@@ -10,6 +10,7 @@ import { getSetup } from "./utils/setup";
 import { editOverwrites, generateOverwrites, getGlobal } from "./utils/main";
 import { getUser } from "./utils/user";
 import { FieldValue } from "firebase-admin/firestore";
+import { isDisabled } from "./disable";
 
 dotenv.config();
 
@@ -30,7 +31,7 @@ export type Data = ({
 } | {
     type: 'slash',
     name: string,
-    command: SlashCommandBuilder | SlashCommandOptionsOnlyBuilder | SlashCommandSubcommandsOnlyBuilder,
+    command: SlashCommandBuilder | SlashCommandOptionsOnlyBuilder | SlashCommandSubcommandsOnlyBuilder | Function,
 } | {
     type: 'context',
     name: string,
@@ -617,6 +618,8 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 });
 
-client.login(process.env.DEV == "TRUE" ? process.env.DEVTOKEN : process.env.TOKEN);
+if(!isDisabled()) {
+    client.login(process.env.DEV == "TRUE" ? process.env.DEVTOKEN : process.env.TOKEN);
+}
 
 export default client;

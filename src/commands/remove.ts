@@ -2,31 +2,56 @@ import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatIn
 import { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { z } from "zod";
-import { getGlobal, getGameByName, lockGame } from "../utils/main";
+import { getGlobal, getGameByName, lockGame, getAllNicknames, getGameByID, getAllCurrentNicknames } from "../utils/main";
 import { User, getUser } from "../utils/user";
-import { getVotes, refreshCommands, removeVote, setVote } from "../utils/vote";
 import { getSetup } from "../utils/setup";
-import { refreshPlayers } from "../utils/games";
+import { register } from "../register";
 
 module.exports = {
     data: [
         { 
             type: 'slash',
             name: 'slash-remove',
-            command: new SlashCommandBuilder()
-                .setName('remove')
-                .setDescription('Remove a player.')
-                .addStringOption(option =>
-                    option  
-                        .setName('player')
-                        .setDescription('Which player to remove?')
-                        .setRequired(true)
-                        .setChoices({ value: "NEEDS REFRESH", name: "NEEDS REFRESH" })
-                )
+            command: async () => {
+                const defaultCommand = new SlashCommandBuilder()
+                    .setName('remove')
+                    .setDescription('Remove a player.')
+                    .addStringOption(option =>
+                        option  
+                            .setName('player')
+                            .setDescription('Which player to remove?')
+                            .setRequired(true)
+                    );
+    
+                const global = await getGlobal();
+            
+                if(global.game == null) return defaultCommand;
+
+                const setup = await getSetup();
+
+                if(typeof setup == 'string') return defaultCommand;
+
+                const nicknames = await getAllCurrentNicknames(setup, global);
+
+                if(nicknames.length == 0) return defaultCommand;
+
+                return new SlashCommandBuilder()
+                    .setName('remove')
+                    .setDescription('Remove a player.')
+                    .addStringOption(option =>
+                        option  
+                            .setName('player')
+                            .setDescription('Which player to remove?')
+                            .setRequired(true)
+                            .setChoices(nicknames.map(nickname => { return { name: nickname, value: nickname }}))
+                    );
+            }
         }
     ] satisfies Data[],
 
     execute: async (interaction: ChatInputCommandInteraction ) => {
+        await interaction.deferReply({ ephemeral: true });
+
         const global = await getGlobal();
 
         const setup  = await getSetup();
@@ -50,48 +75,40 @@ module.exports = {
             list.push(user);
         }
 
-        if(player == "NEEDS REFRESH") {
-            await refreshPlayers();
+        const user = list.find(user => user.nickname == player);
 
-            await interaction.reply({ ephemeral: true, content: "Command refreshed, wait a min to use again." });
-        } else {
-            const user = list.find(user => user.nickname == player);
+        if(!user) throw new Error("Player not found.");
 
-            if(!user) throw new Error("Player not found.");
+        if(typeof setup == 'string') throw new Error("Incomplete Setup");
 
-            const setup = await getSetup();
+        const main = await setup.primary.guild.members.fetch(user.id).catch(() => undefined);
+        if(main == null) throw new Error("Member not found.");
+        await main.roles.remove(setup.primary.alive);
 
-            if(typeof setup == 'string') throw new Error("Incomplete Setup");
+        const dead = await setup.secondary.guild.members.fetch(user.id).catch(() => undefined);
+        if(dead == null) throw new Error("Member not found.");
+        await dead.roles.add(setup.secondary.access);
 
-            const main = await setup.primary.guild.members.fetch(user.id).catch(() => undefined);
-            if(main == null) throw new Error("Member not found.");
-            await main.roles.remove(setup.primary.alive);
-
-            const dead = await setup.secondary.guild.members.fetch(user.id).catch(() => undefined);
-            if(dead == null) throw new Error("Member not found.");
-            await dead.roles.add(setup.secondary.access);
-
-            const mafia = await setup.tertiary.guild.members.fetch(user.id).catch(() => undefined);
-            if(mafia) {
-                await mafia.roles.remove(setup.tertiary.access);
-                await mafia.roles.add(setup.tertiary.spec);
-            }
-
-            const db = firebaseAdmin.getFirestore();
-
-            const ref = db.collection('settings').doc('game');
-
-            await db.runTransaction(async t => {
-                const global = await getGlobal(t);
-
-                t.update(ref, {
-                    players: global.players.filter(player => player.id != user.id)
-                })
-            });
-            
-            await refreshPlayers();
-
-            await interaction.reply({ ephemeral: true, content: "Player removed."});
+        const mafia = await setup.tertiary.guild.members.fetch(user.id).catch(() => undefined);
+        if(mafia) {
+            await mafia.roles.remove(setup.tertiary.access);
+            await mafia.roles.add(setup.tertiary.spec);
         }
+
+        const db = firebaseAdmin.getFirestore();
+
+        const ref = db.collection('settings').doc('game');
+
+        await db.runTransaction(async t => {
+            const global = await getGlobal(t);
+
+            t.update(ref, {
+                players: global.players.filter(player => player.id != user.id)
+            })
+        });
+
+        await register();
+
+        await interaction.editReply({ content: "Player removed."});
     } 
 }
