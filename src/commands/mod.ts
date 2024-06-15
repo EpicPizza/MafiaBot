@@ -584,6 +584,8 @@ async function createSignups(interaction: CommandInteraction | ButtonInteraction
 }
 
 async function handleLocking(interaction: ChatInputCommandInteraction, type: boolean) {
+    await interaction.deferReply({ ephemeral: true });
+
     const timing = await getFuture();
 
     const embed = new EmbedBuilder()
@@ -591,11 +593,7 @@ async function handleLocking(interaction: ChatInputCommandInteraction, type: boo
         .setColor(Colors.Orange)
         .setDescription("Options are in PST." + (timing ? "\n\nThis will overwrite current " + (timing.type ? "lock" : "unlock") + " at <t:" + Math.round(timing.when.valueOf() / 1000) + ":T>, <t:" + Math.round(timing.when.valueOf() / 1000) + ":d>." : " "))
 
-    const date = new Date();
-    
-    date.setMinutes(0);
-    date.setSeconds(0);
-    date.setMilliseconds(0);
+    let date = DateTime.now().setZone('US/Pacific').startOf("hour");
 
     //dnt.format(date, "h:mm A, M/DD/YY")
 
@@ -610,19 +608,19 @@ async function handleLocking(interaction: ChatInputCommandInteraction, type: boo
         )
 
     for(let i = 0; i < 24; i++) {
-        date.setHours(date.getHours() + 1);
+        date = date.plus(1000 * 60 * 60);
 
-        if(date.getHours() > 22) {
-            date.setHours(10);
-            date.setDate(date.getDate() + 1);
-        } else if(date.getHours() < 10) {
-            date.setHours(10)
+        if(date.hour > 22) {
+            date = date.set({ hour: 10 });
+            date = date.plus({ days: 1 });
+        } else if(date.hour < 10) {
+            date = date.set({ hour: 10 });
         }
 
         select.addOptions(
             new StringSelectMenuOptionBuilder()
-                .setLabel(dnt.format(date, "h:mm A, M/DD/YY"))
-                .setDescription((type ? "Lock" : "Unlock") + " the channel " + dnt.format(date, "h:mm A, M/DD/YY") + ".")
+                .setLabel(date.toFormat("h:mm a, m/d/yy"))
+                .setDescription((type ? "Lock" : "Unlock") + " the channel " + date.toFormat("h:mm a, m/d/yy") + ".")
                 .setValue(date.valueOf().toString())
         )
     }
@@ -630,8 +628,7 @@ async function handleLocking(interaction: ChatInputCommandInteraction, type: boo
     const row = new ActionRowBuilder<StringSelectMenuBuilder>()
         .addComponents(select)
 
-    await interaction.reply({
-        ephemeral: true,
+    await interaction.editReply({
         embeds: [embed],
         components: [row]
     })
