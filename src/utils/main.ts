@@ -227,7 +227,7 @@ export async function prepareGame(game: Signups) {
         started: true,
         locked: true,
         game: game.id,
-        players: game.signups.map((signup) => { return { id: signup, allignment: null } }),
+        players: game.signups.map((signup) => { return { id: signup, alignment: null } }),
         day: 0,
     });
 }
