@@ -71,7 +71,9 @@ async function handleVoteList(interaction: ChatInputCommandInteraction) {
 
     let message = "";
 
-    const voting = Array.from(votes.keys());
+    let voting = Array.from(votes.keys());
+
+    voting = voting.sort((a, b) => (votes.get(a)?.length ?? -1) - (votes.get(b)?.length ?? -1));
 
     for(let i = 0; i < voting.length; i++) {
         const voted = votes.get(voting[i]) ?? [];
