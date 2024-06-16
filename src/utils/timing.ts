@@ -1,5 +1,5 @@
 import { firebaseAdmin } from "../firebase";
-import { lockGame, unlockGame } from "./main";
+import { getGlobal, lockGame, unlockGame } from "./main";
 import { DateTime } from 'luxon';
 const parseHumanRelativeTime = require('parse-human-relative-time')(DateTime)
 
@@ -53,13 +53,17 @@ export async function checkFutureLock() {
 
     const data = (await ref.get()).data();
 
+    const global = await getGlobal();
+
     if(!data) throw new Error("Database not setup.");
 
     if(data.when == null) return;
 
     if(data.when.toDate().valueOf() < new Date().valueOf()) {
         try {
-            if(data.type) {
+            if(data.type == global.locked) {
+                console.log("Already locked/unlocked.");
+            } else if(data.type) {
                 await lockGame();
             } else {
                 await unlockGame(data.increment);

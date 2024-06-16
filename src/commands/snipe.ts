@@ -36,7 +36,7 @@ module.exports = {
                     .setURL("https://discord.com/channels/" + interaction.targetMessage.guildId + "/" + interaction.targetMessage.channelId + "/" + interaction.targetMessage.id)
             ])
 
-        if(!data) return await interaction.reply({ content: "No edits recorded.", components: [row] });
+        if(data == undefined) return await interaction.reply({ content: "No edits recorded.", components: [row] });
 
         const edits = data.edits as { content: string, timestamp: number }[];
 

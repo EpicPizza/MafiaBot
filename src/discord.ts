@@ -121,6 +121,41 @@ client.on(Events.ClientReady, async () => {
     }, 1000 * 15)
 });
 
+client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
+    try {
+        if(!cache.started) return;
+
+        console.log(newMessage.content);
+
+        if(newMessage.author && newMessage.author.bot == true) return;
+        if(newMessage.channelId != cache.channel) return;
+
+        const db = firebaseAdmin.getFirestore();
+
+        const ref = db.collection('edits').doc(newMessage.id);
+
+        if(cache.channel != oldMessage.channelId) return;
+
+        if((await ref.get()).exists) {
+            await ref.update({
+                edits: FieldValue.arrayUnion({
+                    content: newMessage.content ?? "No Content",
+                    timestamp: newMessage.editedTimestamp ?? new Date().valueOf()
+                }),
+            })
+        } else {
+            await ref.set({
+                edits: [{
+                    content: newMessage.content ?? "No Content",
+                    timestamp: newMessage.editedTimestamp ?? new Date().valueOf()
+                }],
+            })
+        }
+    } catch(e) {
+        console.log(e);
+    }
+})
+
 client.on(Events.MessageReactionAdd, async (reaction) => {
     try {
         const db = firebaseAdmin.getFirestore();
