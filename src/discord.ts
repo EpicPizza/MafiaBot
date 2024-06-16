@@ -161,7 +161,7 @@ client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
     }
 })
 
-client.on(Events.MessageReactionAdd, async (reaction) => {
+client.on(Events.MessageReactionAdd, async (reaction, user) => {
     try {
         if (reaction.partial) {
             reaction = await reaction.fetch();
@@ -169,19 +169,13 @@ client.on(Events.MessageReactionAdd, async (reaction) => {
 
         const db = firebaseAdmin.getFirestore();
 
-        const message = await cache.channel?.messages.fetch(reaction.message.id).catch(() => undefined);
-
-        if(message == undefined) return;
-
-        if(message.author?.id == undefined) return;
-
-        if(message.author && message.author.bot == true) return;
+        if(user.bot == true) return;
         
-        if(cache.channel && cache.channel.id != message.channelId) return;
+        if(cache.channel && cache.channel.id != reaction.message.channelId) return;
 
         if(!cache.started) return;
 
-        const ref = db.collection('day').doc(cache.day.toString()).collection('players').doc(message.author.id);
+        const ref = db.collection('day').doc(cache.day.toString()).collection('players').doc(user.id);
 
         if((await ref.get()).exists) {
             ref.update({
