@@ -21,7 +21,7 @@ interface ExtendedClient extends Client {
 const cache = {
     day: 0,
     started: false,
-    channel: null as null | string,
+    channel: null as null | TextChannel,
 }
 
 export type Data = ({
@@ -93,7 +93,7 @@ client.on(Events.ClientReady, async () => {
 
         if(typeof setup == 'string') return;
 
-        cache.channel = setup.primary.chat.id;
+        cache.channel = setup.primary.chat;
         cache.day = global.day;   
         cache.started = global.started;
     } catch(e) {
@@ -112,7 +112,7 @@ client.on(Events.ClientReady, async () => {
 
             if(typeof setup == 'string') return;
 
-            cache.channel = setup.primary.chat.id;
+            cache.channel = setup.primary.chat;
             cache.day = global.day;   
             cache.started = global.started;
         } catch(e) {
@@ -128,13 +128,13 @@ client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
         console.log(newMessage.content);
 
         if(newMessage.author && newMessage.author.bot == true) return;
-        if(newMessage.channelId != cache.channel) return;
+        if(cache.channel && newMessage.channelId != cache.channel.id) return;
 
         const db = firebaseAdmin.getFirestore();
 
         const ref = db.collection('edits').doc(newMessage.id);
 
-        if(cache.channel != oldMessage.channelId) return;
+        if(cache.channel && cache.channel.id != oldMessage.channelId) return;
 
         if((await ref.get()).exists) {
             await ref.update({
@@ -160,13 +160,15 @@ client.on(Events.MessageReactionAdd, async (reaction) => {
     try {
         const db = firebaseAdmin.getFirestore();
 
-        const message = reaction.message;
+        const message = await cache.channel?.messages.fetch(reaction.message.id).catch(() => undefined);
 
-        if(message.author?.id == null) return;
+        if(message == undefined) return;
+
+        if(message.author?.id == undefined) return;
 
         if(message.author && message.author.bot == true) return;
         
-        if(cache.channel != message.channelId) return;
+        if(cache.channel && cache.channel.id != message.channelId) return;
 
         if(!cache.started) return;
 
@@ -267,7 +269,7 @@ client.on(Events.MessageCreate, async (message) => {
 
         if(message.author && message.author.bot == true) return;
         
-        if(cache.channel != message.channelId) return;
+        if(cache.channel && cache.channel.id != message.channelId) return;
 
         if(!cache.started) return;
 
@@ -296,7 +298,7 @@ client.on(Events.MessageDelete, async (message) => {
         const channel = message.channel;
 
         if(message.author && message.author.bot == true) return;
-        if(message.channelId != cache.channel) return;
+        if(cache.channel && message.channelId != cache.channel.id) return;
 
         const setup = await getSetup();
 
