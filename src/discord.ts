@@ -9,7 +9,7 @@ import { firebaseAdmin } from "./firebase";
 import { getSetup } from "./utils/setup";
 import { editOverwrites, generateOverwrites, getGlobal } from "./utils/main";
 import { getUser } from "./utils/user";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { isDisabled } from "./disable";
 
 dotenv.config();
@@ -143,7 +143,12 @@ client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
 
         if((await ref.get()).exists) {
             await ref.update({
-                edits: FieldValue.arrayUnion({
+                edits: FieldValue.arrayUnion(
+                {
+                    content: oldMessage.content ?? "No Content",
+                    timestamp: oldMessage.editedTimestamp ?? new Date().valueOf()
+                },
+                {
                     content: newMessage.content ?? "No Content",
                     timestamp: newMessage.editedTimestamp ?? new Date().valueOf()
                 }),
