@@ -143,12 +143,7 @@ client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
 
         if((await ref.get()).exists) {
             await ref.update({
-                edits: FieldValue.arrayUnion(
-                {
-                    content: oldMessage.content ?? "No Content",
-                    timestamp: oldMessage.editedTimestamp ?? new Date().valueOf()
-                },
-                {
+                edits: FieldValue.arrayUnion({
                     content: newMessage.content ?? "No Content",
                     timestamp: newMessage.editedTimestamp ?? new Date().valueOf()
                 }),
@@ -156,6 +151,9 @@ client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
         } else {
             await ref.set({
                 edits: [{
+                    content: oldMessage.content ?? "No Content",
+                    timestamp: oldMessage.editedTimestamp ?? new Date().valueOf()
+                },{
                     content: newMessage.content ?? "No Content",
                     timestamp: newMessage.editedTimestamp ?? new Date().valueOf()
                 }],
