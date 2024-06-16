@@ -53,7 +53,7 @@ export async function getVotes(options: { day: number }) {
     for(let i = 0; i < docs.length; i++) {
         const data = docs[i].data();
 
-        if(data) {
+        if(data && docs[i].id != "history") {
             votes.push(data as Vote);
         }
     }
