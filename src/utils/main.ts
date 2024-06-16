@@ -101,6 +101,10 @@ export async function unlockGame(increment: boolean = false) {
         game: global.game,
     })
 
+    await db.collection('day').doc((increment ? global.day + 1 : global.day).toString()).collection('votes').doc('history').set({
+        game: global.game,
+    })
+
     if(pings) {
         await setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game has unlocked!");
     } else {

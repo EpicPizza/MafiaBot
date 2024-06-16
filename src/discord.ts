@@ -159,7 +159,7 @@ client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
 client.on(Events.MessageReactionAdd, async (reaction) => {
     try {
         if (reaction.partial) {
-            await reaction.fetch();
+            reaction = await reaction.fetch();
         }
 
         const db = firebaseAdmin.getFirestore();
