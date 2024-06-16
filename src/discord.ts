@@ -1,4 +1,4 @@
-import { ActionRow, ActionRowBuilder, ActivityType, ButtonBuilder, ButtonStyle, ChannelType, Client, Collection, Colors, ContextMenuCommandBuilder, EmbedBuilder, Events, GatewayIntentBits, GuildCacheMessage, Message, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, TextChannel, WebhookClient } from "discord.js";
+import { ActionRow, ActionRowBuilder, ActivityType, ButtonBuilder, ButtonStyle, ChannelType, Client, Collection, Colors, ContextMenuCommandBuilder, EmbedBuilder, Events, GatewayIntentBits, GuildCacheMessage, Message, Partials, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, TextChannel, WebhookClient } from "discord.js";
 import dotenv from 'dotenv';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -57,7 +57,12 @@ const client: ExtendedClient = new Client({
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildMessageReactions,
-    ]
+    ],
+    partials: [
+        Partials.Message,
+        Partials.Channel, 
+        Partials.Reaction
+    ],
 }) as ExtendedClient;
 
 client.commands = new Collection();
