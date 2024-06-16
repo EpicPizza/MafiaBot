@@ -3,6 +3,7 @@ import { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import dnt from 'date-and-time';
 import meridiem from 'date-and-time/plugin/meridiem'
+import { DateTime } from "luxon";
 
 dnt.plugin(meridiem);
 
@@ -43,7 +44,9 @@ module.exports = {
         const embed = new EmbedBuilder()
             .setTitle("Edits")
             .setColor(Colors.Red)
-            .setDescription(edits.reduce((previous, current) => previous += "[" + dnt.format(new Date(current.timestamp), "h:mm A, M/DD/YY") + "] - " + current.content + "\n", ""));
+            .setDescription(edits.reduce((previous, current) => {
+                return previous += "[<t:" + Math.round(new Date(current.timestamp).valueOf() / 1000) + ":T>, <t:" + Math.round(new Date(current.timestamp).valueOf() / 1000) + ":d>] - " + current.content + "\n";
+            }, ""));
 
         await interaction.reply({ embeds: [embed], components: [row] });
     }
