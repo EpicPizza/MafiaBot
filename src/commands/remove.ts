@@ -2,7 +2,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatIn
 import { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { z } from "zod";
-import { getGlobal, getGameByName, lockGame, getAllNicknames, getGameByID, getAllCurrentNicknames } from "../utils/main";
+import { getGlobal, getGameByName, lockGame, getGameByID, getAllCurrentNicknames } from "../utils/main";
 import { User, getUser } from "../utils/user";
 import { getSetup } from "../utils/setup";
 import { register } from "../register";

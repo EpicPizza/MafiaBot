@@ -10,7 +10,7 @@ interface Vote {
     for: string
 }
 
-export async function addVoteLog(options: { id: string, message: string, day: number }) {
+export async function addVoteLog(options: { id: string, message: string, day: number, type: string, for: string | null }) {
     const db = firebaseAdmin.getFirestore();
 
     const ref = db.collection('day').doc(options.day.toString()).collection('votes').doc('history').collection('logs');
@@ -19,6 +19,8 @@ export async function addVoteLog(options: { id: string, message: string, day: nu
         id: options.id,
         message: options.message,
         timestamp: new Date().valueOf(),
+        type: options.type,
+        for: options.for
     })
 } 
 
@@ -30,6 +32,7 @@ export async function setVote(options: { id: string, for: string, day: number })
     await ref.set({
         id: options.id,
         for: options.for,
+        timestamp: new Date().valueOf(),
     })
 }
 

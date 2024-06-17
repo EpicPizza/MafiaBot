@@ -1,4 +1,4 @@
-import { Transaction, FieldValue, Firestore, CollectionReference, Query, DocumentReference } from "firebase-admin/firestore";
+import { Transaction, FieldValue, Firestore, CollectionReference, Query, DocumentReference, DocumentSnapshot } from "firebase-admin/firestore";
 import { firebaseAdmin } from "../firebase";
 import client from "../discord";
 import Discord, { ActionRow, ActionRowComponent, BaseGuildTextChannel, ButtonStyle, ChannelType, ChatInputCommandInteraction, Collection, Colors, CommandInteraction, ComponentEmojiResolvable, FetchMembersOptions, GuildBasedChannel, GuildMember, PermissionsBitField, TextChannel } from "discord.js";
@@ -400,19 +400,19 @@ export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup
     }
 }
 
-export async function getAllNicknames(setup: Setup, game: Signups) {
+export async function getAllUsers(game: Signups) {
     const db = firebaseAdmin.getFirestore();
 
     const ref = db.collection('users');
 
     const docs = (await ref.get()).docs;
     
-    const nicknames = [] as string[];
+    const nicknames = [] as User[];
 
     for(let i = 0; i < game.signups.length; i++) {
         for(let j = 0; j < docs.length; j++) {
             if(game.signups[i] == docs[j].id) {
-                nicknames.push(docs[j].data().nickname);
+                nicknames.push(docs[j].data() as User);
             }
         }
     }
@@ -786,15 +786,19 @@ async function getPlayer(id: string, game: Awaited<ReturnType<typeof getGlobal>>
 
 
 async function deleteCollection(db: Firestore, collection: CollectionReference, batchSize: number) {
-    const query = collection.orderBy('__name__').limit(batchSize);
+    const count = (await collection.count().get()).data().count;
 
-    return await deleteQueryBatch(db, query, batchSize);
+    for(let i = 0; i < Math.ceil(count / 20); i++) {
+        const query = collection.orderBy('__name__').limit(batchSize).offset(i * 20);
+
+        await deleteQueryBatch(db, query, batchSize);
+    }
 }
 
 async function deleteQueryBatch(db: Firestore, query: Query, batchSize: number) {
     const docs = (await query.get()).docs;
 
-    let toDelete = [] as DocumentReference[];
+    let toDelete = [] as DocumentSnapshot[];
 
     for(let i = 0; i < docs.length; i++) {
         const doc = docs[i].ref;
@@ -807,7 +811,7 @@ async function deleteQueryBatch(db: Firestore, query: Query, batchSize: number) 
             await tick();
         }
 
-        toDelete.push(doc);
+        toDelete.push(docs[i]);
 
         if(toDelete.length >= batchSize) {
             await deleteDocs(db, toDelete);
@@ -819,11 +823,11 @@ async function deleteQueryBatch(db: Firestore, query: Query, batchSize: number) 
     await deleteDocs(db, toDelete);
 }
 
-async function deleteDocs(db: Firestore, docs: DocumentReference[]) {
+async function deleteDocs(db: Firestore, docs: DocumentSnapshot[]) {
     const batch = db.batch();
 
-    docs.forEach((ref) => {
-        batch.delete(ref);
+    docs.forEach((doc) => {
+        batch.delete(doc.ref);
     })
 
     await batch.commit();

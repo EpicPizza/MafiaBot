@@ -2,7 +2,7 @@ import { ActionRowBuilder, ApplicationCommandType, ButtonBuilder, ButtonInteract
 import { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { set, z } from "zod";
-import { getGlobal, getGameByName, lockGame, getAllNicknames, getGameByID, getAllCurrentNicknames } from "../utils/main";
+import { getGlobal, getGameByName, lockGame, getGameByID, getAllCurrentNicknames } from "../utils/main";
 import { User, getUser } from "../utils/user";
 import { addVoteLog, getVotes, removeVote, setVote } from "../utils/vote";
 import { getSetup } from "../utils/setup";
@@ -119,7 +119,7 @@ module.exports = {
 
                 let message = "Removed vote for " + previous?.nickname ?? "<@" + vote.for + ">" + "!";
 
-                await addVoteLog({ message, id: interaction.user.id, day: global.day });
+                await addVoteLog({ message, id: interaction.user.id, day: global.day, for: null, type: "unvote" });
 
                 return await interaction.editReply(message);
             } else if(interaction.commandName == "unvote") {
@@ -164,7 +164,7 @@ module.exports = {
 
                 await interaction.editReply(message);
 
-                await addVoteLog({ message, id: interaction.user.id, day: global.day });
+                await addVoteLog({ message, id: interaction.user.id, day: global.day, type: vote ? "vote" : "unvote", for: vote ? user.nickname : null });
                 
                 /*if(half % 2 == 0) half += 0.5;
 
