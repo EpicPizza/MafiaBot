@@ -138,7 +138,7 @@ module.exports = {
                 if(vote == undefined) {
                     setVote({ for: user.id, id: interaction.user.id, day: global.day });
                     
-                    votes.push({ for: user.id, id: interaction.user.id });
+                    votes.push({ for: user.id, id: interaction.user.id, timestamp: new Date().valueOf() }); //it doesn't really matter the timestamp :/
 
                     voted = true;
                 } else {
@@ -151,7 +151,7 @@ module.exports = {
                     if(vote.for != user.id) {
                         setVote({ for: user.id, id: interaction.user.id, day: global.day });
                     
-                        votes.push({ for: user.id, id: interaction.user.id });
+                        votes.push({ for: user.id, id: interaction.user.id, timestamp: new Date().valueOf() });
 
                         voted = true;
                     }

@@ -5,9 +5,10 @@ import dotenv from 'dotenv';
 import path from 'node:path';
 import { Data } from "../discord";
 
-interface Vote {
+export interface Vote {
     id: string,
-    for: string
+    for: string,
+    timestamp: number,
 }
 
 export async function addVoteLog(options: { id: string, message: string, day: number, type: string, for: string | null }) {

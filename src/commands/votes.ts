@@ -3,7 +3,7 @@ import { Data } from "../discord";
 import { getGlobal, getGameByID } from "../utils/main";
 import { getSetup } from "../utils/setup";
 import { getUser, User } from "../utils/user";
-import { getVotes } from "../utils/vote";
+import { Vote, getVotes } from "../utils/vote";
 
 module.exports = {
     data: [
@@ -57,15 +57,15 @@ async function handleVoteList(interaction: ChatInputCommandInteraction) {
 
     let list = await getVotes({ day: day });
 
-    const votes = new Map() as Map<string, string[]>;
+    const votes = new Map() as Map<string, Vote[]>;
 
     for(let i = 0; i < list.length; i++) {
         const counted = votes.get(list[i].for);
 
         if(counted == undefined) {
-            votes.set(list[i].for, [list[i].id]);
+            votes.set(list[i].for, [list[i]]);
         } else {
-            votes.set(list[i].for, [...counted, list[i].id]);
+            votes.set(list[i].for, [...counted, list[i]]);
         }
     }
 
@@ -78,7 +78,9 @@ async function handleVoteList(interaction: ChatInputCommandInteraction) {
     for(let i = 0; i < voting.length; i++) {
         const voted = votes.get(voting[i]) ?? [];
 
-        message += voted.length + " - " + (users.get(voting[i])?.nickname ?? "<@" + voting[i] + ">") + " « " + voted.reduce((previous, current) => previous += (users.get(current)?.nickname ?? "<@" + current + ">") + ", ", "");
+        voted.sort((a, b) => b.timestamp - a.timestamp);
+
+        message += voted.length + " - " + (users.get(voting[i])?.nickname ?? "<@" + voting[i] + ">") + " « " + voted.reduce((previous, current) => previous += (users.get(current.id)?.nickname ?? "<@" + current + ">") + ", ", "");
 
         console.log(message);
 
