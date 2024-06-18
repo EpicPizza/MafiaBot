@@ -164,7 +164,7 @@ module.exports = {
 
                 await interaction.editReply(message);
 
-                await addVoteLog({ message, id: interaction.user.id, day: global.day, type: voted ? "vote" : "unvote", for: voted ? user.nickname : null });
+                await addVoteLog({ message, id: interaction.user.id, day: global.day, type: voted ? "vote" : "unvote", for: voted ? user.id : null });
                 
                 /*if(half % 2 == 0) half += 0.5;
 
