@@ -78,7 +78,7 @@ async function handleVoteList(interaction: ChatInputCommandInteraction) {
     for(let i = 0; i < voting.length; i++) {
         const voted = votes.get(voting[i]) ?? [];
 
-        voted.sort((a, b) => b.timestamp - a.timestamp);
+        voted.sort((a, b) => a.timestamp - b.timestamp);
 
         message += voted.length + " - " + (users.get(voting[i])?.nickname ?? "<@" + voting[i] + ">") + " « " + voted.reduce((previous, current) => previous += (users.get(current.id)?.nickname ?? "<@" + current + ">") + ", ", "");
 
