@@ -136,20 +136,20 @@ module.exports = {
                 let voted = false;
 
                 if(vote == undefined) {
-                    setVote({ for: user.id, id: interaction.user.id, day: global.day });
+                    await setVote({ for: user.id, id: interaction.user.id, day: global.day });
                     
                     votes.push({ for: user.id, id: interaction.user.id, timestamp: new Date().valueOf() }); //it doesn't really matter the timestamp :/
 
                     voted = true;
                 } else {
-                    removeVote({ id: interaction.user.id, day: global.day });
+                    await removeVote({ id: interaction.user.id, day: global.day });
 
                     votes = votes.filter(vote => vote.id != interaction.user.id);
 
                     voted = false;
 
                     if(vote.for != user.id) {
-                        setVote({ for: user.id, id: interaction.user.id, day: global.day });
+                        await setVote({ for: user.id, id: interaction.user.id, day: global.day });
                     
                         votes.push({ for: user.id, id: interaction.user.id, timestamp: new Date().valueOf() });
 
