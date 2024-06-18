@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandBuilder } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandBuilder } from "discord.js";
 import { Data } from "../discord";
 import { getGlobal, getGameByID } from "../utils/main";
 import { getSetup } from "../utils/setup";
@@ -95,5 +95,13 @@ async function handleVoteList(interaction: ChatInputCommandInteraction) {
         .setDescription(message == "" ? "No votes recorded." : message)
         .setFooter({ text: game.day == day ? "Showing votes for current day (" + day + ")." : "Showing votes for day " + day + "." });
 
-    await interaction.reply({ embeds: [embed] });
+    const row = new ActionRowBuilder<ButtonBuilder>()
+        .setComponents([
+            new ButtonBuilder()
+                .setLabel("History")
+                .setStyle(ButtonStyle.Secondary)
+                .setURL((process.env.DEV == "TRUE" ? process.env.DEVDOMAIN as string : process.env.DOMAIN as string) + "/game/" + which.name + "/day/" + game.day + "/votes")
+        ])
+
+    await interaction.reply({ embeds: [embed], components: [row] });
 }
