@@ -772,8 +772,6 @@ export async function setAllignments() {
     if(rows.length > 4) await gameSetup.spec.send({ components: rows.filter((v, i) => i > 4 && i < 10) });
     if(rows.length > 9) await gameSetup.spec.send({ components: rows.filter((v, i) => i > 9 && i < 15) });
     if(rows.length > 14) await gameSetup.spec.send({ components: rows.filter((v, i) => i > 14 && i < 20) });
-
-    await gameSetup.spec.send("Hi <@537672490223403009>, to make sure things go smoothly, here is a little reminder message. Just leave all of them grayed out, the bot will do nothing. Normally invites and roles are managed by the bot so it kicks anyone who isn't suppose to be in the mafia server, but i've disabled that for you and you can just use the mafia invite for whatever you want when it gives it to you.")
 }
 
 async function getPlayer(id: string, game: Awaited<ReturnType<typeof getGlobal>>) {
