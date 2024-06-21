@@ -66,9 +66,29 @@ module.exports = {
 
     execute: async (interaction: ChatInputCommandInteraction | ContextMenuCommandInteraction) => {
 
+        const player = (() => {
+            if(interaction.isChatInputCommand()) {
+                return interaction.options.getString('player');
+            } else {
+                return interaction.targetId;
+            }
+        })();
+
         const global = await getGlobal();
 
-        if(global.started == false) throw new Error("Game has not started.");
+        if(global.started == false) {
+            if(player != null) {
+                if(interaction.isChatInputCommand()) {
+                    await interaction.reply("Voted for " + interaction.options.getString('player'));
+                } else {
+                    await interaction.reply("Voted for <@" + interaction.targetId + ">");
+                }
+            } else {
+                throw new Error("Player must be specified.");
+            }
+
+            return;
+        }
 
         if(global.locked == true) throw new Error("Game is locked!");
         
@@ -77,14 +97,6 @@ module.exports = {
         if(typeof setup == 'string') throw new Error("Setup Incomplete");
 
         if(interaction.channelId != setup.primary.chat.id) throw new Error("Must vote in main chat.");
-
-        const player = (() => {
-            if(interaction.isChatInputCommand()) {
-                return interaction.options.getString('player');
-            } else {
-                return interaction.targetId;
-            }
-        })();
 
         console.log("voting", player);
 
