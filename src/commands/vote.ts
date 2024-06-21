@@ -172,7 +172,7 @@ module.exports = {
                 let specific = votes.filter(vote => vote.for == user.id);
                 let half = Math.ceil(list.length / 2);
 
-                let message = (voted ? "Voted for " : "Removed vote for ") + user.nickname + "!";
+                let message = (voted ? "Voted for " : "Removed vote for ") + user.nickname + "!" + (half - specific.length < 4 && half - specific.length > 0 ? " " + (half - specific.length) + " vote" + (half - specific.length == 1 ? "" : "s") + " until hammer!" : "");
 
                 await interaction.editReply(message);
 
