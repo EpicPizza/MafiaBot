@@ -116,7 +116,7 @@ async function leaveSignup(interaction: ButtonInteraction | ChatInputCommandInte
     if(global == null || game == null) throw new Error("Game not found.");
 
     if(game.closed) return await interaction.reply({ ephemeral: true, content: "Sign ups are closed." });
-    if(global.started) return await interaction.reply({ ephemeral: true, content: "Game has started." });
+    if(global.started && global.game == game.id) return await interaction.reply({ ephemeral: true, content: "Game has started." });
 
     const user = await getUser(interaction.user.id);
 
