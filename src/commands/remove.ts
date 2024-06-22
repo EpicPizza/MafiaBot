@@ -85,7 +85,7 @@ module.exports = {
 
         const dead = await setup.secondary.guild.members.fetch(user.id).catch(() => undefined);
         if(dead == null) throw new Error("Member not found.");
-        await dead.roles.add(setup.secondary.access);
+        await dead.roles.add(setup.secondary.spec);
 
         const mafia = await setup.tertiary.guild.members.fetch(user.id).catch(() => undefined);
         if(mafia) {
