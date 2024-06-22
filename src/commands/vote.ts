@@ -172,18 +172,18 @@ module.exports = {
                 let specific = votes.filter(vote => vote.for == user.id);
                 let half = Math.ceil(list.length / 2);
 
-                let message = (voted ? "Voted for " : "Removed vote for ") + user.nickname + "!" + (half - specific.length < 4 && half - specific.length > 0 ? " " + (half - specific.length) + " vote" + (half - specific.length == 1 ? "" : "s") + " until hammer!" : "");
+                let message = voter.nickname + (voted ? " voted for " : " removed vote for ") + user.nickname + "!"; //+ (half - specific.length < 4 && half - specific.length > 0 ? " " + (half - specific.length) + " vote" + (half - specific.length == 1 ? "" : "s") + " until hammer!" : "");
 
                 await interaction.editReply(message);
 
                 await addVoteLog({ message, id: interaction.user.id, day: global.day, type: voted ? "vote" : "unvote", for: voted ? user.id : null });
                 
-                if(half % 2 == 0) half += 0.5;
+                /*if(half % 2 == 0) half += 0.5;
 
                 if(specific.length >= half) {
                     await lockGame();
                     await setup.primary.chat.send(user.nickname + " has been hammered!");
-                }
+                }*/
             }   
         }
     } 
