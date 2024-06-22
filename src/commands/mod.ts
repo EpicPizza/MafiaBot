@@ -610,11 +610,8 @@ async function handleLocking(interaction: ChatInputCommandInteraction, type: boo
     for(let i = 0; i < 24; i++) {
         date = date.plus({ hours: 1 });
 
-        if(date.hour > 22) {
-            date = date.set({ hour: 10 });
-            date = date.plus({ days: 1 });
-        } else if(date.hour < 10) {
-            date = date.set({ hour: 10 });
+        if(date.hour > 0 && date.hour < 12) {
+            date = date.set({ hour: 12 });
         }
 
         select.addOptions(
