@@ -75,8 +75,8 @@ export async function openSignups(name: string) {
     const game = await getGameByName(name);
     const global = await getGlobal();
 
-    if(global.started) throw new Error("Game has already started, sign ups are closed.");
-    if(game == null) throw new Error("Game not found." )
+    if(game == null) throw new Error("Game not found." );
+    if(global.started && global.game == game.id) throw new Error("Game has already started, sign ups are closed.");
 
     const db = firebaseAdmin.getFirestore();
 
@@ -91,8 +91,8 @@ export async function closeSignups(name: string) {
     const game = await getGameByName(name);
     const global = await getGlobal();
 
-    if(global.started) throw new Error("Game has already started, sign ups are closed.");
     if(game == null) throw new Error("Game not found.")
+    if(global.started && game.id == global.game) throw new Error("Game has already started, sign ups are closed.");
 
     const db = firebaseAdmin.getFirestore();
 

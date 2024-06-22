@@ -149,7 +149,7 @@ async function handleSignup(interaction: ButtonInteraction | ChatInputCommandInt
     if(global == null || game == null) throw new Error("Game not found.");
 
     if(game.closed) return await interaction.editReply({ content: "Sign ups are closed." });
-    if(global.started) return await interaction.editReply({ content: "Game has started." });
+    if(global.started && global.game == game.id) return await interaction.editReply({ content: "Game has started." });
 
     const user = await getUser(interaction.user.id);
 

@@ -559,7 +559,7 @@ async function createSignups(interaction: CommandInteraction | ButtonInteraction
 
     if(global.started) {
         return await interaction.reply({
-            content: "You cannot create signups for a game thats already started.",
+            content: "You cannot create signups while a game is underway.",
             ephemeral: true,
         })
     }

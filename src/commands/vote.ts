@@ -2,7 +2,7 @@ import { ActionRowBuilder, ApplicationCommandType, ButtonBuilder, ButtonInteract
 import { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { set, z } from "zod";
-import { getGlobal, getGameByName, lockGame, getGameByID, getAllCurrentNicknames } from "../utils/main";
+import { getGlobal, getGameByName, lockGame, getGameByID, getAllCurrentNicknames, getAllUsers } from "../utils/main";
 import { User, getUser } from "../utils/user";
 import { addVoteLog, getVotes, removeVote, setVote } from "../utils/vote";
 import { getSetup } from "../utils/setup";
@@ -96,6 +96,8 @@ module.exports = {
 
         if(typeof setup == 'string') throw new Error("Setup Incomplete");
 
+        const game = await getGameByID(global.game ?? "");
+
         if(interaction.channelId != setup.primary.chat.id) throw new Error("Must vote in main chat.");
 
         console.log("voting", player);
@@ -109,6 +111,8 @@ module.exports = {
 
             list.push(user);
         }
+
+        const fullList = await getAllUsers(game);
 
         if(player == "NEEDS REFRESH") {
             await register();
@@ -124,12 +128,12 @@ module.exports = {
 
             const vote = votes.find(vote => vote.id == interaction.user.id);
 
-            if(vote && interaction.commandName == "unvote") {
+            if(voter && vote && interaction.commandName == "unvote") {
                 removeVote({ id: interaction.user.id, day: global.day });
 
-                const previous = list.find(user => user.id == vote.for);
+                const previous = fullList.find(user => user.id == vote.for);
 
-                let message = "Removed vote for " + previous?.nickname ?? "<@" + vote.for + ">" + "!";
+                let message = voter.nickname + " removed vote for " + previous?.nickname ?? "<@" + vote.for + ">" + "!";
 
                 await addVoteLog({ message, id: interaction.user.id, day: global.day, for: null, type: "unvote" });
 
