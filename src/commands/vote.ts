@@ -6,7 +6,6 @@ import { getGlobal, getGameByName, lockGame, getGameByID, getAllCurrentNicknames
 import { User, getUser } from "../utils/user";
 import { addVoteLog, getVotes, removeVote, setVote } from "../utils/vote";
 import { getSetup } from "../utils/setup";
-import { register } from "../register";
 import { Command } from "../utils/commands";
 
 module.exports = {
@@ -125,8 +124,6 @@ module.exports = {
         const fullList = await getAllUsers(game);
 
         if(player == "NEEDS REFRESH") {
-            await register();
-
             throw new Error("Command refreshed, wait a min to use again.");
         } else {
             if(!('arguments' in interaction)) await interaction.deferReply();

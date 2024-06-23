@@ -7,7 +7,6 @@ import { User, getUser } from "./user";
 import { Setup, getSetup } from "./setup";
 import { promise, z } from "zod";
 import { GameSetup, Signups, getGameSetup, refreshSignup } from "./games";
-import { register } from "../register";
 
 const pings = false;
 
@@ -495,8 +494,6 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
     } else {
         promises.push(setup.primary.chat.send("Game is starting!"));
     }
-
-    promises.push(register());
 
     const results = await Promise.allSettled(promises);
 

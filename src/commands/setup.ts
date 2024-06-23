@@ -6,7 +6,6 @@ import { getGlobal } from "../utils/main";
 import { User, getUser } from "../utils/user";
 import { checkSetup, getPartialSetup, getSetup } from "../utils/setup";
 import { refreshSignup } from "../utils/games";
-import { register } from "../register";
 
 module.exports = {
     data: [
@@ -104,11 +103,6 @@ module.exports = {
                                 .setDescription('Name of the game.')
                                 .setRequired(true)
                         )
-                )
-                .addSubcommand(subcommand =>
-                    subcommand
-                        .setName("commands")
-                        .setDescription("Refresh commands.")
                 )
                 .addSubcommand(subcommand =>
                     subcommand
@@ -408,10 +402,6 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
             await refreshSignup(interaction.options.getString("game") ?? "12948201380912840192380192840912830912803921312");
 
             await interaction.reply({ ephemeral: true, content: "Signups refreshed." });
-        } else if(subcommand == "commands") {
-            await register();
-
-            await interaction.reply({ ephemeral: true, content: "Refreshed commands."});
         } else if(subcommand == "mod") {
             const setup = await getSetup();
 

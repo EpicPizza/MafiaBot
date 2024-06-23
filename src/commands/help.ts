@@ -286,8 +286,6 @@ const setupCommands = `**/setup mod** Gives mod roles in all three servers. Also
 
 **/setup database** Sets up the databse (or resets it if already setup, so DO NOT RUN IF GAME HAS ALREADY STARTED).
 
-**/setup commands** Refreshes commands, including their autocomplete options. Do not spam command, there is a dicord api limit of 50 updates per day.
-
 **/setup permissions** Refreshes permissions in main channel.
 
 **/setup refresh** Refreshes signups for a game.

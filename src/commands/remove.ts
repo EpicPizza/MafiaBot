@@ -5,7 +5,6 @@ import { z } from "zod";
 import { getGlobal, getGameByName, lockGame, getGameByID, getAllCurrentNicknames, getAllNicknames } from "../utils/main";
 import { User, getUser } from "../utils/user";
 import { getSetup } from "../utils/setup";
-import { register } from "../register";
 
 module.exports = {
     data: [
@@ -96,8 +95,6 @@ module.exports = {
                 players: global.players.filter(player => player.id != user.id)
             })
         });
-
-        await register();
 
         await interaction.editReply({ content: "Player removed."});
     } 
