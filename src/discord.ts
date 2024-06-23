@@ -2,7 +2,7 @@ import { ActionRow, ActionRowBuilder, ActivityType, ButtonBuilder, ButtonStyle, 
 import dotenv from 'dotenv';
 import fs from 'node:fs';
 import path from 'node:path';
-import { z, type ZodObject } from "zod";
+import { ZodAny, ZodAnyDef, ZodBoolean, ZodNull, ZodNumber, ZodString, z, type ZodObject } from "zod";
 import { archiveMessage } from "./archive";
 import { checkFutureLock } from "./utils/timing";
 import { firebaseAdmin } from "./firebase";
@@ -11,11 +11,13 @@ import { editOverwrites, generateOverwrites, getGlobal } from "./utils/main";
 import { getUser } from "./utils/user";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { isDisabled } from "./disable";
+import { trackMessage } from "./utils/tracking";
 
 dotenv.config();
 
 interface ExtendedClient extends Client {
-    commands: Collection<string, Function | {execute: Function, zod: ZodObject<any>}>,
+    commands: Collection<string, Function | {execute: Function, zod: ZodObject<any> }>,
+    textCommands: Collection<string, {execute: Function, zod: (ZodString | ZodNumber | ZodBoolean)[] }>,
 }
 
 export interface Cache {
@@ -50,6 +52,10 @@ export type Data = ({
     type: 'select',
     name: string,
     command: ZodObject<any>,
+} | {
+    type: 'text',
+    name: string,
+    command: (ZodString | ZodNumber | ZodBoolean)[],
 });
 
 const CustomId = z.object({
@@ -72,6 +78,7 @@ const client: ExtendedClient = new Client({
 }) as ExtendedClient;
 
 client.commands = new Collection();
+client.textCommands = new Collection();
 
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js') || file.endsWith('.ts'));
@@ -89,7 +96,13 @@ for(const file of commandFiles) {
     const data: Data[] = command.data;
     const execute = command.execute as Function;
 
-    data.forEach((command) => client.commands.set(command.name, command.type == 'button' || command.type == 'modal' || command.type == 'select' ? ({ execute: execute, zod: command.command }) : execute))
+    data.forEach((command) => {
+        if(command.type == 'text') {
+            client.textCommands.set(command.name, { execute: execute, zod: command.command })
+        } else {
+            client.commands.set(command.name, command.type == 'button' || command.type == 'modal' || command.type == 'select' ? ({ execute: execute, zod: command.command }) : execute)
+        }
+    })
 }
 
 client.on(Events.ClientReady, async () => {
@@ -204,7 +217,55 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
 
 client.on(Events.MessageCreate, async (message) => {
     try {
-        if(message.content == "?help" || message.content.includes("<@" + client.user?.id + ">")) {
+        if(!message.content.startsWith("?") || message.content.length < 2) {
+            await trackMessage(message, cache);
+
+            return;
+        }
+
+        const name = message.content.substring(1, message.content.indexOf(" ") == -1 ? message.content.length : message.content.indexOf(" "));
+
+        const command = client.textCommands.get(`text-${name}`);
+
+        console.log(name);
+
+        if(command == undefined) {
+            return message.reply("Command not found.");
+        }
+
+        const parsedValues = [] as (number | string | boolean)[];
+
+        if(command.zod.length != 0) {
+            const values = message.content.substring(message.content.indexOf(" ") + 1, message.content.length).split(" ");
+
+            if(values.length != command.zod.length) throw new Error(`Invalid arguments for text command, ${name}.`);
+
+            for(let i = 0; i < values.length; i++) {
+                try {
+                    parsedValues.push(command.zod[i].parse(values[i]));
+                } catch(e) {
+                    console.log(e);
+        
+                    throw new Error(`Invalid argument for text command, ${name}.`);
+                }
+            }
+        }
+
+        try {
+            await command.execute({
+                name: name,
+                arguments: parsedValues,
+                message: message
+            });
+        } catch(e: any) {
+            try {
+                console.log(e);
+
+                await message.reply({ content: e.message as string });
+            } catch(e) {}
+        }
+
+        /*if(message.content == "?help" || message.content.includes("<@" + client.user?.id + ">")) {
             const help = client.commands.get("slash-help");
 
             if(help == undefined || typeof help != 'function') return message.react('⚠️')
@@ -212,31 +273,6 @@ client.on(Events.MessageCreate, async (message) => {
             await help(message);
 
             return;
-        }
-
-        if(message.content == "?test") {
-            return await message.reply("Hi, please use slash commands to run this bot.");
-        }
-
-        if(message.content == "?check") {
-            const setup = await getSetup();
-
-            if(typeof setup == 'string') return await message.react("⚠️");
-            if(message.channel.type != ChannelType.GuildText ) return await message.react("⚠️");
-            if(!(setup.secondary.dms.id == message.channel.parentId || setup.secondary.archivedDms.id == message.channel.parentId)) return await message.react("⚠️");
-
-            const db = firebaseAdmin.getFirestore();
-
-            const ref = db.collection('users').where('channel', '==', message.channelId);
-
-            const docs = (await ref.get()).docs;
-
-            const embed = new EmbedBuilder()
-                .setTitle("Matched Users")
-                .setColor('Orange')
-                .setDescription(docs.length == 0 ? "No users matched." : docs.reduce((prev, current) => { return prev + "<@" + current.id + ">\n" }, ""))
-
-            message.reply({ embeds: [embed] });
         }
 
         if(message.content.startsWith("?dm")) {
@@ -275,30 +311,12 @@ client.on(Events.MessageCreate, async (message) => {
             }
 
             await message.react('✅');
+        }*/
+    } catch(e: any) {
+        if(message.content.startsWith("?") && message.content.length > 1) {
+            message.reply(e.message);
         }
 
-        const db = firebaseAdmin.getFirestore();
-
-        if(message.author && message.author.bot == true) return;
-        
-        if(cache.channel && cache.channel.id != message.channelId) return;
-
-        if(!cache.started) return;
-
-        const ref = db.collection('day').doc(cache.day.toString()).collection('players').doc(message.author.id);
-
-        if((await ref.get()).exists) {
-            ref.update({
-                messages: FieldValue.increment(1),
-                words: FieldValue.increment(message.content.split(" ").length)
-            })
-        } else {
-            ref.set({
-                messages: 1,
-                words: message.content.split(" ").length,
-            })
-        }
-    } catch(e) {
         console.log(e);
     }
 })

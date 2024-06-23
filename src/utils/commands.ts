@@ -1,8 +1,10 @@
+import { Message } from "discord.js"
 import { ZodObject, z } from "zod"
 
-interface Command {
+export interface Command {
     name: string,
-    arguments: (string | number | boolean)[]
+    arguments: (string | number | boolean)[],
+    message: Message,
 }
 
 export interface CommandOptions {

@@ -7,6 +7,7 @@ import { User, getUser } from "../utils/user";
 import { addVoteLog, getVotes, removeVote, setVote } from "../utils/vote";
 import { getSetup } from "../utils/setup";
 import { register } from "../register";
+import { Command } from "../utils/commands";
 
 module.exports = {
     data: [
@@ -60,14 +61,25 @@ module.exports = {
             name: 'context-Vote',
             command: new ContextMenuCommandBuilder()
                 .setName('Vote')
-                .setType(ApplicationCommandType.User)
+                 .setType(ApplicationCommandType.User)
+        },
+        {
+            type: 'text',
+            name: 'text-vote',
+            command: [ z.string().min(1).max(10) ]
+        },
+        {
+            type: 'text',
+            name: 'text-unvote',
+            command: []
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction | ContextMenuCommandInteraction) => {
-
+    execute: async (interaction: ChatInputCommandInteraction | ContextMenuCommandInteraction | Command) => {
         const player = (() => {
-            if(interaction.isChatInputCommand()) {
+            if('arguments' in interaction) {
+                return interaction.arguments[0] ?? null;
+            } else if (interaction.isChatInputCommand()) {
                 return interaction.options.getString('player');
             } else {
                 return interaction.targetId;
@@ -78,7 +90,9 @@ module.exports = {
 
         if(global.started == false) {
             if(player != null) {
-                if(interaction.isChatInputCommand()) {
+                if('arguments' in interaction) {
+                    await interaction.message.react("✅");
+                } else if (interaction.isChatInputCommand()) {
                     await interaction.reply("Voted for " + interaction.options.getString('player'));
                 } else {
                     await interaction.reply("Voted for <@" + interaction.targetId + ">");
@@ -98,7 +112,11 @@ module.exports = {
 
         const game = await getGameByID(global.game ?? "");
 
-        if(interaction.channelId != setup.primary.chat.id) throw new Error("Must vote in main chat.");
+        if('arguments' in interaction) {
+            if(interaction.message.channelId != setup.primary.chat.id) throw new Error("Must vote in main chat.");
+        } else {
+            if(interaction.channelId != setup.primary.chat.id) throw new Error("Must vote in main chat.");
+        }
 
         console.log("voting", player);
 
@@ -117,29 +135,39 @@ module.exports = {
         if(player == "NEEDS REFRESH") {
             await register();
 
-            await interaction.reply({ ephemeral: true, content: "Command refreshed, wait a min to use again." });
+            throw new Error("Command refreshed, wait a min to use again.");
         } else {
-            await interaction.deferReply();
+            if(!('arguments' in interaction)) await interaction.deferReply();
+
+            const author = ('arguments' in interaction) ? interaction.message.author : interaction.user;
 
             const user = list.find(user => user.nickname == player || user.id == player);
-            const voter = list.find(user => user.id == interaction.user.id);
+            const voter = list.find(user => user.id == author.id);
 
             let votes = await getVotes({ day: global.day });
 
-            const vote = votes.find(vote => vote.id == interaction.user.id);
+            const vote = votes.find(vote => vote.id == author.id);
 
-            if(voter && vote && interaction.commandName == "unvote") {
-                removeVote({ id: interaction.user.id, day: global.day });
+            if(voter && vote && (!('arguments' in interaction) ? interaction.commandName == "unvote" : interaction.name == "unvote" )) {
+                removeVote({ id: author.id, day: global.day });
 
                 const previous = fullList.find(user => user.id == vote.for);
 
                 let message = voter.nickname + " removed vote for " + previous?.nickname ?? "<@" + vote.for + ">" + "!";
 
-                await addVoteLog({ message, id: interaction.user.id, day: global.day, for: null, type: "unvote" });
+                await addVoteLog({ message, id: author.id, day: global.day, for: null, type: "unvote" });
 
-                return await interaction.editReply(message);
-            } else if(interaction.commandName == "unvote") {
-                return await interaction.editReply("No vote found.");
+                if('arguments' in interaction) {
+                    return await interaction.message.react("✅")
+                } else {
+                    return await interaction.editReply(message);
+                }
+            } else if((!('arguments' in interaction) ? interaction.commandName == "unvote" : interaction.name == "unvote" )) {
+                if('arguments' in interaction) {
+                    return await interaction.message.react("❎")
+                } else {
+                    return await interaction.editReply("No vote found.");
+                }
             }
 
             if(!user || !voter) {
@@ -152,22 +180,22 @@ module.exports = {
                 let voted = false;
 
                 if(vote == undefined) {
-                    await setVote({ for: user.id, id: interaction.user.id, day: global.day });
+                    await setVote({ for: user.id, id: author.id, day: global.day });
                     
-                    votes.push({ for: user.id, id: interaction.user.id, timestamp: new Date().valueOf() }); //it doesn't really matter the timestamp :/
+                    votes.push({ for: user.id, id: author.id, timestamp: new Date().valueOf() }); //it doesn't really matter the timestamp :/
 
                     voted = true;
                 } else {
-                    await removeVote({ id: interaction.user.id, day: global.day });
+                    await removeVote({ id: author.id, day: global.day });
 
-                    votes = votes.filter(vote => vote.id != interaction.user.id);
+                    votes = votes.filter(vote => vote.id != author.id);
 
                     voted = false;
 
                     if(vote.for != user.id) {
-                        await setVote({ for: user.id, id: interaction.user.id, day: global.day });
+                        await setVote({ for: user.id, id: author.id, day: global.day });
                     
-                        votes.push({ for: user.id, id: interaction.user.id, timestamp: new Date().valueOf() });
+                        votes.push({ for: user.id, id: author.id, timestamp: new Date().valueOf() });
 
                         voted = true;
                     }
@@ -178,9 +206,17 @@ module.exports = {
 
                 let message = voter.nickname + (voted ? " voted for " : " removed vote for ") + user.nickname + "!"; //+ (half - specific.length < 4 && half - specific.length > 0 ? " " + (half - specific.length) + " vote" + (half - specific.length == 1 ? "" : "s") + " until hammer!" : "");
 
-                await interaction.editReply(message);
+                if('arguments' in interaction) {
+                    if(voted) {
+                        await interaction.message.react("✅")
+                    } else {
+                        await interaction.message.react("🗑️")
+                    }
+                } else {
+                    await interaction.editReply(message);
+                }
 
-                await addVoteLog({ message, id: interaction.user.id, day: global.day, type: voted ? "vote" : "unvote", for: voted ? user.id : null });
+                await addVoteLog({ message, id: author.id, day: global.day, type: voted ? "vote" : "unvote", for: voted ? user.id : null });
                 
                 /*if(half % 2 == 0) half += 0.5;
 
