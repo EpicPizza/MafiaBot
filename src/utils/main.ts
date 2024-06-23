@@ -429,7 +429,9 @@ export async function getAllNicknames() {
     const nicknames = [] as string[];
 
     for(let j = 0; j < docs.length; j++) {
-        nicknames.push(docs[j].data().nickname);
+        if(docs[j].data().nickname != null) {
+            nicknames.push(docs[j].data().nickname);
+        }
     }
 
     return nicknames;
