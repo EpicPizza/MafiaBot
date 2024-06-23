@@ -38,8 +38,8 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction | AutocompleteInteraction) => {
-        if(interaction.isAutocomplete()) {
+    execute: async (interaction: ChatInputCommandInteraction | AutocompleteInteraction | Command) => {
+        if(interaction.type != 'text' && interaction.isAutocomplete()) {
             const focusedValue = interaction.options.getFocused();
 
             const games = await getGames();
