@@ -2,7 +2,7 @@ import { ActionRowBuilder, ApplicationCommandType, AutocompleteInteraction, Butt
 import { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { set, z } from "zod";
-import { getGlobal, getGameByName, lockGame, getGameByID, getAllCurrentNicknames, getAllUsers } from "../utils/main";
+import { getGlobal, getGameByName, lockGame, getGameByID, getAllCurrentNicknames, getAllUsers, getAllNicknames } from "../utils/main";
 import { User, getUser } from "../utils/user";
 import { addVoteLog, getVotes, removeVote, setVote } from "../utils/vote";
 import { getSetup } from "../utils/setup";
@@ -55,11 +55,9 @@ module.exports = {
 
     execute: async (interaction: ChatInputCommandInteraction | ContextMenuCommandInteraction | Command | AutocompleteInteraction) => {
         if(interaction.type != 'text' && interaction.isAutocomplete()) {
-            const global = await getGlobal();
-
             const focusedValue = interaction.options.getFocused();
 
-            const nicknames = await getAllCurrentNicknames(global);
+            const nicknames = await getAllNicknames();
 
             const filtered = nicknames.filter(choice => choice.startsWith(focusedValue)).slice(0, 25);;
 

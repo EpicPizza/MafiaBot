@@ -420,6 +420,22 @@ export async function getAllUsers(game: Signups) {
     return nicknames;
 }
 
+export async function getAllNicknames() {
+    const db = firebaseAdmin.getFirestore();
+
+    const ref = db.collection('users');
+
+    const docs = (await ref.get()).docs;
+    
+    const nicknames = [] as string[];
+
+    for(let j = 0; j < docs.length; j++) {
+        nicknames.push(docs[j].data().nickname);
+    }
+
+    return nicknames;
+}
+
 export async function getAllCurrentNicknames(global: Global) {
     const db = firebaseAdmin.getFirestore();
 

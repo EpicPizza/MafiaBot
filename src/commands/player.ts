@@ -3,7 +3,7 @@ import { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { z } from "zod";
 import { User, createUser, editUser, getUser, getUserByName } from "../utils/user";
-import { getAllCurrentNicknames, getGlobal } from "../utils/main";
+import { getAllCurrentNicknames, getAllNicknames, getGlobal } from "../utils/main";
 import { addSignup, refreshSignup } from "../utils/games";
 
 const setNickname = z.object({
@@ -58,11 +58,9 @@ module.exports = {
 
     execute: async (interaction: CommandInteraction | ButtonInteraction | ModalSubmitInteraction | AutocompleteInteraction) => {
         if(interaction.isAutocomplete()) {
-            const global = await getGlobal();
-
             const focusedValue = interaction.options.getFocused();
 
-            const nicknames = await getAllCurrentNicknames(global);
+            const nicknames = await getAllNicknames();
 
             const filtered = nicknames.filter(choice => choice.startsWith(focusedValue)).slice(0, 25);;
 

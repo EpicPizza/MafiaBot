@@ -2,7 +2,7 @@ import { ActionRowBuilder, AutocompleteInteraction, ButtonBuilder, ButtonInterac
 import { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { z } from "zod";
-import { getGlobal, getGameByName, lockGame, getGameByID, getAllCurrentNicknames } from "../utils/main";
+import { getGlobal, getGameByName, lockGame, getGameByID, getAllCurrentNicknames, getAllNicknames } from "../utils/main";
 import { User, getUser } from "../utils/user";
 import { getSetup } from "../utils/setup";
 import { register } from "../register";
@@ -27,11 +27,9 @@ module.exports = {
 
     execute: async (interaction: ChatInputCommandInteraction | AutocompleteInteraction) => {
         if(interaction.isAutocomplete()) {
-            const global = await getGlobal();
-
             const focusedValue = interaction.options.getFocused();
 
-            const nicknames = await getAllCurrentNicknames(global);
+            const nicknames = await getAllNicknames();
 
             const filtered = nicknames.filter(choice => choice.startsWith(focusedValue)).slice(0, 25);;
 

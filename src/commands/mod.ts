@@ -3,7 +3,7 @@ import client, { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { z } from "zod";
 import { createUser, editUser, getUser } from "../utils/user";
-import { endGame, getGlobal, getGameByID, getGameByName, setAllignments, startGame, unlockGame, lockGame, getAllCurrentNicknames } from "../utils/main";
+import { endGame, getGlobal, getGameByID, getGameByName, setAllignments, startGame, unlockGame, lockGame, getAllCurrentNicknames, getAllNicknames } from "../utils/main";
 import { DateTime, SystemZone, Zone } from 'luxon';
 import { getFuture, parse, setFuture } from "../utils/timing";
 import { getSetup } from "../utils/setup";
@@ -183,8 +183,6 @@ module.exports = {
 
     execute: async (interaction: Interaction) => {
         if(interaction.isAutocomplete()) {
-            const global = await getGlobal();
-
             const focusedValue = interaction.options.getFocused(true);
 
             if(focusedValue.name == "game") {
@@ -196,8 +194,8 @@ module.exports = {
                     filtered.map(choice => ({ name: choice.name, value: choice.name })),
                 );
             } else {
-                const nicknames = await getAllCurrentNicknames(global);
-
+                const nicknames = await getAllNicknames();
+                
                 const filtered = nicknames.filter(choice => choice.startsWith(focusedValue.value)).slice(0, 25);;
 
                 await interaction.respond(
