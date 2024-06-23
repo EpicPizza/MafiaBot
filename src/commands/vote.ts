@@ -203,7 +203,7 @@ module.exports = {
                     }
 
                     if(half - specific.length < 4 && half - specific.length > 0) {
-                        await interaction.reply((half - specific.length) + " vote" + (half - specific.length == 1 ? "" : "s") + " until hammer!");
+                        await setup.primary.chat.send((half - specific.length) + " vote" + (half - specific.length == 1 ? "" : "s") + " until hammer!");
                     }
                 } else {
                     await interaction.editReply(message);
