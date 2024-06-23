@@ -141,7 +141,7 @@ module.exports = {
 
             const author = ('arguments' in interaction) ? interaction.message.author : interaction.user;
 
-            const user = list.find(user => user.nickname == player || user.id == player);
+            const user = list.find(user => (typeof player == 'string' ? user.nickname.toLowerCase() == player.toLowerCase() : false) || user.id == player);
             const voter = list.find(user => user.id == author.id);
 
             let votes = await getVotes({ day: global.day });
