@@ -8,7 +8,7 @@ import { Setup, getSetup } from "./setup";
 import { promise, z } from "zod";
 import { GameSetup, Signups, getGameSetup, refreshSignup } from "./games";
 
-const pings = false;
+const pings = true;
 
 export async function getGlobal(t: Transaction | undefined = undefined) {
     const db = firebaseAdmin.getFirestore();
