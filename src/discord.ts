@@ -18,11 +18,17 @@ interface ExtendedClient extends Client {
     commands: Collection<string, Function | {execute: Function, zod: ZodObject<any>}>,
 }
 
-const cache = {
+export interface Cache {
+    day: number,
+    started: boolean,
+    channel: null | TextChannel,
+}
+
+const cache: Cache = {
     day: 0,
     started: false,
-    channel: null as null | TextChannel,
-}
+    channel: null,
+} satisfies Cache
 
 export type Data = ({
     type: 'button',
@@ -387,10 +393,12 @@ client.on(Events.GuildMemberAdd, async (member) => {
 
                     if(channel == null) {
                         const channel = await setup.secondary.guild.channels.create({ 
-                            parent: setup.secondary.dms, 
                             name: user.nickname.toLowerCase(),
-                            permissionOverwrites: generateOverwrites(user.id)
                         });
+                
+                        await channel.setParent(setup.secondary.dms.id);
+
+                        await channel.permissionOverwrites.create(user.id, editOverwrites());
         
                         await db.collection('users').doc(user.id).update({
                             channel: channel.id,

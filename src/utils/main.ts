@@ -38,7 +38,7 @@ interface Global {
 
 interface Player {
     id: string,
-    alignment: 'mafia' | 'neutral' | 'town' | null;
+    alignment: 'mafia' | null;
 }
 
 export function generateOverwrites(id: string) {
@@ -682,7 +682,7 @@ export async function getGameByID(id: string) {
     return { ... doc.data(), id: doc.id } as Signups;
 }
 
-export async function editPlayer(options: { id: string, alignment: 'mafia' | 'neutral' | 'town' | null }) {
+export async function editPlayer(options: { id: string, alignment: 'mafia' | null }) {
     const db = firebaseAdmin.getFirestore();
 
     const ref = db.collection('settings').doc('game');

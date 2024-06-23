@@ -4,7 +4,7 @@ import { firebaseAdmin } from "../firebase";
 import { set, z } from "zod";
 import { getGlobal } from "../utils/main";
 import { User, getUser } from "../utils/user";
-import { getPartialSetup, getSetup } from "../utils/setup";
+import { checkSetup, getPartialSetup, getSetup } from "../utils/setup";
 import { refreshSignup } from "../utils/games";
 import { register } from "../register";
 
@@ -261,7 +261,7 @@ module.exports = {
         } else */
         
         if(interaction.isChatInputCommand() ? interaction.options.getSubcommand() == "check" : JSON.parse(interaction.customId).name == "setup-retry") {
-            const setup = await getSetup();
+            const setup = await checkSetup();
 
             if(typeof setup == 'string') {
                 const embed = new EmbedBuilder()

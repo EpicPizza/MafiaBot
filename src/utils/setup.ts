@@ -1,7 +1,7 @@
 import { CategoryChannel, ChannelType, Guild, PermissionsBitField, Role, TextChannel } from "discord.js";
 import client from "../discord";
 import { firebaseAdmin } from "../firebase";
-import { z } from "zod";
+import { set, z } from "zod";
 
 const PartialSetup = z.object({
     primary: z.object({
@@ -48,6 +48,16 @@ export async function getPartialSetup() {
 export type Setup = Exclude<Awaited<ReturnType<typeof getSetup>>, string>;
 
 export async function getSetup() {
+    const setup = await checkSetup();
+
+    if(typeof setup == 'string') {
+        throw new Error("Setup Incomplete");
+    } else {
+        return setup;
+    }
+}
+
+export async function checkSetup() {
     const db = firebaseAdmin.getFirestore();
 
     const ref = db.collection('settings').doc('setup')
