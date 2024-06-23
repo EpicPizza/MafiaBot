@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ApplicationCommandType, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, ContextMenuCommandBuilder, ContextMenuCommandInteraction, EmbedBuilder, SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
+import { ActionRowBuilder, ApplicationCommandType, AutocompleteInteraction, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, ContextMenuCommandBuilder, ContextMenuCommandInteraction, EmbedBuilder, SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
 import { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { set, z } from "zod";
@@ -14,40 +14,16 @@ module.exports = {
         { 
             type: 'slash',
             name: 'slash-vote',
-            command: async () => {
-                const defaultCommand = new SlashCommandBuilder()
-                    .setName('vote')
-                    .setDescription('Vote for a player.')
-                    .addStringOption(option =>
-                        option  
-                            .setName('player')
-                            .setDescription('Which player to vote for?')
-                            .setRequired(true)
-                    )
-
-                const global = await getGlobal();
-
-                console.log(global);
-            
-                if(global.game == null) return defaultCommand;
-
-                const nicknames = await getAllCurrentNicknames(global);
-
-                console.log(nicknames);
-
-                if(nicknames.length == 0) return defaultCommand;
-
-                return new SlashCommandBuilder()
-                    .setName('vote')
-                    .setDescription('Vote for a player.')
-                    .addStringOption(option =>
-                        option  
-                            .setName('player')
-                            .setDescription('Which player to vote for?')
-                            .setRequired(true)
-                            .setChoices(nicknames.map(nickname => { return { name: nickname, value: nickname }}))
-                    )
-            }
+            command: new SlashCommandBuilder()
+                .setName('vote')
+                .setDescription('Vote for a player.')
+                .addStringOption(option =>
+                    option  
+                        .setName('player')
+                        .setDescription('Which player to vote for?')
+                        .setRequired(true)
+                        .setAutocomplete(true)
+                )
         },
         { 
             type: 'slash',
@@ -77,7 +53,23 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction | ContextMenuCommandInteraction | Command) => {
+    execute: async (interaction: ChatInputCommandInteraction | ContextMenuCommandInteraction | Command | AutocompleteInteraction) => {
+        if(interaction.type != 'text' && interaction.isAutocomplete()) {
+            const global = await getGlobal();
+
+            const focusedValue = interaction.options.getFocused();
+
+            const nicknames = await getAllCurrentNicknames(global);
+
+            const filtered = nicknames.filter(choice => choice.startsWith(focusedValue)).slice(0, 25);;
+
+            await interaction.respond(
+                filtered.map(choice => ({ name: choice, value: choice })),
+            );
+
+            return;
+        } 
+
         const player = (() => {
             if('arguments' in interaction) {
                 return interaction.arguments[0] ?? null;

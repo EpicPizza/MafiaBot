@@ -3,13 +3,13 @@ import client, { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { z } from "zod";
 import { createUser, editUser, getUser } from "../utils/user";
-import { endGame, getGlobal, getGameByID, getGameByName, setAllignments, startGame, unlockGame, lockGame } from "../utils/main";
+import { endGame, getGlobal, getGameByID, getGameByName, setAllignments, startGame, unlockGame, lockGame, getAllCurrentNicknames } from "../utils/main";
 import { DateTime, SystemZone, Zone } from 'luxon';
 import { getFuture, parse, setFuture } from "../utils/timing";
 import { getSetup } from "../utils/setup";
 import dnt from 'date-and-time';
 import meridiem from 'date-and-time/plugin/meridiem'
-import { activateSignup, archiveGame, closeSignups, createGame, getGameSetup, openSignups, refreshSignup, removeSignup } from "../utils/games";
+import { activateSignup, archiveGame, closeSignups, createGame, getGameSetup, getGames, openSignups, refreshSignup, removeSignup } from "../utils/games";
 import { register } from "../register";
 
 dnt.plugin(meridiem);
@@ -31,6 +31,7 @@ module.exports = {
                                 .setName('game')
                                 .setDescription('Name of the game.')
                                 .setRequired(true)
+                                .setAutocomplete(true)
                         )
                 )
                 .addSubcommand(subcommand =>
@@ -42,6 +43,7 @@ module.exports = {
                                 .setName('game')
                                 .setDescription('Name of the game.')
                                 .setRequired(true)
+                                .setAutocomplete(true)
                         )
                 )
                 .addSubcommand(subcommand =>
@@ -53,6 +55,7 @@ module.exports = {
                                 .setName('game')
                                 .setDescription('Name of the game.')
                                 .setRequired(true)
+                                .setAutocomplete(true)
                         )
                 )
                 .addSubcommand(subcommand =>
@@ -64,6 +67,7 @@ module.exports = {
                                 .setName('game')
                                 .setDescription('Name of the game.')
                                 .setRequired(true)
+                                .setAutocomplete(true)
                         )
                 )
                 .addSubcommand(subcommand =>
@@ -75,6 +79,7 @@ module.exports = {
                                 .setName('game')
                                 .setDescription('Name of the game.')
                                 .setRequired(true)
+                                .setAutocomplete(true)
                         )
                 )
                 .addSubcommand(subcommand =>
@@ -123,12 +128,14 @@ module.exports = {
                                 .setName('member')
                                 .setDescription('Nickname or ID of member to kick.')
                                 .setRequired(true)
+                                .setAutocomplete(true)
                         )
                         .addStringOption(option =>
                             option  
                                 .setName('game')
                                 .setDescription('Name of the game.')
                                 .setRequired(true)
+                                .setAutocomplete(true)
                         )                
                 )
                 
@@ -175,6 +182,32 @@ module.exports = {
     ] satisfies Data[],
 
     execute: async (interaction: Interaction) => {
+        if(interaction.isAutocomplete()) {
+            const global = await getGlobal();
+
+            const focusedValue = interaction.options.getFocused(true);
+
+            if(focusedValue.name == "game") {
+                const games = await getGames();
+
+                const filtered = games.filter(choice => choice.name.startsWith(focusedValue.value)).slice(0, 25);;
+
+                await interaction.respond(
+                    filtered.map(choice => ({ name: choice.name, value: choice.name })),
+                );
+            } else {
+                const nicknames = await getAllCurrentNicknames(global);
+
+                const filtered = nicknames.filter(choice => choice.startsWith(focusedValue.value)).slice(0, 25);;
+
+                await interaction.respond(
+                    filtered.map(choice => ({ name: choice, value: choice })),
+                );
+            }
+
+            return;
+        } 
+
         const setup  = await getSetup();
         if(typeof setup == 'string') throw new Error("Setup Incomplete");
 

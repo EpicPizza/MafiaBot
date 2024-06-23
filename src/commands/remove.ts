@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, EmbedBuilder, SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
+import { ActionRowBuilder, AutocompleteInteraction, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, EmbedBuilder, SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
 import { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { z } from "zod";
@@ -12,42 +12,36 @@ module.exports = {
         { 
             type: 'slash',
             name: 'slash-remove',
-            command: async () => {
-                const defaultCommand = new SlashCommandBuilder()
-                    .setName('remove')
-                    .setDescription('Remove a player.')
-                    .addStringOption(option =>
-                        option  
-                            .setName('player')
-                            .setDescription('Which player to remove?')
-                            .setRequired(true)
-                    );
-    
-                const global = await getGlobal();
-
-                console.log(global);
-            
-                if(global.game == null) return defaultCommand;
-
-                const nicknames = await getAllCurrentNicknames(global);
-
-                if(nicknames.length == 0) return defaultCommand;
-
-                return new SlashCommandBuilder()
-                    .setName('remove')
-                    .setDescription('Remove a player.')
-                    .addStringOption(option =>
-                        option  
-                            .setName('player')
-                            .setDescription('Which player to remove?')
-                            .setRequired(true)
-                            .setChoices(nicknames.map(nickname => { return { name: nickname, value: nickname }}))
-                    );
-            }
+            command: new SlashCommandBuilder()
+                .setName('remove')
+                .setDescription('Remove a player.')
+                .addStringOption(option =>
+                    option  
+                        .setName('player')
+                        .setDescription('Which player to remove?')
+                        .setRequired(true)
+                        .setAutocomplete(true)
+                )
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction ) => {
+    execute: async (interaction: ChatInputCommandInteraction | AutocompleteInteraction) => {
+        if(interaction.isAutocomplete()) {
+            const global = await getGlobal();
+
+            const focusedValue = interaction.options.getFocused();
+
+            const nicknames = await getAllCurrentNicknames(global);
+
+            const filtered = nicknames.filter(choice => choice.startsWith(focusedValue)).slice(0, 25);;
+
+            await interaction.respond(
+                filtered.map(choice => ({ name: choice, value: choice })),
+            );
+
+            return;
+        } 
+
         await interaction.deferReply({ ephemeral: true });
 
         const global = await getGlobal();

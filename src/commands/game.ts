@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, EmbedBuilder, SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
+import { ActionRowBuilder, AutocompleteInteraction, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, EmbedBuilder, SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
 import { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { z } from "zod";
@@ -13,62 +13,30 @@ module.exports = {
         { 
             type: 'slash',
             name: 'slash-signup',
-            command: async () => {
-                const games = await getGames();
-
-                if(games.length == 0) {
-                    return new SlashCommandBuilder()
-                        .setName("signup")
-                        .setDescription("Sign up for a mafia game!")
-                        .addStringOption(option =>
-                            option  
-                                .setName('game')
-                                .setDescription('Name of the game.')
-                                .setRequired(true)
-                        )
-                }
-
-                return new SlashCommandBuilder()
-                    .setName("signup")
-                    .setDescription("Sign up for a mafia game!")
-                    .addStringOption(option =>
-                        option  
-                            .setName('game')
-                            .setDescription('Name of the game.')
-                            .setRequired(true)
-                            .addChoices(games.map(game => { return { name: game.name, value: game.name }}))
-                    )
-            } 
+            command: new SlashCommandBuilder()
+                .setName("signup")
+                .setDescription("Sign up for a mafia game!")
+                .addStringOption(option =>
+                    option  
+                        .setName('game')
+                        .setDescription('Name of the game.')
+                        .setRequired(true)
+                        .setAutocomplete(true)
+                )
         },
         { 
             type: 'slash',
             name: 'slash-leave',
-            command: async () => {
-                const games = await getGames();
-
-                if(games.length == 0) {
-                    return new SlashCommandBuilder()
-                        .setName("leave")
-                        .setDescription("Leave mafia game.")    
-                        .addStringOption(option =>
-                            option  
-                                .setName('game')
-                                .setDescription('Name of the game.')
-                                .setRequired(true)
-                        )
-                }
-
-                return new SlashCommandBuilder()
-                    .setName("leave")
-                    .setDescription("Leave mafia game.")
-                    .addStringOption(option =>
-                        option  
-                            .setName('game')
-                            .setDescription('Name of the game.')
-                            .setRequired(true)
-                            .addChoices(games.map(game => { return { name: game.name, value: game.name }}))
-                    )
-            }
+            command: new SlashCommandBuilder()
+                .setName("leave")
+                .setDescription("Leave mafia game.")
+                .addStringOption(option =>
+                    option  
+                        .setName('game')
+                        .setDescription('Name of the game.')
+                        .setRequired(true)
+                        .setAutocomplete(true)
+                )
         },
         {
             type: 'button',
@@ -88,8 +56,20 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: CommandInteraction | ButtonInteraction) => {
-        if(interaction.isChatInputCommand()) {
+    execute: async (interaction: CommandInteraction | ButtonInteraction | AutocompleteInteraction) => {
+        if(interaction.isAutocomplete()) {
+            const focusedValue = interaction.options.getFocused();
+
+            const games = await getGames();
+
+            const filtered = games.filter(choice => choice.name.startsWith(focusedValue)).slice(0, 25);
+
+            await interaction.respond(
+                filtered.map(choice => ({ name: choice.name, value: choice.name })),
+            );
+
+            return;
+        } else if(interaction.isChatInputCommand()) {
             const commandName = interaction.commandName;
 
             const game = interaction.options.getString("game");

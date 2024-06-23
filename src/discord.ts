@@ -691,11 +691,26 @@ client.on(Events.InteractionCreate, async interaction => {
                 }
             } catch(e) {}
         }
-    } else {
+    } else if (interaction.isAutocomplete()) {
+		const command = client.commands.get(`slash-${interaction.commandName}`);
+
+		
+        if(command == undefined || typeof command == 'object') {
+            return;
+        }
+
+		try {
+            await command(interaction);
+        } catch(e: any) {
+            try {
+                console.log(e);
+            } catch(e) {}
+        }
+	} else {
         if(interaction.isRepliable()) {
             await interaction.reply({ content: "Command not found.", ephemeral: true })
         }
-    }
+    } 
 });
 
 if(!isDisabled()) {

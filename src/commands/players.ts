@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, Colors, EmbedBuilder } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, Colors, EmbedBuilder, AutocompleteInteraction } from "discord.js";
 import { Data } from "../discord";
 import { getGameByName, getGlobal } from "../utils/main";
 import { getUser } from "../utils/user";
@@ -11,40 +11,20 @@ module.exports = {
         { 
             type: 'slash',
             name: 'slash-players',
-            command: async () => {
-                const games = await getGames();
-
-                if(games.length == 0) {
-                    return new SlashCommandBuilder()
-                        .setName("players")
-                        .setDescription("Show players.")
-                        .addStringOption(option =>
-                            option  
-                                .setName('game')
-                                .setDescription('Name of the game.')
-                        )
-                        .addBooleanOption(option => 
-                            option
-                                .setName('complete')
-                                .setDescription('Shows each account connected to each player.')
-                        )
-                }
-
-                return new SlashCommandBuilder()
-                    .setName("players")
-                    .setDescription("Show players.")
-                    .addStringOption(option =>
-                        option  
-                            .setName('game')
-                            .setDescription('Name of the game.')
-                            .addChoices(games.map(game => { return { name: game.name, value: game.name }}))
-                    )
-                    .addBooleanOption(option => 
-                        option
-                            .setName('complete')
-                            .setDescription('Shows each account connected to each player.')
-                    )
-            }
+            command: new SlashCommandBuilder()
+                .setName("players")
+                .setDescription("Show players.")
+                .addStringOption(option =>
+                    option  
+                        .setName('game')
+                        .setDescription('Name of the game.')
+                        .setAutocomplete(true)
+                )
+                .addBooleanOption(option => 
+                    option
+                        .setName('complete')
+                        .setDescription('Shows each account connected to each player.')
+                )
         }, 
         {
             type: 'text',
@@ -58,7 +38,21 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction) => {
+    execute: async (interaction: ChatInputCommandInteraction | AutocompleteInteraction) => {
+        if(interaction.isAutocomplete()) {
+            const focusedValue = interaction.options.getFocused();
+
+            const games = await getGames();
+
+            const filtered = games.filter(choice => choice.name.startsWith(focusedValue)).slice(0, 25);;
+
+            await interaction.respond(
+                filtered.map(choice => ({ name: choice.name, value: choice.name })),
+            );
+
+            return;
+        } 
+
         return handlePlayerList(interaction);
     }
 }

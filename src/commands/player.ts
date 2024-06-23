@@ -1,9 +1,9 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, EmbedBuilder, ModalBuilder, ModalSubmitInteraction, SlashCommandBuilder, SlashCommandSubcommandBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
+import { ActionRowBuilder, AutocompleteInteraction, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, EmbedBuilder, ModalBuilder, ModalSubmitInteraction, SlashCommandBuilder, SlashCommandSubcommandBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
 import { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { z } from "zod";
 import { User, createUser, editUser, getUser, getUserByName } from "../utils/user";
-import { getGlobal } from "../utils/main";
+import { getAllCurrentNicknames, getGlobal } from "../utils/main";
 import { addSignup, refreshSignup } from "../utils/games";
 
 const setNickname = z.object({
@@ -27,8 +27,9 @@ module.exports = {
                         .addStringOption(option =>
                             option 
                                 .setName("nickname")
-                                .setRequired(false)
                                 .setDescription("Search by nickname.")
+                                .setRequired(false)
+                                .setAutocomplete(true)
                         )
                         .addUserOption(option => 
                             option
@@ -55,8 +56,22 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: CommandInteraction | ButtonInteraction | ModalSubmitInteraction) => {
-        if(interaction.isButton()) {
+    execute: async (interaction: CommandInteraction | ButtonInteraction | ModalSubmitInteraction | AutocompleteInteraction) => {
+        if(interaction.isAutocomplete()) {
+            const global = await getGlobal();
+
+            const focusedValue = interaction.options.getFocused();
+
+            const nicknames = await getAllCurrentNicknames(global);
+
+            const filtered = nicknames.filter(choice => choice.startsWith(focusedValue)).slice(0, 25);;
+
+            await interaction.respond(
+                filtered.map(choice => ({ name: choice, value: choice })),
+            );
+
+            return;
+        } else if(interaction.isButton()) {
             const id = JSON.parse(interaction.customId) as z.infer<typeof setNickname>;
 
             await showModal(interaction, id.autoSignUp, id.game);
