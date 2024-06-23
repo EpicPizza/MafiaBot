@@ -3,6 +3,8 @@ import { Data } from "../discord";
 import { getGameByName, getGlobal } from "../utils/main";
 import { getUser } from "../utils/user";
 import { getGames } from "../utils/games";
+import { z } from "zod";
+import { Command } from "../utils/commands";
 
 module.exports = {
     data: [
@@ -43,6 +45,16 @@ module.exports = {
                             .setDescription('Shows each account connected to each player.')
                     )
             }
+        }, 
+        {
+            type: 'text',
+            name: 'text-players',
+            command: {
+                optional: [
+                    z.string().min(1).max(100).or(z.literal('complete')),
+                    z.literal('complete')
+                ]
+            }
         }
     ] satisfies Data[],
 
@@ -51,13 +63,13 @@ module.exports = {
     }
 }
 
-async function handlePlayerList(interaction: ChatInputCommandInteraction) {
+async function handlePlayerList(interaction: ChatInputCommandInteraction | Command) {
 
-    const complete = interaction.options.getBoolean('complete') ?? false;
+    const complete = interaction.type == 'text' ? interaction.arguments[1] == "complete" || interaction.arguments[0] == "complete" : interaction.options.getBoolean('complete') ?? false;
 
     const users = [] as { nickname: string, id: string }[];
 
-    const reference = interaction.options.getString("game");
+    const reference = interaction.type == 'text' ? interaction.arguments[0] == "complete" ? null : interaction.arguments[0] as string | null ?? null : interaction.options.getString("game");
 
     if(reference == null || reference == "") {
         const game = await getGlobal();

@@ -5,6 +5,9 @@ export interface Command {
     name: string,
     arguments: (string | number | boolean)[],
     message: Message,
+    type: 'text',
+    reply: Message["reply"],
+    user: Message["author"]
 }
 
 export interface CommandOptions {

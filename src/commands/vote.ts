@@ -66,12 +66,14 @@ module.exports = {
         {
             type: 'text',
             name: 'text-vote',
-            command: [ z.string().min(1).max(10) ]
+            command: {
+                required: [ z.string().min(1).max(100) ]
+            }
         },
         {
             type: 'text',
             name: 'text-unvote',
-            command: []
+            command: {}
         }
     ] satisfies Data[],
 

@@ -1,8 +1,8 @@
-import { ActionRow, ActionRowBuilder, ActivityType, ButtonBuilder, ButtonStyle, ChannelType, Client, Collection, Colors, ContextMenuCommandBuilder, EmbedBuilder, Events, GatewayIntentBits, GuildCacheMessage, Message, Partials, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, TextChannel, WebhookClient } from "discord.js";
+import { ActionRow, ActionRowBuilder, ActivityType, ButtonBuilder, ButtonStyle, ChannelType, Client, Collection, Colors, ContextMenuCommandBuilder, EmbedBuilder, Events, GatewayIntentBits, GuildCacheMessage, Message, MessageReplyOptions, Partials, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, TextChannel, WebhookClient } from "discord.js";
 import dotenv from 'dotenv';
 import fs from 'node:fs';
 import path from 'node:path';
-import { ZodAny, ZodAnyDef, ZodBoolean, ZodNull, ZodNumber, ZodString, z, type ZodObject } from "zod";
+import { ZodAny, ZodAnyDef, ZodBoolean, ZodNull, ZodNumber, ZodString, ZodLiteral, ZodSchema, z, type ZodObject } from "zod";
 import { archiveMessage } from "./archive";
 import { checkFutureLock } from "./utils/timing";
 import { firebaseAdmin } from "./firebase";
@@ -17,7 +17,7 @@ dotenv.config();
 
 interface ExtendedClient extends Client {
     commands: Collection<string, Function | {execute: Function, zod: ZodObject<any> }>,
-    textCommands: Collection<string, {execute: Function, zod: (ZodString | ZodNumber | ZodBoolean)[] }>,
+    textCommands: Collection<string, {execute: Function, zod: { required?: ( ZodSchema )[], optional?: (ZodSchema)[]} }>,
 }
 
 export interface Cache {
@@ -55,7 +55,7 @@ export type Data = ({
 } | {
     type: 'text',
     name: string,
-    command: (ZodString | ZodNumber | ZodBoolean)[],
+    command: { required?: (ZodSchema)[], optional?: (ZodSchema)[]},
 });
 
 const CustomId = z.object({
@@ -235,18 +235,29 @@ client.on(Events.MessageCreate, async (message) => {
 
         const parsedValues = [] as (number | string | boolean)[];
 
-        if(command.zod.length != 0) {
-            const values = message.content.substring(message.content.indexOf(" ") + 1, message.content.length).split(" ");
+        if((command.zod.required && command.zod.required.length != 0) || (command.zod.optional && command.zod.optional.length != 0)) {
+            const values =message.content.indexOf(" ") == -1 ? [] : message.content.substring(message.content.indexOf(" ") + 1, message.content.length).split(" ") ;
 
-            if(values.length != command.zod.length) throw new Error(`Invalid arguments for text command, ${name}.`);
+            const optionalLength = command.zod.optional ? command.zod.optional.length : 0;
+            const requiredLength = command.zod.required ? command.zod.required.length : 0;
 
-            for(let i = 0; i < values.length; i++) {
-                try {
-                    parsedValues.push(command.zod[i].parse(values[i]));
-                } catch(e) {
-                    console.log(e);
-        
-                    throw new Error(`Invalid argument for text command, ${name}.`);
+            if(values.length > optionalLength + requiredLength || values.length < requiredLength) throw new Error(`Invalid arguments for text command, ${name}.`);
+
+            console.log(values);
+
+            if(values.length != 0) {
+                for(let i = 0; i < values.length; i++) {
+                    try {
+                        if(i >= requiredLength && command.zod.optional) {
+                            parsedValues.push(command.zod.optional[i - requiredLength].parse(values[i]));
+                        } else if(command.zod.required) {
+                            parsedValues.push(command.zod.required[i].parse(values[i]));
+                        }
+                    } catch(e) {
+                        console.log(e);
+            
+                        throw new Error(`Invalid argument for text command, ${name}.`);
+                    }
                 }
             }
         }
@@ -255,7 +266,10 @@ client.on(Events.MessageCreate, async (message) => {
             await command.execute({
                 name: name,
                 arguments: parsedValues,
-                message: message
+                message: message,
+                type: 'text',
+                reply: (options: MessageReplyOptions) => { return message.reply(options); }, //for consistency with interactions
+                user: message.author,
             });
         } catch(e: any) {
             try {

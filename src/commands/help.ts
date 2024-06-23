@@ -3,6 +3,7 @@ import { Data } from "../discord";
 import { z } from "zod";
 import { getSetup } from "../utils/setup";
 import { getGlobal } from "../utils/main";
+import { Command } from "../utils/commands";
 
 module.exports = {
     data: [
@@ -21,13 +22,18 @@ module.exports = {
                 page: z.number(),
                 id: z.string(),
             })
+        },
+        {
+            type: 'text',
+            name: 'text-help',
+            command: {}
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction | ButtonInteraction | Message ) => { //this also accepts message in case someone is pinging bot
+    execute: async (interaction: ChatInputCommandInteraction | ButtonInteraction | Command ) => {
         const global = await getGlobal();
         
-        if('reactions' in interaction) {
+        if(interaction.type == 'text') {
             const embed = new EmbedBuilder()
             .setTitle("Mafia Bot Help")
             .setColor(Colors.Green)
@@ -37,15 +43,15 @@ module.exports = {
                 .addComponents([
                     new ButtonBuilder()
                         .setLabel("Player Commands")
-                        .setCustomId(JSON.stringify({ name: "help", page: global.started ? 1 : 2, id: interaction.author.id }))
+                        .setCustomId(JSON.stringify({ name: "help", page: global.started ? 1 : 2, id: interaction.user.id }))
                         .setStyle(ButtonStyle.Primary),
                     new ButtonBuilder()
                         .setLabel("Mod Commands")
-                        .setCustomId(JSON.stringify({ name: "help", page: global.started ? 3 : 4, id: interaction.author.id }))
+                        .setCustomId(JSON.stringify({ name: "help", page: global.started ? 3 : 4, id: interaction.user.id }))
                         .setStyle(ButtonStyle.Primary),
                     new ButtonBuilder()
                         .setLabel("Setup Commands")
-                        .setCustomId(JSON.stringify({ name: "help", page: 5, id: interaction.author.id }))
+                        .setCustomId(JSON.stringify({ name: "help", page: 5, id: interaction.user.id }))
                         .setStyle(ButtonStyle.Primary)
                 ])
 
@@ -226,17 +232,17 @@ const help = `This bot is primarly used through slash commands.  Each category o
 3. Follow instructions by mod in dms.
 4. Use player commands to play 👍.`
 
-const playerCommandsInGame = `**/players** View remaining players of current mafia game (specify game name to view original signups). Complete option will also give all @.
+const playerCommandsInGame = `**/players or ?players {game} {complete}** View remaining players of current mafia game (specify game name to view original signups). Complete option will also give all @.
 
-**/votes** View current votes (and specify day to view votes from that day).
+**/votes or ?votes {day}** View current votes (and specify day to view votes from that day).
 
-**/stats** View message and word count for each player (and specify day to view stats from that day).
+**/stats or ?stats {day}** View message and word count for each player (and specify day to view stats from that day).
 
-**/vote** Vote for a player. Specify the same player to remove your vote, or a new player to change your vote.
+**/vote or ?vote {name}** Vote for a player. Specify the same player to remove your vote, or a new player to change your vote.
 
-**/unvote** Remove your vote.
+**/unvote or ?unvote** Remove your vote.
 
-**Snipe** Check edits for a message. Can be accessed in the apps section of message options.`;
+**Snipe or ?snipe (reply to message)** Check edits for a message. Can be accessed in the apps section of message options.`;
 
 const playerCommandsPreGame = `**/player nickname** Add/edit your nickname. You'll be also asked to add a nickname on signup if you're a new player.
 

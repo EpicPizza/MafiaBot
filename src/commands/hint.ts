@@ -2,6 +2,7 @@ import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 import { Data } from "../discord";
 import { getGlobal } from "../utils/main";
 import { getUser } from "../utils/user";
+import { Command } from "../utils/commands";
 
 module.exports = {
     data: [
@@ -11,10 +12,15 @@ module.exports = {
             command: new SlashCommandBuilder()
                 .setName("hint")
                 .setDescription("Get a hint.")
+        },
+        {
+            type: 'text',
+            name: 'text-hint',
+            command: {}
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction) => {
+    execute: async (interaction: ChatInputCommandInteraction | Command) => {
         const random = getRandom(1, 11);
 
         const global = await getGlobal();

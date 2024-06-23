@@ -4,6 +4,8 @@ import { getGameByID, getGlobal } from "../utils/main";
 import { firebaseAdmin } from "../firebase";
 import { getSetup } from "../utils/setup";
 import { getUser, User } from "../utils/user";
+import { z } from "zod";
+import { Command } from "../utils/commands";
 
 module.exports = {
     data: [
@@ -18,6 +20,13 @@ module.exports = {
                         .setName('day')
                         .setDescription('Which day to show votes from.')
                 )
+        },
+        {
+            type: 'text',
+            name: 'text-stats',
+            command: {
+                optional: [ z.coerce.number().min(1).max(100) ]
+            }
         }
     ] satisfies Data[],
 
@@ -26,7 +35,7 @@ module.exports = {
     }
 }
 
-async function handleStatsList(interaction: ChatInputCommandInteraction) {
+async function handleStatsList(interaction: ChatInputCommandInteraction | Command) {
     const global = await getGlobal();
 
     if(global.started == false) throw new Error("Game has not started.");
@@ -39,7 +48,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction) {
 
     if(typeof setup == 'string') throw new Error("Setup Incomplete");
 
-    const day = Math.round(interaction.options.getNumber("day") ?? global.day);
+    const day = interaction.type == 'text' ? interaction.arguments[0] as number ?? global.day : Math.round(interaction.options.getNumber("day") ?? global.day);
 
     if(day > global.day) throw new Error("Not on day " + day + " yet!");
     if(day < 1) throw new Error("Must be at least day 1.");
@@ -82,7 +91,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction) {
     list = list.sort((a, b) => b.messages - a.messages);
     list = list.filter(stat => game.signups.includes(stat.id));
 
-    const id = (await db.collection('graphs').add({ stats: list, day: global.day, name: game.name, timestamp: interaction.createdAt.valueOf() })).id;
+    const id = (await db.collection('graphs').add({ stats: list, day: global.day, name: game.name, timestamp: interaction.type == 'text' ? interaction.message.createdAt : interaction.createdAt.valueOf() })).id;
 
     const message = list.reduce((previous, current) => previous += current.name + " » " + current.messages + " message" + (current.messages== 1 ? "" : "s") + " containing " + current.words + " word" + (current.words== 1 ? "" : "s") + "\n", "");
 

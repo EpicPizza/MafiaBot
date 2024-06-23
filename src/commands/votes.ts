@@ -4,6 +4,8 @@ import { getGlobal, getGameByID } from "../utils/main";
 import { getSetup } from "../utils/setup";
 import { getUser, User } from "../utils/user";
 import { Vote, getVotes } from "../utils/vote";
+import { z } from "zod";
+import { Command } from "../utils/commands";
 
 module.exports = {
     data: [
@@ -18,6 +20,13 @@ module.exports = {
                         .setName('day')
                         .setDescription('Which day to show votes from.')
                 )
+        },
+        {
+            type: 'text',
+            name: 'text-votes',
+            command: {
+                optional: [ z.coerce.number().min(1).max(100) ]
+            }
         }
     ] satisfies Data[],
 
@@ -26,7 +35,7 @@ module.exports = {
     }
 }
 
-async function handleVoteList(interaction: ChatInputCommandInteraction) {
+async function handleVoteList(interaction: ChatInputCommandInteraction | Command) {
     const game = await getGlobal();
 
     if(game.started == false) throw new Error("Game has not started.");
@@ -39,8 +48,7 @@ async function handleVoteList(interaction: ChatInputCommandInteraction) {
 
     if(typeof setup == 'string') throw new Error("Setup Incomplete");
     
-
-    const day = Math.round(interaction.options.getNumber("day") ?? game.day);
+    const day = interaction.type == 'text' ? interaction.arguments[0] as number ?? game.day : Math.round(interaction.options.getNumber("day") ?? game.day);
 
     if(day > game.day) throw new Error("Not on day " + day + " yet!");
     if(day < 1) throw new Error("Must be at least day 1.");

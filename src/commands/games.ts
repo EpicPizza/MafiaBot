@@ -3,6 +3,7 @@ import { firebaseAdmin } from "../firebase";
 import { Data } from "../discord";
 import { getSetup } from "../utils/setup";
 import { getGames } from "../utils/games";
+import { Command } from "../utils/commands";
 
 module.exports = {
     data: [
@@ -12,10 +13,15 @@ module.exports = {
             command: new SlashCommandBuilder()
                 .setName("games")
                 .setDescription("See all games.")
+        },
+        {
+            type: 'text',
+            name: 'text-games',
+            command: {}
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction) => {
+    execute: async (interaction: ChatInputCommandInteraction | Command) => {
         const setup = await getSetup();
 
         if(typeof setup == 'string') throw new Error("Setup Incomplete");

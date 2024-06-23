@@ -15,7 +15,7 @@ module.exports = {
         {
             type: 'text',
             name: 'text-check',
-            command: [ z.string().min(1).max(10) ]
+            command: {}
         }
     ] satisfies Data[],
 
