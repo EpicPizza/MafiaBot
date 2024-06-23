@@ -311,7 +311,7 @@ export async function setupAliveRole(player: Discord.GuildMember, setup: Setup) 
 }
 
 export async function getPlayerObjects(id: string, setup: Setup) {
-    const deadPlayer = setup.secondary.guild.members.fetch(id);
+    const deadPlayer = setup.secondary.guild.members.fetch(id).catch(() => undefined);
     const userProfile = getUser(id);
     const player = setup.primary.guild.members.fetch(id);
     const mafiaPlayer = setup.tertiary.guild.members.fetch(id).catch(() => undefined);
@@ -328,7 +328,7 @@ export async function getPlayerObjects(id: string, setup: Setup) {
 
     //imma look back at this is say, nonononononononono why was i doing this way or typescript sucked
     return { 
-        deadPlayer: await deadPlayer as Discord.GuildMember, 
+        deadPlayer: await deadPlayer, 
         userProfile: await userProfile as User, 
         player: await player as Discord.GuildMember, 
         mafiaPlayer: await mafiaPlayer,
@@ -588,8 +588,11 @@ export async function clearPlayer(id: string, setup: Setup, gameSetup: GameSetup
     const { deadPlayer, userProfile, player, mafiaPlayer } = await getPlayerObjects(id, setup);
 
     promises.push(player.roles.remove(setup.primary.alive));
-    promises.push(deadPlayer.roles.add(setup.secondary.spec));
-    promises.push(deadPlayer.roles.remove(setup.secondary.access));
+
+    if(deadPlayer) {
+        promises.push(deadPlayer.roles.add(setup.secondary.spec));
+        promises.push(deadPlayer.roles.remove(setup.secondary.access));
+    }
 
     promises.push(setMafiaSpectator(mafiaPlayer, id, setup, gameSetup, userProfile));
 
