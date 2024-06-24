@@ -1,11 +1,12 @@
 import { Message } from "discord.js";
 import { Vote } from "../utils/vote";
-import { CommandOptions } from "../utils/commands";
+import { CommandOptions } from "../discord";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
 module.exports = {
     name: "Example",
+    priority: [ "onVote" ], //events that need a return can only have one extensions modifying it, this prevents multiple extensions from modifying the same event
     onInit: async () => {
         /**
          * Where you will be returning the commands used by extension so the bot can parse them properly.

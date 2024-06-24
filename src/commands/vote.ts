@@ -6,7 +6,7 @@ import { getGlobal, getGameByName, lockGame, getGameByID, getAllCurrentNicknames
 import { User, getUser } from "../utils/user";
 import { addVoteLog, getVotes, removeVote, setVote } from "../utils/vote";
 import { getSetup } from "../utils/setup";
-import { Command } from "../utils/commands";
+import { Command } from "../discord";
 
 module.exports = {
     data: [

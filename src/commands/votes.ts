@@ -5,7 +5,7 @@ import { getSetup } from "../utils/setup";
 import { getUser, User } from "../utils/user";
 import { Vote, getVotes } from "../utils/vote";
 import { z } from "zod";
-import { Command } from "../utils/commands";
+import { Command } from "../discord";
 
 module.exports = {
     data: [

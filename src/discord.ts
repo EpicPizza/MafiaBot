@@ -20,6 +20,20 @@ interface ExtendedClient extends Client {
     textCommands: Collection<string, {execute: Function, zod: { required?: ( ZodSchema )[], optional?: (ZodSchema)[]} }>,
 }
 
+export interface Command {
+    name: string,
+    arguments: (string | number | boolean)[],
+    message: Message,
+    type: 'text',
+    reply: Message["reply"],
+    user: Message["author"]
+}
+
+export interface CommandOptions {
+    name: string,
+    arguments: ZodObject<any>[]
+}
+
 export interface Cache {
     day: number,
     started: boolean,

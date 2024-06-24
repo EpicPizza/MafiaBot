@@ -3,7 +3,7 @@ import { firebaseAdmin } from "../firebase";
 import { Data } from "../discord";
 import { getSetup } from "../utils/setup";
 import { getGames } from "../utils/games";
-import { Command } from "../utils/commands";
+import { Command } from "../discord";
 
 module.exports = {
     data: [

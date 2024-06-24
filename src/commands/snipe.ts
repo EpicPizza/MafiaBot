@@ -4,7 +4,7 @@ import { firebaseAdmin } from "../firebase";
 import dnt from 'date-and-time';
 import meridiem from 'date-and-time/plugin/meridiem'
 import { DateTime } from "luxon";
-import { Command } from "../utils/commands";
+import { Command } from "../discord";
 
 dnt.plugin(meridiem);
 

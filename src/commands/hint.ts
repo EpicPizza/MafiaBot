@@ -2,7 +2,7 @@ import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 import { Data } from "../discord";
 import { getGlobal } from "../utils/main";
 import { getUser } from "../utils/user";
-import { Command } from "../utils/commands";
+import { Command } from "../discord";
 
 module.exports = {
     data: [

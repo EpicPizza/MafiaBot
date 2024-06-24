@@ -3,7 +3,7 @@ import { Data } from "../discord";
 import { z } from "zod";
 import { getSetup } from "../utils/setup";
 import { getGlobal } from "../utils/main";
-import { Command } from "../utils/commands";
+import { Command } from "../discord";
 
 module.exports = {
     data: [

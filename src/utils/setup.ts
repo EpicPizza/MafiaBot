@@ -71,8 +71,8 @@ export async function checkSetup() {
     const setup = parse.data;
 
     const primary = fetchGuild(setup.primary.guild, [ PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.EmbedLinks, PermissionsBitField.Flags.ManageRoles ], "Primary server");
-    const secondary = fetchGuild(setup.secondary.guild, [ PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.EmbedLinks, PermissionsBitField.Flags.ManageChannels, PermissionsBitField.Flags.ManageRoles, PermissionsBitField.Flags.CreateInstantInvite, PermissionsBitField.Flags.AddReactions, PermissionsBitField.Flags.Administrator ], "Secondary server");
-    const tertiary = fetchGuild(setup.tertiary.guild, [ PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.EmbedLinks, PermissionsBitField.Flags.ManageChannels, PermissionsBitField.Flags.KickMembers, PermissionsBitField.Flags.CreateInstantInvite, PermissionsBitField.Flags.AddReactions, PermissionsBitField.Flags.Administrator ], "Tertiary server");
+    const secondary = fetchGuild(setup.secondary.guild, [ PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.EmbedLinks, PermissionsBitField.Flags.ManageChannels, PermissionsBitField.Flags.ManageRoles, PermissionsBitField.Flags.CreateInstantInvite ], "Secondary server");
+    const tertiary = fetchGuild(setup.tertiary.guild, [ PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.EmbedLinks, PermissionsBitField.Flags.ManageChannels, PermissionsBitField.Flags.KickMembers, PermissionsBitField.Flags.CreateInstantInvite ], "Tertiary server");
 
     const alive = fetchRole(setup.primary.alive, setup.primary.guild, "Primary alive role");
     const primaryMod = fetchRole(setup.primary.mod, setup.primary.guild, "Primary mod role");
@@ -138,7 +138,7 @@ export async function fetchGuild(id: string | null, checkFor: bigint[], name: st
 
         if(guild == undefined) return reject(name + " not found");
 
-        if(!(await guild.members.fetch(clientId())).permissions.has(checkFor)) return reject("nsufficient permissions in " + name);
+        if(!(await guild.members.fetch(clientId())).permissions.has(checkFor)) return reject("Insufficient permissions in " + name);
 
         return resolve(guild);
     })
