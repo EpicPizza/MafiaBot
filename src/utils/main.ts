@@ -306,8 +306,9 @@ export async function setupDeadPlayer(id: string, setup: Setup) {
     }
 }
 
-export async function setupAliveRole(player: Discord.GuildMember, setup: Setup) {
+export async function setupMainPlayer(player: Discord.GuildMember, setup: Setup) {
     await player.roles.add(setup.primary.alive);
+    await player.roles.remove(setup.primary.mod);
 }
 
 export async function getPlayerObjects(id: string, setup: Setup) {
@@ -354,7 +355,7 @@ export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup
 
     const { deadPlayer, userProfile, player, mafiaPlayer } = await getPlayerObjects(id, setup);
 
-    await setupAliveRole(player, setup);
+    await setupMainPlayer(player, setup);
     await setupDeadPlayer(id, setup)
     await setupMafiaPlayer(mafiaPlayer, setup, gameSetup);
 

@@ -195,7 +195,7 @@ module.exports = {
             } else {
                 const nicknames = await getAllNicknames();
                 
-                const filtered = nicknames.filter(choice => choice.startsWith(focusedValue.value)).slice(0, 25);;
+                const filtered = nicknames.filter(choice => choice.toLowerCase().startsWith(focusedValue.value.toLowerCase())).slice(0, 25);;
 
                 await interaction.respond(
                     filtered.map(choice => ({ name: choice, value: choice })),
