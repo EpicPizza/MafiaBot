@@ -121,6 +121,7 @@ for(const file of commandFiles) {
 
 client.on(Events.ClientReady, async () => {
     console.log("Bot is ready!");
+    
 
     client.user?.setActivity({ type: ActivityType.Watching, name: "/ongoing", });
 
