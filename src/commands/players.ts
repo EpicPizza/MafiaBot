@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, Colors, EmbedBuilder, AutocompleteInteraction } from "discord.js";
 import { Data } from "../discord";
 import { getGameByName, getGlobal } from "../utils/main";
-import { getUser } from "../utils/user";
+import { getUser, getUsers, getUsersArray } from "../utils/user";
 import { getGames } from "../utils/games";
 import { z } from "zod";
 import { Command } from "../discord";
@@ -61,7 +61,7 @@ async function handlePlayerList(interaction: ChatInputCommandInteraction | Comma
 
     const complete = interaction.type == 'text' ? interaction.arguments[1] == "complete" || interaction.arguments[0] == "complete" : interaction.options.getBoolean('complete') ?? false;
 
-    const users = [] as { nickname: string, id: string }[];
+    let users = [] as { nickname: string, id: string }[];
 
     const reference = interaction.type == 'text' ? interaction.arguments[0] == "complete" ? null : interaction.arguments[0] as string | null ?? null : interaction.options.getString("game");
 
@@ -69,26 +69,14 @@ async function handlePlayerList(interaction: ChatInputCommandInteraction | Comma
         const game = await getGlobal();
 
         if(game.started == false) throw new Error("Game has not started.");
-
-        for(let i = 0; i < game.players.length; i++) {
-            const user = await getUser(game.players[i].id);
-    
-            if(user == null) throw new Error("User not registered.");
-    
-            users.push({ id: user.id, nickname: user.nickname });
-        }    
+        
+        users = await getUsersArray(game.players.map(player => player.id));
     } else {
         const game = await getGameByName(reference);
 
         if(game == null) throw new Error("Game not found.");
 
-        for(let i = 0; i < game.signups.length; i++) {
-            const user = await getUser(game.signups[i]);
-    
-            if(user == null) throw new Error("User not registered.");
-    
-            users.push({ id: user.id, nickname: user.nickname });
-        }    
+        users = await getUsersArray(game.signups);  
     }
 
     const embed = new EmbedBuilder()

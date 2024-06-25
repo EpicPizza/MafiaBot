@@ -85,7 +85,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
 
     const id = (await db.collection('graphs').add({ stats: list, day: global.day, name: game.name, timestamp: interaction.type == 'text' ? interaction.message.createdAt.valueOf() : interaction.createdAt.valueOf() })).id;
 
-    const message = list.reduce((previous, current) => previous += current.name + " » " + current.messages + " message" + (current.messages== 1 ? "" : "s") + " containing " + current.words + " word" + (current.words== 1 ? "" : "s") + "\n", "");
+    const message = list.reduce((previous, current) => previous += current.name + " » " + current.messages + " message" + (current.messages== 1 ? "" : "s") + " containing " + current.words + " word" + (current.words== 1 ? "" : "s") + " with " + (current.words / current.messages) + " wpm" + "\n", "");
 
     const embed = new EmbedBuilder()
         .setTitle("Stats")
