@@ -26,7 +26,7 @@ export interface Command {
     message: Message,
     type: 'text',
     reply: Message["reply"],
-    user: Message["author"]
+    user: Message["author"],
 }
 
 export interface CommandOptions {
