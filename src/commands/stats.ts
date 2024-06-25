@@ -27,6 +27,13 @@ module.exports = {
             command: {
                 optional: [ z.coerce.number().min(1).max(100) ]
             }
+        },
+        {
+            type: 'text',
+            name: 'text-beta',
+            command: {
+                required: [ z.string().min(1).max(100), z.string().min(1).max(100) ]
+            }
         }
     ] satisfies Data[],
 
@@ -48,7 +55,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
 
     if(typeof setup == 'string') throw new Error("Setup Incomplete");
 
-    const day = interaction.type == 'text' ? interaction.arguments[0] as number ?? global.day : Math.round(interaction.options.getNumber("day") ?? global.day);
+    const day = interaction.type == 'text' ? (typeof interaction.arguments[0] == "number" ? interaction.arguments[0] as number ?? global.day : global.day) : Math.round(interaction.options.getNumber("day") ?? global.day);
 
     if(day > global.day) throw new Error("Not on day " + day + " yet!");
     if(day < 1) throw new Error("Must be at least day 1.");
@@ -61,7 +68,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
 
     const docs = (await ref.get()).docs;
 
-    let list = [] as { name: string, id: string, messages: number, words: number, show: boolean }[];
+    let list = [] as { name: string, id: string, messages: number, words: number, show: boolean, reactions: { reaction: string, timestamp: number }[] }[];
 
     for(let i = 0; i < docs.length; i++) {
         const data = docs[i].data();
@@ -75,17 +82,37 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
                 messages: data.messages,
                 words: data.words,
                 show: true,
+                reactions: data.reactions
             })
         }
     }
 
     list = list.filter(stat => stat.words > 0);
-    list = list.sort((a, b) => b.messages - a.messages);
     list = list.filter(stat => game.signups.includes(stat.id));
+
 
     const id = (await db.collection('graphs').add({ stats: list, day: global.day, name: game.name, timestamp: interaction.type == 'text' ? interaction.message.createdAt.valueOf() : interaction.createdAt.valueOf() })).id;
 
-    const message = list.reduce((previous, current) => previous += current.name + " » " + current.messages + " message" + (current.messages== 1 ? "" : "s") + " containing " + current.words + " word" + (current.words== 1 ? "" : "s") + " with " + (current.words / current.messages).toFixed(2) + " wpm" + "\n", "");
+    const message = (() => {
+        if(interaction.type == 'text' && interaction.arguments[0] == "stats") {
+            list = list.sort((a, b) => {
+                const aTimes = a.reactions.filter(entry => entry.reaction == interaction.arguments[1]).length ;
+                const bTimes = b.reactions.filter(entry => entry.reaction == interaction.arguments[1]).length ;
+
+                return bTimes - aTimes;
+            });
+
+            return list.reduce((previous, current) => {
+                const times = current.reactions.filter(entry => entry.reaction == interaction.arguments[1]).length ;
+
+                return previous += current.name + " » " + times + " time" + (times == 1 ? "" : "s");
+            }, "");
+        } else {
+            list = list.sort((a, b) => b.messages - a.messages);
+
+            return list.reduce((previous, current) => previous += current.name + " » " + current.messages + " message" + (current.messages== 1 ? "" : "s") + " containing " + current.words + " word" + (current.words== 1 ? "" : "s") + " with " + (current.words / current.messages).toFixed(2) + " wpm" + "\n", "");
+        }
+    })();
 
     const embed = new EmbedBuilder()
         .setTitle("Stats")
