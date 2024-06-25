@@ -95,6 +95,8 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
     const message = (() => {
         if(interaction.type == 'text' && interaction.arguments[0] == "stats") {
             list = list.sort((a, b) => {
+                if(!('reactions' in a && 'reactions' in b)) return 0;
+
                 const aTimes = a.reactions.filter(entry => entry.reaction == interaction.arguments[1]).length ;
                 const bTimes = b.reactions.filter(entry => entry.reaction == interaction.arguments[1]).length ;
 
@@ -102,7 +104,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
             });
 
             return list.reduce((previous, current) => {
-                const times = current.reactions.filter(entry => entry.reaction == interaction.arguments[1]).length ;
+                const times = 'reactions' in current ? current.reactions.filter(entry => entry.reaction == interaction.arguments[1]).length : 0;
 
                 return previous += current.name + " » " + times + " time" + (times == 1 ? "" : "s");
             }, "");
