@@ -82,7 +82,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
                 messages: data.messages,
                 words: data.words,
                 show: true,
-                reactions: data.reactions
+                reactions: data.reactions ?? []
             })
         }
     }
