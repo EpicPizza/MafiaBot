@@ -49,6 +49,33 @@ export async function createUser(id: string, nickname: string) {
     }
 }
 
+export async function getUsers(list: string[]) {
+    const promises = [] as Promise<User | undefined>[];
+
+    for(let i = 0; i < list.length; i++) {
+        promises.push(getUser(list[i]));
+    }
+
+    const results = await Promise.allSettled(promises);
+
+    const fails = results.filter(result => result.status == "rejected");
+
+    if(fails.length > 0) {
+        throw new Error("User not found.");
+    }
+
+    const users = new Map<string, User>();
+
+    for(let i = 0; i < results.length; i++) {
+        if(results[i].status == "fulfilled") {
+            //@ts-ignore
+            users.set(results[i].value.id, results[i].value);
+        }
+    }
+
+    return users;
+}
+
 export async function editUser(id: string, options: { nickname?: string, emoji?: string }) {
     const db = firebaseAdmin.getFirestore();
 

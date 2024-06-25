@@ -1,8 +1,8 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandBuilder } from "discord.js";
 import { Data } from "../discord";
-import { getGlobal, getGameByID } from "../utils/main";
+import { getGlobal, getGameByID, getAllUsers } from "../utils/main";
 import { getSetup } from "../utils/setup";
-import { getUser, User } from "../utils/user";
+import { getUser, getUsers, User } from "../utils/user";
 import { Vote, getVotes } from "../utils/vote";
 import { z } from "zod";
 import { Command } from "../discord";
@@ -53,15 +53,7 @@ async function handleVoteList(interaction: ChatInputCommandInteraction | Command
     if(day > game.day) throw new Error("Not on day " + day + " yet!");
     if(day < 1) throw new Error("Must be at least day 1.");
 
-    const users = new Map() as Map<string, User>;
-
-    for(let i = 0; i < which.signups.length; i++) {
-        const user = await getUser(which.signups[i]);
-
-        if(user == null) throw new Error("User not registered.");
-
-        users.set(user.id, user);
-    }
+    const users = await getUsers(which.signups);
 
     let list = await getVotes({ day: day });
 

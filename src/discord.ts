@@ -232,7 +232,7 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
 
 client.on(Events.MessageCreate, async (message) => {
     try {
-        if(!message.content.startsWith("?") || message.content.length < 2) {
+        if(!message.content.startsWith("?") || message.content.length < 2 || message.content.replace(/\?/g, "").length == 0) {
             await trackMessage(message, cache);
 
             return;

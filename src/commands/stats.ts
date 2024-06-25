@@ -3,7 +3,7 @@ import { Data } from "../discord";
 import { getGameByID, getGlobal } from "../utils/main";
 import { firebaseAdmin } from "../firebase";
 import { getSetup } from "../utils/setup";
-import { getUser, User } from "../utils/user";
+import { getUser, getUsers, User } from "../utils/user";
 import { z } from "zod";
 import { Command } from "../discord";
 
@@ -53,15 +53,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
     if(day > global.day) throw new Error("Not on day " + day + " yet!");
     if(day < 1) throw new Error("Must be at least day 1.");
 
-    const users = new Map() as Map<string, User>;
-
-    for(let i = 0; i < game.signups.length; i++) {
-        const user = await getUser(game.signups[i]);
-
-        if(user == null) throw new Error("User not registered.");
-
-        users.set(user.id, user);
-    }
+    const users = await getUsers(game.signups);
 
     const db = firebaseAdmin.getFirestore();
 
