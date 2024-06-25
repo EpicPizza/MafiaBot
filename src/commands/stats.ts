@@ -106,7 +106,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
             return list.reduce((previous, current) => {
                 const times = 'reactions' in current ? current.reactions.filter(entry => entry.reaction == interaction.arguments[1]).length : 0;
 
-                return previous += current.name + " » " + times + " time" + (times == 1 ? "" : "s");
+                return previous += current.name + " » " + times + " time" + (times == 1 ? "" : "s") + "\n";
             }, "");
         } else {
             list = list.sort((a, b) => b.messages - a.messages);
