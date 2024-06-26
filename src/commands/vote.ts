@@ -3,7 +3,7 @@ import { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { set, z } from "zod";
 import { getGlobal, getGameByName, lockGame, getGameByID, getAllCurrentNicknames, getAllUsers, getAllNicknames } from "../utils/main";
-import { User, getUser } from "../utils/user";
+import { User, getUser, getUsers, getUsersArray } from "../utils/user";
 import { addVoteLog, getVotes, removeVote, setVote } from "../utils/vote";
 import { getSetup } from "../utils/setup";
 import { Command } from "../discord";
@@ -111,15 +111,7 @@ module.exports = {
 
         console.log("voting", player);
 
-        const list = [] as User[];
-
-        for(let i = 0; i < global.players.length; i++) {
-            const user = await getUser(global.players[i].id);
-
-            if(user == null) throw new Error("User not registered.");
-
-            list.push(user);
-        }
+        const list = await getUsersArray(global.players.map(player => player.id));
 
         const fullList = await getAllUsers(game);
 
