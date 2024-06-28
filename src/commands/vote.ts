@@ -185,6 +185,8 @@ module.exports = {
                 let specific = votes.filter(vote => vote.for == user.id);
                 let half = Math.ceil(list.length / 2);
 
+                if(half % 2 == 0) half += 0.5;
+
                 let message = voter.nickname + (voted ? " voted for " : " removed vote for ") + user.nickname + "!" + (half - specific.length < 4 && half - specific.length > 0 ? " " + (half - specific.length) + " vote" + (half - specific.length == 1 ? "" : "s") + " until hammer!" : "");
 
                 if('arguments' in interaction) {
@@ -202,8 +204,7 @@ module.exports = {
                 }
 
                 await addVoteLog({ message, id: author.id, day: global.day, type: voted ? "vote" : "unvote", for: voted ? user.id : null });
-                
-                if(half % 2 == 0) half += 0.5;
+
 
                 if(specific.length >= half) {
                     await lockGame();
