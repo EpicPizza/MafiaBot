@@ -244,41 +244,41 @@ const playerCommandsInGame = `**/players or ?players {game} {complete}** View re
 
 **Snipe or ?snipe (reply to message)** Check edits for a message. Can be accessed in the apps section of message options.`;
 
-const playerCommandsPreGame = `**/player nickname** Add/edit your nickname. You'll be also asked to add a nickname on signup if you're a new player.
+const playerCommandsPreGame = `**/nickname or ?nickname** Add/edit your nickname. You'll be also asked to add a nickname on signup if you're a new player.
 
-**/player info** Check the nickname or @ of a player with their nickname or @.
+**/info or ?info {nickname or @member}** Check the nickname or @ of a player with their nickname or @.
 
-**/signup** Signup for a game with the game name.
+**/signup or ?signup {game}** Signup for a game with the game name.
 
-**/leave** Remove signup for a game with the game name.
+**/leave or ?leave {game}** Remove signup for a game with the game name.
 
-**/players** Specify game name to view signups for a game.`
+**/players or ?players {game} {complete}** Specify game name to view signups for a game. Complete option will also give all @.`
 
-const modCommandsPreGame =`**/games** See all games currently happening.
+const modCommandsPreGame =`**/games or ?games** See all games currently happening.
 
-**/mod create** Creates a new game. Also makes spectator and mafia channels for that game.
+**/mod create or ?mod create {name}** Creates a new game. Also makes spectator and mafia channels for that game.
 
-**/mod signups** Creates signups for a new game. You can only have one signup button for each game, old buttons can be reactivated however.
+**/mod signups or ?mod signups {name}** Creates signups for a new game. You can only have one signup button for each game, old buttons can be reactivated however.
 
-**/mod close** Closes signups for a game.
+**/mod close or ?mod close** Closes signups for a game.
 
-**/mod open** Reopens signups for a game whose signups have been closed.
+**/mod open or ?mod open {name}** Reopens signups for a game whose signups have been closed.
 
-**/mod kick** Kicks a player from signups.
+**/mod kick or ?mod kick {nickname} {game}** Kicks a player from signups.
 
-**/mod spectator** Invites a spectator to dead and mafia server to spectate.
+**/mod spectator or ?mod spectator {@member}** Invites a spectator to dead and mafia server to spectate.
 
-**/mod archive** Removes the game from database and moves channels to archived category.`
+**/mod archive or ?mod archive {name}** Removes the game from database and moves channels to archived category.`
 
-const modCommandsInGame = `**/mod start** Starts the game. Locks the channel. Setups player dms. Kicks everyone from mafia server. Sends message in spectator chat to setup allignments (which will invite mafia to mafia server after confirming).
+const modCommandsInGame = `**/mod start or ?mod start {name}** Starts the game. Locks the channel. Setups player dms. Kicks everyone from mafia server. Sends message in spectator chat to setup allignments (which will invite mafia to mafia server after confirming).
 
-**/mod unlock** Unlocks the game, and asks if you want to advance day.
+**/mod unlock or ?mod unlock** Unlocks the game, and asks if you want to advance day.
 
-**/mod lock** Locks the game.
+**/mod lock or ?mod lock** Locks the game.
 
-**/remove** Removes a player from the game. Gives them access to spectator channel and removes their alive role.
+**/mod remove or ?mod remove {nickname}** Removes a player from the game. Gives them access to spectator channel and removes their alive role.
 
-**/mod end** Ends the game. Gives spectator perms to everyone, and invites to mafia server if they are not already in mafia server.`
+**/mod end or ?mod end** Ends the game. Gives spectator perms to everyone, and invites to mafia server if they are not already in mafia server.`
 
 const setupCommands = `**/setup mod** Gives mod roles in all three servers. Also gives invites to mafia and dead server if they are not already in those servers. 
 

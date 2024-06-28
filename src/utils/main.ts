@@ -1,6 +1,6 @@
 import { Transaction, FieldValue, Firestore, CollectionReference, Query, DocumentReference, DocumentSnapshot } from "firebase-admin/firestore";
 import { firebaseAdmin } from "../firebase";
-import client from "../discord";
+import client, { Command, removeReactions } from "../discord";
 import Discord, { ActionRow, ActionRowComponent, BaseGuildTextChannel, ButtonStyle, ChannelType, ChatInputCommandInteraction, Collection, Colors, CommandInteraction, ComponentEmojiResolvable, FetchMembersOptions, GuildBasedChannel, GuildMember, PermissionsBitField, TextChannel } from "discord.js";
 import { ActionRowBuilder, ButtonBuilder, EmbedBuilder } from "@discordjs/builders";
 import { User, getUser } from "./user";
@@ -458,17 +458,23 @@ export async function getAllCurrentNicknames(global: Global) {
     return nicknames;
 }
 
-export async function startGame(interaction: ChatInputCommandInteraction, name: string) {
-    await interaction.deferReply({ ephemeral: true });
+export async function startGame(interaction: ChatInputCommandInteraction | Command, name: string) {
+    if(interaction.type != 'text') {
+        await interaction.deferReply({ ephemeral: true });
+    } else {
+        await interaction.message.react("<a:loading:1256150236112621578>");
+    }
 
     const global = await getGlobal();
+
+    if(global.started) throw new Error("Game has already started.");
+
     const game = await getGameByName(name);
     const setup = await getSetup();
     const db = firebaseAdmin.getFirestore();
 
     if(setup == undefined) throw new Error("Setup not complete.");
     if(typeof setup == 'string') throw new Error("An unexpected error occurred.");
-    if(global.started) throw new Error("Game has already started.");
     if(game == null) throw new Error("Game not found.");
     if(game.signups.length == 0) throw new Error("Game must have more than one player.");
 
@@ -510,10 +516,22 @@ export async function startGame(interaction: ChatInputCommandInteraction, name: 
             .setColor(Colors.Red)
             .setDescription(fails.reduce<string>((accum, current) => accum + (current as unknown as PromiseRejectedResult).reason + "\n", ""))
 
-        return await interaction.editReply({ embeds: [embed] });
+            if(interaction.type != 'text') {
+                return await interaction.editReply({ embeds: [embed] });
+            } else {
+                await removeReactions(interaction.message);
+
+                return await interaction.reply({ embeds: [embed] });
+            }
     }
 
-    return await interaction.editReply({ content: "Game is starting!" });
+    if(interaction.type != 'text') {
+        return await interaction.editReply({ content: "Game is starting!" });
+    } else {
+        await removeReactions(interaction.message);
+
+        await interaction.message.react("✅")
+    }
 }
 
 export async function clearGame() {
@@ -608,16 +626,22 @@ export async function clearPlayer(id: string, setup: Setup, gameSetup: GameSetup
     }
 }
 
-export async function endGame(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply({ ephemeral: true });
+export async function endGame(interaction: ChatInputCommandInteraction | Command) {
+    if(interaction.type != 'text') {
+        await interaction.deferReply({ ephemeral: true });
+    } else {
+        await interaction.message.react("<a:loading:1256150236112621578>");
+    }
 
     const global = await getGlobal();
+
+    if(global.started == false) throw new Error("Game has not started." );
+
     const game = await getGameByID(global.game ?? "bruh");
     const setup = await getSetup();
     
     if(setup == undefined) throw new Error("Setup not complete.");
     if(typeof setup == 'string') throw new Error("An unexpected error occurred." );
-    if(!global.started) throw new Error("Game has not started." );
     if(game == null) throw new Error("Game not found.");
 
     const gameSetup = await getGameSetup(game, setup);
@@ -653,10 +677,20 @@ export async function endGame(interaction: ChatInputCommandInteraction) {
             .setColor(Colors.Red)
             .setDescription(fails.reduce<string>((accum, current) => accum + (current as unknown as PromiseRejectedResult).reason + "\n", ""))
 
-        return await interaction.editReply({ embeds: [embed] });
+        if(interaction.type != 'text') {
+            return await interaction.editReply({ embeds: [embed] });
+        } else {
+            return await interaction.reply({ embeds: [embed] });
+        }
     }
 
-    return await interaction.editReply({ content: "Game has ended!" });
+    if(interaction.type != 'text') {
+        return await interaction.editReply({ content: "Game has ended!" });
+    } else {
+        await removeReactions(interaction.message);
+
+        await interaction.message.react("✅");
+    }
 }
 
 export async function getGameID(name: string) {
@@ -728,8 +762,6 @@ export async function setAllignments() {
         .setDescription('Click corresponding button to toggle player\'s allignment. Once confirm is clicked, an invite for the mafia server will be created for you to send to mafia players.')
         .setFooter({ text: 'Red for Mafia, Gray for Town/Neutral/Whatever Applicable' })
 
-    const rows = [] as ActionRowBuilder<ButtonBuilder>[]
-
     const global = await getGlobal();
 
     if(global.game == null) throw new Error("Game not found.");
@@ -744,6 +776,8 @@ export async function setAllignments() {
     if(game.signups.length == 0) throw new Error("Game must have more than one player.");
 
     const gameSetup = await getGameSetup(game, setup);
+
+    const rows = [] as ActionRowBuilder<ButtonBuilder>[]
     
     for(let i = 0; i < game.signups.length; i = i + 5) {
         const users = [await getPlayer(game.signups.at(i) ?? "", global), await getPlayer(game.signups.at(i + 1) ?? "", global), await getPlayer(game.signups.at(i + 2) ?? "", global), await getPlayer(game.signups.at(i + 3) ?? "", global), await getPlayer(game.signups.at(i + 4) ?? "", global)];

@@ -32,18 +32,26 @@ module.exports = {
 
         const docs = (await ref.get()).docs;
 
-        const games = [] as { name: string, id: string, url: string }[];
+        const games = [] as { name: string, id: string, url: string | null }[];
 
         for(let doc = 0; doc < docs.length; doc++) {
             const data = docs[doc].data();
 
-            if(!data || data.message == null) continue;
+            if(!data) continue;
 
-            games.push({
-                name: data.name,
-                id: docs[doc].id,
-                url: "https://discord.com/channels/" + setup.primary.guild.id + "/" + setup.primary.chat.id + "/" + data.message.id
-            })
+            if(data.message == null) {
+                games.push({
+                    name: data.name,
+                    id: docs[doc].id,
+                    url: null
+                })
+            } else {
+                games.push({
+                    name: data.name,
+                    id: docs[doc].id,
+                    url: "https://discord.com/channels/" + setup.primary.guild.id + "/" + setup.primary.chat.id + "/" + data.message.id
+                })
+            }
         };
         
         const embed = new EmbedBuilder()
@@ -51,24 +59,44 @@ module.exports = {
             .setDescription("Welcome to Mafia! Click a mafia game to go to its signups.")
             .setColor(Colors.Orange)
             
-        const row = new ActionRowBuilder<ButtonBuilder>()
-            .addComponents(games.map(game => {
-                return new ButtonBuilder()
-                    .setLabel(game.name)
-                    .setURL(game.url)
-                    .setStyle(ButtonStyle.Link)
-            }));
 
-        if(row.components.length == 0) {
+        const rows = [] as ActionRowBuilder<ButtonBuilder>[]
+
+        for(let i = 0; i < games.length; i = i + 5) {
+            const row = new ActionRowBuilder<ButtonBuilder>();
+    
+            row.addComponents(games.filter((game, index) => index >= i && index <= i + 4).map(game => {
+                if(game.url == null) {
+                    return new ButtonBuilder()
+                        .setLabel(game.name)
+                        .setCustomId(JSON.stringify({ name: "blank", game: game.id }))
+                        .setStyle(ButtonStyle.Secondary)
+                        .setDisabled(true)
+                } else {
+                    return new ButtonBuilder()
+                        .setLabel(game.name)
+                        .setURL(game.url)
+                        .setStyle(ButtonStyle.Link)
+                }
+            }));
+    
+            rows.push(row);
+        }
+
+        if(rows.length == 0) {
+            const row = new ActionRowBuilder<ButtonBuilder>();
+
             row.addComponents([
                 new ButtonBuilder()
                     .setLabel("No Games")
                     .setCustomId(JSON.stringify({ name: "never "}))
                     .setStyle(ButtonStyle.Secondary)
                     .setDisabled(true)
-            ])
+            ]);
+
+            rows.push(row);
         } 
 
-        await interaction.reply({ embeds: [embed], components: [row] });
+        await interaction.reply({ embeds: [embed], components: rows });
     }
 }

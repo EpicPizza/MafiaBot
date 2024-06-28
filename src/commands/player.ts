@@ -1,5 +1,5 @@
 import { ActionRowBuilder, AutocompleteInteraction, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, EmbedBuilder, ModalBuilder, ModalSubmitInteraction, SlashCommandBuilder, SlashCommandSubcommandBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
-import { Data } from "../discord";
+import { Command, Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { z } from "zod";
 import { User, createUser, editUser, getUser, getUserByName } from "../utils/user";
@@ -10,39 +10,37 @@ const setNickname = z.object({
     name: z.literal('set-nickname'),
     autoSignUp: z.boolean(),
     game: z.string().optional(),
+    for: z.string().optional(),
 })
 
 module.exports = {
     data: [
         { 
             type: 'slash',
-            name: 'slash-player',
+            name: 'slash-info',
             command: new SlashCommandBuilder()
-                .setName('player')
-                .setDescription('EverytrefreshSignuphing related to the player.')
-                .addSubcommand(subcommand => 
-                    subcommand  
-                        .setName('info')
-                        .setDescription('Get information about a player.')
-                        .addStringOption(option =>
-                            option 
-                                .setName("nickname")
-                                .setDescription("Search by nickname.")
-                                .setRequired(false)
-                                .setAutocomplete(true)
-                        )
-                        .addUserOption(option => 
-                            option
-                                .setName("user")
-                                .setRequired(false)
-                                .setDescription("Search by user.")
-                        )
+                .setName('info')
+                .setDescription('Get information about a player.')
+                .addStringOption(option =>
+                    option 
+                        .setName("nickname")
+                        .setDescription("Search by nickname.")
+                        .setRequired(false)
+                        .setAutocomplete(true)
                 )
-                .addSubcommand(subcommand => 
-                    subcommand
-                        .setName('nickname')
-                        .setDescription('Edit/Add a nickname.')
+                .addUserOption(option => 
+                    option
+                        .setName("user")
+                        .setRequired(false)
+                        .setDescription("Search by user.")
                 )
+        },
+        {
+            type: 'slash',
+            name: 'slash-nickname',
+            command: new SlashCommandBuilder()
+                .setName('nickname')
+                .setDescription('Edit/Add a nickname.')
         },
         {
             type: 'button',
@@ -53,11 +51,41 @@ module.exports = {
             type: 'modal',
             name: 'modal-set-nickname',
             command: setNickname
+        }, 
+        {
+            type: 'text',
+            name: 'text-nickname',
+            command: {}
+        }, 
+        {
+            type: 'text',
+            name: 'text-info',
+            command: {
+                required: [ z.string().regex(/^<@\d+>$/).or(z.string().regex(/^[a-zA-Z]+$/, "Only letters allowed. No spaces.")) ]
+            }
         }
     ] satisfies Data[],
 
-    execute: async (interaction: CommandInteraction | ButtonInteraction | ModalSubmitInteraction | AutocompleteInteraction) => {
-        if(interaction.isAutocomplete()) {
+    execute: async (interaction: CommandInteraction | ButtonInteraction | ModalSubmitInteraction | AutocompleteInteraction | Command) => {
+        if(interaction.type == 'text' && interaction.name == 'nickname') {
+            const embed = new EmbedBuilder()
+                .setTitle("Set a nickname.")
+                .setDescription("Click to set a nickname.")
+                .setColor("Green");
+        
+            const row = new ActionRowBuilder<ButtonBuilder>()
+                .addComponents([
+                    new ButtonBuilder() 
+                        .setCustomId(JSON.stringify({ name: 'set-nickname', autoSignUp: false, for: interaction.user.id }))
+                        .setStyle(ButtonStyle.Success)
+                        .setLabel("Set Nickname")
+                ]);
+
+            await interaction.reply({
+                embeds: [embed],
+                components: [row]
+            });
+        } else if(interaction.type != 'text' && interaction.isAutocomplete()) {
             const focusedValue = interaction.options.getFocused();
 
             const nicknames = await getAllNicknames();
@@ -69,27 +97,31 @@ module.exports = {
             );
 
             return;
-        } else if(interaction.isButton()) {
+        } else if(interaction.type != 'text' && interaction.isButton()) {
             const id = JSON.parse(interaction.customId) as z.infer<typeof setNickname>;
 
+            if(id.for && id.for != interaction.user.id) throw new Error("This isn't for you!")
+
             await showModal(interaction, id.autoSignUp, id.game);
-        } else if(interaction.isChatInputCommand() && interaction.options.getSubcommand() == "info") {
-            const userOption = interaction.options.getUser("user");
-            const nicknameOption = interaction.options.getString("nickname");
+        } else if(interaction.type != 'text' && (interaction.isChatInputCommand() && interaction.commandName == "info") || (interaction.type == 'text' && interaction.name == "info")) {
+            const userOption = interaction.type == 'text' ? interaction.arguments[0] as string : interaction.options.getUser("user");
+            const nicknameOption = interaction.type == 'text' ? interaction.arguments[0] as string : interaction.options.getString("nickname");
 
             let user: User | undefined = undefined;
 
             if(userOption == null && nicknameOption == null) {
                 user = await getUser(interaction.user.id);
-            } else if(nicknameOption != null && nicknameOption.length > 2) {
+            }
+            
+            if(nicknameOption != null) {
                 user = await getUserByName(nicknameOption.substring(0, 1).toUpperCase() + nicknameOption.substring(1, nicknameOption.length).toLowerCase());
-            } else if(userOption != null) {
-                user = await getUser(userOption.id);
-            } else {
-                return await interaction.reply({ content: "Nickname too short." });
+            }
+            
+            if(userOption != null && user == undefined) {
+                user = await getUser(typeof userOption == 'string' ? (userOption.length > 4 ? userOption.substring(2, userOption.length - 1) : userOption) : userOption.id);
             }
 
-            if(user == undefined) return await interaction.reply({ content: "User has not registered.", ephemeral: true });
+            if(user == undefined) return await interaction.reply({ content: "User not found.", ephemeral: true });
 
             const embed = new EmbedBuilder()
                 .setAuthor({ name: user.nickname })
@@ -97,17 +129,9 @@ module.exports = {
                 .setDescription("Nickname: " + user.nickname + "\nUser: <@" + user.id + ">");
 
             await interaction.reply({ embeds: [embed], ephemeral: true });
-        } else if(interaction.isChatInputCommand() && interaction.options.getSubcommand() == "nickname") {
+        } else if(interaction.type != 'text' && interaction.isChatInputCommand() && interaction.commandName == "nickname") {
             await showModal(interaction, false);
-        } else if(interaction.isChatInputCommand() && interaction.options.getSubcommand() == "emoji") {
-            const type = z.string().emoji().length(2).or(z.string().endsWith(">").startsWith("<").max(64))
-
-            const emoji = type.parse(interaction.options.getString("emoji")?.trim() ?? "");
-
-            await editUser(interaction.user.id, { emoji });
-
-            await interaction.reply({ ephemeral: true, content: "Emoji set." })
-        } else if(interaction.isModalSubmit()) {
+        } else if(interaction.type != 'text' && interaction.isModalSubmit()) {
             const global = await getGlobal();
 
             if(global.started) throw new Error("Nickname cannot be edited durring a game.");

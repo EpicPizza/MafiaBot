@@ -1,45 +1,35 @@
-import { ActionRowBuilder, AutocompleteInteraction, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, EmbedBuilder, SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
-import { Data } from "../discord";
-import { firebaseAdmin } from "../firebase";
+import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
+import { Command, TextCommandArguments, removeReactions } from "../../discord";
 import { z } from "zod";
-import { getGlobal, getGameByName, lockGame, getGameByID, getAllCurrentNicknames, getAllNicknames } from "../utils/main";
-import { User, getUser } from "../utils/user";
-import { getSetup } from "../utils/setup";
+import { getGameByName, getGlobal } from "../../utils/main";
+import { firebaseAdmin } from "../../firebase";
+import { getSetup } from "../../utils/setup";
+import { User, getUser } from "../../utils/user";
 
-module.exports = {
-    data: [
-        { 
-            type: 'slash',
-            name: 'slash-remove',
-            command: new SlashCommandBuilder()
-                .setName('remove')
-                .setDescription('Remove a player.')
-                .addStringOption(option =>
-                    option  
-                        .setName('player')
-                        .setDescription('Which player to remove?')
-                        .setRequired(true)
-                        .setAutocomplete(true)
-                )
+export const RemoveCommand = {
+    name: "remove",
+    description: "?mod remove {nickname}",
+    command: {
+        slash: new SlashCommandSubcommandBuilder()
+            .setName('remove')
+            .setDescription('Remove a player.')
+            .addStringOption(option =>
+                option  
+                    .setName('player')
+                    .setDescription('Which player to remove?')
+                    .setRequired(true)
+                    .setAutocomplete(true)
+            ),
+        text: {
+            required: [ z.string().min(1).max(100) ]
+        } satisfies TextCommandArguments
+    },
+    execute: async (interaction: ChatInputCommandInteraction | Command) => {
+        if(interaction.type != 'text') {
+            await interaction.deferReply({ ephemeral: true });
+        } else {
+            await interaction.message.react("<a:loading:1256150236112621578>");
         }
-    ] satisfies Data[],
-
-    execute: async (interaction: ChatInputCommandInteraction | AutocompleteInteraction) => {
-        if(interaction.isAutocomplete()) {
-            const focusedValue = interaction.options.getFocused();
-
-            const nicknames = await getAllNicknames();
-
-            const filtered = nicknames.filter(choice => choice.toLowerCase().startsWith(focusedValue.toLowerCase())).slice(0, 25);;
-
-            await interaction.respond(
-                filtered.map(choice => ({ name: choice, value: choice })),
-            );
-
-            return;
-        } 
-
-        await interaction.deferReply({ ephemeral: true });
 
         const global = await getGlobal();
 
@@ -50,7 +40,7 @@ module.exports = {
 
         if(global.started == false) throw new Error("Game has not started.");
 
-        const player = interaction.options.getString('player');
+        const player = interaction.type == 'text' ? interaction.arguments[1] : interaction.options.getString('player');
 
         if(player == null) throw new Error("Choose a player.");
 
@@ -96,6 +86,12 @@ module.exports = {
             })
         });
 
-        await interaction.editReply({ content: "Player removed."});
-    } 
+        if(interaction.type != 'text') {
+            await interaction.editReply({ content: "Player removed."});
+        } else {
+            await removeReactions(interaction.message);
+
+            await interaction.message.react("✅");
+        }
+    }
 }

@@ -17,8 +17,10 @@ dotenv.config();
 
 interface ExtendedClient extends Client {
     commands: Collection<string, Function | {execute: Function, zod: ZodObject<any> }>,
-    textCommands: Collection<string, {execute: Function, zod: { required?: ( ZodSchema )[], optional?: (ZodSchema)[]} }>,
+    textCommands: Collection<string, {execute: Function, zod: TextCommandArguments, description?: string }>,
 }
+
+export type TextCommandArguments = { required?: (ZodSchema | true)[], optional?: (ZodSchema | true)[]};
 
 export interface Command {
     name: string,
@@ -68,8 +70,9 @@ export type Data = ({
     command: ZodObject<any>,
 } | {
     type: 'text',
+    description?: string,
     name: string,
-    command: { required?: (ZodSchema)[], optional?: (ZodSchema)[]},
+    command: TextCommandArguments,
 });
 
 const CustomId = z.object({
@@ -112,7 +115,7 @@ for(const file of commandFiles) {
 
     data.forEach((command) => {
         if(command.type == 'text') {
-            client.textCommands.set(command.name, { execute: execute, zod: command.command })
+            client.textCommands.set(command.name, { execute: execute, zod: command.command, description: command.description })
         } else {
             client.commands.set(command.name, command.type == 'button' || command.type == 'modal' || command.type == 'select' ? ({ execute: execute, zod: command.command }) : execute)
         }
@@ -121,7 +124,6 @@ for(const file of commandFiles) {
 
 client.on(Events.ClientReady, async () => {
     console.log("Bot is ready!");
-    
 
     client.user?.setActivity({ type: ActivityType.Watching, name: "/ongoing", });
 
@@ -256,7 +258,7 @@ client.on(Events.MessageCreate, async (message) => {
             const optionalLength = command.zod.optional ? command.zod.optional.length : 0;
             const requiredLength = command.zod.required ? command.zod.required.length : 0;
 
-            if(values.length > optionalLength + requiredLength || values.length < requiredLength) throw new Error(`Invalid arguments for text command, ${name}.`);
+            if(values.length > optionalLength + requiredLength || values.length < requiredLength) throw new Error(`Invalid arguments for text command, ${name}.` + (command.description ? "\n\n" + command.description : ""));
 
             console.log(values);
 
@@ -264,14 +266,16 @@ client.on(Events.MessageCreate, async (message) => {
                 for(let i = 0; i < values.length; i++) {
                     try {
                         if(i >= requiredLength && command.zod.optional) {
-                            parsedValues.push(command.zod.optional[i - requiredLength].parse(values[i]));
+                            const part = command.zod.optional[i - requiredLength];
+                            parsedValues.push(part === true ? values[i] : part.parse(values[i]));
                         } else if(command.zod.required) {
-                            parsedValues.push(command.zod.required[i].parse(values[i]));
+                            const part = command.zod.required[i];
+                            parsedValues.push(part === true ? values[i] : part.parse(values[i]));
                         }
                     } catch(e) {
                         console.log(e);
             
-                        throw new Error(`Invalid argument for text command, ${name}.`);
+                        throw new Error(`Invalid arguments for text command, ${name}.` + (command.description ? "\n\n" + command.description : ""));
                     }
                 }
             }
@@ -293,54 +297,6 @@ client.on(Events.MessageCreate, async (message) => {
                 await message.reply({ content: e.message as string });
             } catch(e) {}
         }
-
-        /*if(message.content == "?help" || message.content.includes("<@" + client.user?.id + ">")) {
-            const help = client.commands.get("slash-help");
-
-            if(help == undefined || typeof help != 'function') return message.react('⚠️')
-
-            await help(message);
-
-            return;
-        }
-
-        if(message.content.startsWith("?dm")) {
-            const setup = await getSetup();
-
-            if(typeof setup == 'string') return await message.react("⚠️");
-
-            if(message.channel.type != ChannelType.GuildText) return;
-
-            if(!(setup.secondary.dms.id == message.channel.parentId || setup.secondary.archivedDms.id == message.channel.parentId)) return;
-
-            const db = firebaseAdmin.getFirestore();
-
-            const user = message.content.substring(4, message.content.length);
-
-            const member = await setup.primary.guild.members.fetch(user).catch(() => undefined);
-
-            if(member == undefined) return await message.react("❎")
-
-            const ref = db.collection('users').doc(member.id);
-
-            if((await ref.get()).exists) {
-                await ref.update({
-                    channel: message.channel.id,
-                })
-            } else {
-                await ref.set({
-                    channel: message.channel.id,
-                    id: member.id,
-                    nickname: null,
-                    emoji: false,
-                    settings: {
-                        auto_confirm: false,
-                    },
-                })
-            }
-
-            await message.react('✅');
-        }*/
     } catch(e: any) {
         if(message.content.startsWith("?") && message.content.length > 1) {
             message.reply(e.message);
@@ -733,3 +689,15 @@ if(!isDisabled()) {
 }
 
 export default client;
+
+export async function removeReactions(message: Message) {
+    const userReactions = message.reactions.cache.filter(reaction => reaction.users.cache.has(client.user?.id ?? ""));
+
+    try {
+        for (const reaction of userReactions.values()) {
+            await reaction.users.remove(client.user?.id ?? "");
+        }
+    } catch (error) {
+        console.error('Failed to remove reactions.');
+    }
+}

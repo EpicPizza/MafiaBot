@@ -1,5 +1,5 @@
 import { ActionRowBuilder, AutocompleteInteraction, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, EmbedBuilder, SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
-import { Data } from "../discord";
+import { Command, Data, removeReactions } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { z } from "zod";
 import { getGlobal, getGameByID, getGameByName } from "../utils/main";
@@ -24,6 +24,13 @@ module.exports = {
                         .setAutocomplete(true)
                 )
         },
+        {
+            type: 'text',
+            name: 'text-signup',
+            command: {
+                required: [ z.string().min(1).max(100) ],
+            }
+        },
         { 
             type: 'slash',
             name: 'slash-leave',
@@ -39,12 +46,11 @@ module.exports = {
                 )
         },
         {
-            type: 'button',
-            name: 'button-sign-up',
-            command: z.object({
-                name: z.literal('sign-up'),
-                game: z.string(),
-            })
+            type: 'text',
+            name: 'text-leave',
+            command: {
+                required: [ z.string().min(1).max(100) ],
+            }
         },
         {
             type: 'button',
@@ -56,8 +62,8 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: CommandInteraction | ButtonInteraction | AutocompleteInteraction) => {
-        if(interaction.isAutocomplete()) {
+    execute: async (interaction: CommandInteraction | ButtonInteraction | AutocompleteInteraction | Command) => {
+        if(interaction.type != 'text' && interaction.isAutocomplete()) {
             const focusedValue = interaction.options.getFocused();
 
             const games = await getGames();
@@ -69,34 +75,30 @@ module.exports = {
             );
 
             return;
-        } else if(interaction.isChatInputCommand()) {
-            const commandName = interaction.commandName;
+        } else if(interaction.type == 'text' || interaction.isChatInputCommand()) {
+            const commandName = interaction.type == 'text' ? interaction.name : interaction.commandName;
 
-            const game = interaction.options.getString("game");
+            const name = interaction.type == 'text' ? interaction.arguments[0] as string : interaction.options.getString('game');
 
-            if(game == null) throw new Error("Game not specified.");
+            if(name == null) throw new Error("Game needs to be specified.");
 
-            return await handleSignup(interaction, game, commandName == "signup");
+            return await handleSignup(interaction, name, commandName == "signup");
         } else if(interaction.isButton()) {
             const id = JSON.parse(interaction.customId);
 
-            if(id.name == "sign-up") {
-                return await handleSignup(interaction, id.game);
-            } else {
-                return await leaveSignup(interaction, id.game);
-            } 
+            return await leaveSignup(interaction, id.game);
         }
     } 
 }
 
-async function leaveSignup(interaction: ButtonInteraction | ChatInputCommandInteraction, name: string) {
+async function leaveSignup(interaction: ButtonInteraction | ChatInputCommandInteraction | Command, name: string) {
     const global = await getGlobal();
     const game = await getGameByName(name);
 
     if(global == null || game == null) throw new Error("Game not found.");
 
-    if(game.closed) return await interaction.reply({ ephemeral: true, content: "Sign ups are closed." });
-    if(global.started && global.game == game.id) return await interaction.reply({ ephemeral: true, content: "Game has started." });
+    if(game.closed) throw new Error("Sign ups are closed.");
+    if(global.started && global.game == game.id) throw new Error("Game has started.");
 
     const user = await getUser(interaction.user.id);
 
@@ -104,42 +106,50 @@ async function leaveSignup(interaction: ButtonInteraction | ChatInputCommandInte
         await removeSignup({ id: user.id, game: game.name });
     }
 
-    if(interaction.isButton()) {
+    if(interaction.type != 'text' && interaction.isButton()) {
         await interaction.update({
             components: [],
             embeds: [],
             content: "You've left the game."
         })
-    } else {
+    } else if(interaction.type != 'text') {
         await interaction.reply({
             ephemeral: true,
             content: "You've left the game."
         })
+    } else {
+        await removeReactions(interaction.message);
+
+        await interaction.message.react("✅");
     }
 
     await refreshSignup(game.name);
 }
 
-async function handleSignup(interaction: ButtonInteraction | ChatInputCommandInteraction, name: string, action: boolean | null = null) {
-    await interaction.deferReply({ ephemeral: true });
+async function handleSignup(interaction: ChatInputCommandInteraction | Command, name: string, action: boolean | null = null) {
+    if(interaction.type != 'text') {
+        await interaction.deferReply({ ephemeral: true });
+    } else {
+        await interaction.message.react("<a:loading:1256150236112621578>");
+    }
 
     const global = await getGlobal();
     const game = await getGameByName(name);
 
     if(global == null || game == null) throw new Error("Game not found.");
 
-    if(game.closed) return await interaction.editReply({ content: "Sign ups are closed." });
-    if(global.started && global.game == game.id) return await interaction.editReply({ content: "Game has started." });
+    if(game.closed) throw new Error("Sign ups are closed.");
+    if(global.started && global.game == game.id) throw new Error("Game has started.");
 
     const user = await getUser(interaction.user.id);
 
     if(user == undefined) {
-        if(action === false) return await interaction.editReply({ content: "Uh, why are you leaving a game, you haven't even signed up once." });
+        if(action === false) throw new Error("Uh, why are you leaving a game, you haven't even signed up once.");
 
         const embed = new EmbedBuilder()
-        .setTitle("Looks like you are a new player!")
-        .setDescription("Add a nickname to get started.")
-        .setColor("Green");
+            .setTitle("Looks like you are a new player!")
+            .setDescription("Add a nickname to get started.")
+            .setColor("Green");
     
         const row = new ActionRowBuilder<ButtonBuilder>()
             .addComponents([
@@ -149,10 +159,19 @@ async function handleSignup(interaction: ButtonInteraction | ChatInputCommandInt
                     .setLabel("Add Nickname")
             ]);
 
-        await interaction.editReply({
-            embeds: [embed],
-            components: [row]
-        })
+        if(interaction.type != 'text') {
+            await interaction.editReply({
+                embeds: [embed],
+                components: [row]
+            })
+        } else {
+            await removeReactions(interaction.message);
+
+            await interaction.reply({
+                embeds: [embed],
+                components: [row]
+            })
+        }
     } else {
         const entered = !(game.signups.find(player => player == user.id) == undefined)
 
@@ -170,20 +189,36 @@ async function handleSignup(interaction: ButtonInteraction | ChatInputCommandInt
                 .setDescription("If you've changed your mind, you can leave.")
                 .setColor(Colors.Red)
 
-            await interaction.editReply({
-                embeds: [embed],
-                components: [row]
-            })
+            if(interaction.type != 'text') {
+                await interaction.editReply({
+                    embeds: [embed],
+                    components: [row]
+                })
+            } else {
+                await removeReactions(interaction.message);
+
+                await interaction.message.react("❎");
+            }
         } else if(entered && action === false) {
             await leaveSignup(interaction, game.name);
         } else if(!entered && action === false) {
-            await interaction.editReply({ content: "You have not signed up." })
+            if(interaction.type != 'text') {
+                await interaction.editReply({ content: "You have not signed up." });
+            } else {
+                await removeReactions(interaction.message);
+
+                await interaction.message.react("❎");
+            }
         } else {
             await addSignup({ id: user.id, game: game.name });
 
-            await interaction.editReply({
-                content: "You are now signed up!"
-            });
+            if(interaction.type != 'text') {
+                await interaction.editReply({ content: "You are now signed up!" });
+            } else {
+                await removeReactions(interaction.message);
+
+                await interaction.message.react("✅");
+            }
 
             await refreshSignup(game.name);
         }

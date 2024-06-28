@@ -17,12 +17,24 @@ export async function trackMessage(message: Message, cache: Cache) {
     if((await ref.get()).exists) {
         ref.update({
             messages: FieldValue.increment(1),
-            words: FieldValue.increment(message.content.split(" ").length)
+            words: FieldValue.increment(message.content.split(" ").length),
+            log: FieldValue.arrayUnion({
+                words: message.content.split(" ").length,
+                timestamp: message.createdAt.valueOf(),
+                characters: message.content.length,
+                attachments: message.attachments.size,
+            })
         })
     } else {
         ref.set({
-            messages: 1,
-            words: message.content.split(" ").length,
+            messages: FieldValue.increment(1),
+            words: FieldValue.increment(message.content.split(" ").length),
+            log: FieldValue.arrayUnion({
+                words: message.content.split(" ").length,
+                timestamp: message.createdAt.valueOf(),
+                characters: message.content.length,
+                attachments: message.attachments.size,
+            })
         })
     }
 }

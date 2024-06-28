@@ -6,6 +6,7 @@ import { z } from "zod";
 import { FieldValue } from "firebase-admin/firestore";
 import { User, getUser } from "./user";
 import { register } from "../register";
+import { Command } from "../discord";
 
 export interface Signups { 
     name: string, 
@@ -189,7 +190,7 @@ export async function refreshSignup(name: string) {
 }
 
 
-export async function archiveGame(interaction: ChatInputCommandInteraction, name: string) {
+export async function archiveGame(interaction: ChatInputCommandInteraction | Command, name: string) {
     const setup = await getSetup();
     const game = await getGameByName(name);
     const global = await getGlobal();
@@ -215,7 +216,7 @@ export async function archiveGame(interaction: ChatInputCommandInteraction, name
     await interaction.reply({ ephemeral: true, content: "Game archived." });
 }
 
-export async function createGame(interaction: ChatInputCommandInteraction) {
+export async function createGame(interaction: ChatInputCommandInteraction | Command, name: string) {
     const setup = await getSetup();
 
     if(typeof setup == 'string') throw new Error("Setup Incomplete");
@@ -224,13 +225,11 @@ export async function createGame(interaction: ChatInputCommandInteraction) {
 
     const ref = db.collection('settings').doc('game').collection('games');
 
-    const name = interaction.options.getString("game") ? interaction.options.getString("game") as string : "Untitled Game " + getRandom(1, 9) + getRandom(1, 9) + getRandom(1, 9);
-
     const exists = await getGameByName(name);
 
     if(exists) throw new Error("Duplicate game names not allowed.");
 
-    const requirements = z.string().max(20, "Max length 20 characters.").regex(/^[a-zA-Z_]+( [a-zA-Z_]+)*$/, "Only letters and spaces allowed.");
+    const requirements = z.string().min(1, "Minimum 1 character.").max(20, "Max length 20 characters.").regex(/^[a-zA-Z_]+( [a-zA-Z_]+)*$/, "Only letters and spaces allowed.");
 
     const check = requirements.safeParse(name);
 
@@ -238,7 +237,7 @@ export async function createGame(interaction: ChatInputCommandInteraction) {
         throw new Error("Name Error - " + check.error.flatten().formErrors.join(" "));
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    if(interaction.type != 'text') await interaction.deferReply({ ephemeral: true });
 
     const spec = await setup.secondary.ongoing.children.create({
         type: ChannelType.GuildText,
@@ -265,7 +264,11 @@ export async function createGame(interaction: ChatInputCommandInteraction) {
 
     await register();
 
-    await interaction.editReply({ content: name + " game created." })
+    if(interaction.type != 'text') {
+        await interaction.editReply({ content: name + " game created." })
+    } else {
+        await interaction.reply({ content: name + " game created." })
+    }
 }
 
 export type GameSetup = Awaited<ReturnType<typeof getGameSetup>>
