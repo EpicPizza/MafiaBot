@@ -92,6 +92,12 @@ module.exports = {
 }
 
 async function leaveSignup(interaction: ButtonInteraction | ChatInputCommandInteraction | Command, name: string) {
+    if(interaction.type != 'text') {
+        if(!interaction.deferred && interaction.isChatInputCommand()) await interaction.deferReply({ ephemeral: true });
+    } else {
+        await interaction.message.react("<a:loading:1256150236112621578>");
+    }
+    
     const global = await getGlobal();
     const game = await getGameByName(name);
 
@@ -104,6 +110,8 @@ async function leaveSignup(interaction: ButtonInteraction | ChatInputCommandInte
 
     if(user) {
         await removeSignup({ id: user.id, game: game.name });
+    } else {
+        throw new Error("You haven't signed up to anything!");
     }
 
     if(interaction.type != 'text' && interaction.isButton()) {
@@ -113,8 +121,7 @@ async function leaveSignup(interaction: ButtonInteraction | ChatInputCommandInte
             content: "You've left the game."
         })
     } else if(interaction.type != 'text') {
-        await interaction.reply({
-            ephemeral: true,
+        await interaction.editReply({
             content: "You've left the game."
         })
     } else {
@@ -197,7 +204,7 @@ async function handleSignup(interaction: ChatInputCommandInteraction | Command, 
             } else {
                 await removeReactions(interaction.message);
 
-                await interaction.message.react("❎");
+                await interaction.message.react("✅");
             }
         } else if(entered && action === false) {
             await leaveSignup(interaction, game.name);
@@ -207,7 +214,7 @@ async function handleSignup(interaction: ChatInputCommandInteraction | Command, 
             } else {
                 await removeReactions(interaction.message);
 
-                await interaction.message.react("❎");
+                await interaction.message.react("✅");
             }
         } else {
             await addSignup({ id: user.id, game: game.name });

@@ -673,7 +673,7 @@ export async function endGame(interaction: ChatInputCommandInteraction | Command
         console.log(fails);
 
         const embed = new EmbedBuilder()
-            .setTitle("Game Start Failed")
+            .setTitle("Game End Failed")
             .setColor(Colors.Red)
             .setDescription(fails.reduce<string>((accum, current) => accum + (current as unknown as PromiseRejectedResult).reason + "\n", ""))
 

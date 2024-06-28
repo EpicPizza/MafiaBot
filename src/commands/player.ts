@@ -61,7 +61,7 @@ module.exports = {
             type: 'text',
             name: 'text-info',
             command: {
-                required: [ z.string().regex(/^<@\d+>$/).or(z.string().regex(/^[a-zA-Z]+$/, "Only letters allowed. No spaces.")) ]
+                optional: [ z.string().regex(/^<@\d+>$/).or(z.string().regex(/^[a-zA-Z]+$/, "Only letters allowed. No spaces.")) ]
             }
         }
     ] satisfies Data[],
@@ -168,7 +168,19 @@ module.exports = {
                 await refreshSignup(id.game);
 
                 if(interaction.isFromMessage()) {
-                    await interaction.update({ content: 'You are now signed up!', embeds: [], components: [] });
+                    if(interaction.message.deletable) {
+                        await interaction.reply({ content: 'You are now signed up!', ephemeral: true });
+
+                        const reference = await interaction.message.fetchReference().catch(() => undefined);
+
+                        if(reference != undefined) {
+                            await reference.react("✅")
+                        }
+
+                        await interaction.message.delete();
+                    } else {
+                        await interaction.update({ content: 'You are now signed up!', embeds: [], components: [] });
+                    }
                 } else {
                     await interaction.reply({ content: 'You are now signed up!', ephemeral: true });
                 }
