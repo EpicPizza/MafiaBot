@@ -266,7 +266,7 @@ async function showModal(interaction: ButtonInteraction | ChatInputCommandIntera
 function toReadable(number: number) {
     const hours = Math.floor(number / (1000 * 60 * 60));
     const minutes = Math.floor(number / (1000 * 60)) - (hours * 60);
-    const seconds = Math.floor(number / 1000) - (minutes * 60);
+    const seconds = Math.floor(number / 1000) - (minutes * 60) - (hours * 60 * 60);
 
     if(hours == 0 && minutes == 0) {
         return seconds + " seconds";
