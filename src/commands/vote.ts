@@ -187,7 +187,7 @@ module.exports = {
 
                 if(half % 2 == 0) half += 0.5;
 
-                let message = voter.nickname + (voted ? " voted for " : " removed vote for ") + user.nickname + "!" + (half - specific.length < 4 && half - specific.length > 0 ? " " + (half - specific.length) + " vote" + (half - specific.length == 1 ? "" : "s") + " until hammer!" : "");
+                let message = voter.nickname + (voted ? " voted for " : " removed vote for ") + user.nickname + "!" + (half - specific.length < 4 && half - specific.length > 0 ? " " + Math.floor(half - specific.length) + " vote" + (half - specific.length == 1 ? "" : "s") + " until hammer!" : "");
 
                 if('arguments' in interaction) {
                     if(voted) {
@@ -197,7 +197,7 @@ module.exports = {
                     }
 
                     if(half - specific.length < 4 && half - specific.length > 0) {
-                        await setup.primary.chat.send((half - specific.length) + " vote" + (half - specific.length == 1 ? "" : "s") + " until hammer!");
+                        await setup.primary.chat.send(Math.floor(half - specific.length) + " vote" + (half - specific.length == 1 ? "" : "s") + " until hammer!");
                     }
                 } else {
                     await interaction.editReply(message);
