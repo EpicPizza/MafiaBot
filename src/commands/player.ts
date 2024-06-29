@@ -143,7 +143,9 @@ module.exports = {
 
                 const data = doc.data();
 
-                if(data == undefined || data.logs == undefined || data.logs.length < 10) {
+                console.log(data);
+
+                if(data == undefined || data.log == undefined || data.log.length < 10) {
                     embed.setDescription("Nickname: " + user.nickname + "\nUser: <@" + user.id + ">\n\nNo other stats available.");
 
                     await interaction.reply({ embeds: [embed], ephemeral: true });
@@ -151,9 +153,7 @@ module.exports = {
                     return;
                 }
 
-                const start = 1000 * 60 * 60 * 24 * 31;
-
-                const logs = data.logs as { characters: number, timestamp: number, words: number, attachments: number }[];
+                const logs = data.log as { characters: number, timestamp: number, words: number, attachments: number }[];
 
                 const averageCharactersPerWord = logs.reduce((previous, current) => { return current.characters + previous; }, 0) / data.words;
 
@@ -162,8 +162,9 @@ module.exports = {
                 const longestTimeBetweenMessages = timeBetweenMessages.reduce((previous, current) =>  current > previous ? current : previous, 0);
                 const averageTimeBetweenMessages = timeBetweenMessages.reduce((previous, current) => previous + current, 0) / timeBetweenMessages.length;
 
+                const attachments = logs.reduce((previous, current) => { return current.attachments + previous; }, 0);
 
-                embed.setDescription(`Nickname: ${user.nickname}\nUser: <@ +${user.id}>\n\nAverage Characters Per Word: ${averageCharactersPerWord.toFixed(2)}\nLongest Time Between Messages: ${longestTimeBetweenMessages.toFixed(2)}\nAverage Time Between Messages: ${averageTimeBetweenMessages.toFixed(2)}\nTotal Attachments to Messages: ${data.attachments}`);
+                embed.setDescription(`Nickname: ${user.nickname}\nUser: <@${user.id}>\n\nAverage Characters Per Word: ${averageCharactersPerWord.toFixed(2)}\nLongest Time Between Messages: ${toReadable(longestTimeBetweenMessages)}\nAverage Time Between Messages: ${toReadable(averageTimeBetweenMessages)}\nTotal Amount of Attachments: ${attachments}`);
 
                 await interaction.reply({ embeds: [embed], ephemeral: true });
 
@@ -260,4 +261,18 @@ async function showModal(interaction: ButtonInteraction | ChatInputCommandIntera
     modal.addComponents([row]);
 
     await interaction.showModal(modal);
+}
+
+function toReadable(number: number) {
+    const seconds = Math.floor(number / 1000);
+    const minutes = Math.floor(number / (1000 * 60));
+    const hours = Math.floor(number / (1000 * 60 * 60));
+
+    if(hours == 0 && minutes == 0) {
+        return seconds + " seconds";
+    } else if(hours == 0) {
+        return minutes + " minutes " + seconds + " seconds";
+    } else {
+        return hours + " hours " + minutes + " minutes " + seconds + " seconds";
+    }
 }
