@@ -3,7 +3,7 @@ import { Command, Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { z } from "zod";
 import { User, createUser, editUser, getUser, getUserByName } from "../utils/user";
-import { getAllCurrentNicknames, getAllNicknames, getGlobal } from "../utils/main";
+import { getAllCurrentNicknames, getAllNicknames, getGameByID, getGlobal } from "../utils/main";
 import { addSignup, refreshSignup } from "../utils/games";
 
 const setNickname = z.object({
@@ -123,12 +123,52 @@ module.exports = {
 
             if(user == undefined) return await interaction.reply({ content: "User not found.", ephemeral: true });
 
+            const global = await getGlobal();
+
             const embed = new EmbedBuilder()
                 .setAuthor({ name: user.nickname })
                 .setColor(Colors.DarkOrange)
-                .setDescription("Nickname: " + user.nickname + "\nUser: <@" + user.id + ">");
+                
 
-            await interaction.reply({ embeds: [embed], ephemeral: true });
+            if(!global.started) {
+                embed.setDescription("Nickname: " + user.nickname + "\nUser: <@" + user.id + ">");
+
+                await interaction.reply({ embeds: [embed], ephemeral: true });
+            } else {
+                const db = firebaseAdmin.getFirestore();
+
+                const ref = db.collection('day').doc(global.day.toString()).collection('players').doc(user.id);
+
+                const doc = await ref.get();
+
+                const data = doc.data();
+
+                if(data == undefined || data.logs == undefined || data.logs.length < 10) {
+                    embed.setDescription("Nickname: " + user.nickname + "\nUser: <@" + user.id + ">\n\nNo other stats available.");
+
+                    await interaction.reply({ embeds: [embed], ephemeral: true });
+
+                    return;
+                }
+
+                const start = 1000 * 60 * 60 * 24 * 31;
+
+                const logs = data.logs as { characters: number, timestamp: number, words: number, attachments: number }[];
+
+                const averageCharactersPerWord = logs.reduce((previous, current) => { return current.characters + previous; }, 0) / data.words;
+
+                const timeBetweenMessages = logs.map((log, index, array) => index == 0 ? 0 : log.timestamp - array[index - 1].timestamp );
+
+                const longestTimeBetweenMessages = timeBetweenMessages.reduce((previous, current) =>  current > previous ? current : previous, 0);
+                const averageTimeBetweenMessages = timeBetweenMessages.reduce((previous, current) => previous + current, 0) / timeBetweenMessages.length;
+
+
+                embed.setDescription(`Nickname: ${user.nickname}\nUser: <@ +${user.id}>\n\nAverage Characters Per Word: ${averageCharactersPerWord.toFixed(2)}\nLongest Time Between Messages: ${longestTimeBetweenMessages.toFixed(2)}\nAverage Time Between Messages: ${averageTimeBetweenMessages.toFixed(2)}\nTotal Attachments to Messages: ${data.attachments}`);
+
+                await interaction.reply({ embeds: [embed], ephemeral: true });
+
+                return;
+            }
         } else if(interaction.type != 'text' && interaction.isChatInputCommand() && interaction.commandName == "nickname") {
             await showModal(interaction, false);
         } else if(interaction.type != 'text' && interaction.isModalSubmit()) {
