@@ -38,11 +38,11 @@ module.exports = {
 async function handleVoteList(interaction: ChatInputCommandInteraction | Command) {
     const global = await getGlobal();
 
-    if(global.started == false) throw new Error("global has not started.");
+    if(global.started == false) throw new Error("Game has not started.");
 
     const game = await getGameByID(global.game != null ? global.game : "bruh");
 
-    if(game == null) throw new Error("global not found.");
+    if(game == null) throw new Error("Game not found.");
 
     const setup = await getSetup();
 

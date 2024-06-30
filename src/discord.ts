@@ -12,6 +12,7 @@ import { getUser } from "./utils/user";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { isDisabled } from "./disable";
 import { trackMessage } from "./utils/tracking";
+import { getEnabledExtensions } from "./utils/extensions";
 
 dotenv.config();
 
@@ -33,7 +34,7 @@ export interface Command {
 
 export interface CommandOptions {
     name: string,
-    arguments: ZodObject<any>[]
+    arguments: TextCommandArguments
 }
 
 export interface Cache {
@@ -242,18 +243,44 @@ client.on(Events.MessageCreate, async (message) => {
 
         const name = message.content.substring(1, message.content.indexOf(" ") == -1 ? message.content.length : message.content.indexOf(" "));
 
-        const command = client.textCommands.get(`text-${name}`);
-
-        console.log(name);
+        let command = client.textCommands.get(`text-${name}`);
 
         if(command == undefined) {
-            return message.reply("Command not found.");
+            const global = await getGlobal();
+
+            const extensions = await getEnabledExtensions(global);
+
+            const extension = extensions.find(extension => extension.commandName == name);
+
+            if(extension == null) return message.reply("Command not found.");
+
+            //if(!global.started) throw new Error("Extensions can only be used in-game.");
+
+            const subcommandName = message.content.indexOf(" ") == -1 ? undefined : message.content.substring(message.content.indexOf(" ") + 1, message.content.length).split(" ")[0];
+
+            const subcommand = extension.commands.find(command => command.name == subcommandName)
+
+            if(!subcommand) throw new Error(extension.name + " Extension command not found.");
+
+            command = {
+                execute: (command: Command) => {
+                    command.arguments = command.arguments.splice(1, command.arguments.length);
+
+                    return extension.onCommand(command);
+                },
+                zod: {
+                    required: subcommand.arguments.required ? [ true, ...subcommand.arguments.required ] : [ true ],
+                    optional: subcommand.arguments.optional
+                },
+            }
+
+            //the point of all this extension command handling is so its basically unnoticable that this is being handled like a subcommand within the extension
         }
 
         const parsedValues = [] as (number | string | boolean)[];
 
         if((command.zod.required && command.zod.required.length != 0) || (command.zod.optional && command.zod.optional.length != 0)) {
-            const values =message.content.indexOf(" ") == -1 ? [] : message.content.substring(message.content.indexOf(" ") + 1, message.content.length).split(" ") ;
+            const values = message.content.indexOf(" ") == -1 ? [] : message.content.substring(message.content.indexOf(" ") + 1, message.content.length).split(" ") ;
 
             const optionalLength = command.zod.optional ? command.zod.optional.length : 0;
             const requiredLength = command.zod.required ? command.zod.required.length : 0;

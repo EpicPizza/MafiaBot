@@ -186,6 +186,7 @@ module.exports = {
                 players: [],
                 started: false,
                 bulletin: null,
+                extensions: []
             })
 
             return await interaction.reply({ content: "Database setup.", ephemeral: true });

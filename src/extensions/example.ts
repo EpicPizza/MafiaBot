@@ -1,26 +1,28 @@
 import { Message } from "discord.js";
 import { Vote } from "../utils/vote";
-import { CommandOptions } from "../discord";
+import { Command, CommandOptions } from "../discord";
+import { getGlobal } from "../utils/main";
+import { z } from "zod";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
 module.exports = {
     name: "Example",
+    commandName: "example",
+    description: "This is an example extension.",
     priority: [ "onVote" ], //events that need a return can only have one extensions modifying it, this prevents multiple extensions from modifying the same event
-    onInit: async () => {
+    help: "help",
+    commands: [
+        {
+            name: "list",
+            arguments: {
+                optional: [ z.coerce.number() ]
+            }
+        }
+    ] satisfies CommandOptions[],
+    onStart: async (global, setup, game) => {
         /**
-         * Where you will be returning the commands used by extension so the bot can parse them properly.
-         */
-
-        return [] satisfies CommandOptions[];
-
-        /**
-         * CommandOptions: { name: string, arguments: ZodObject[] } - The zod object will how the bot parses strings, numbers, or booleans.
-         */
-    },
-    onStarting: async () => {
-        /**
-         * Runs after the game is starting message.
+         * Runs during game start processes.
          */
 
         return;
@@ -29,12 +31,12 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onLock: async () => {
+    onLock: async (global, setup, game) => {
         /**
          * Runs after game has locked.
          */
     },
-    onUnlock: async (incremented: boolean) => {
+    onUnlock: async (global, setup, game, incremented: boolean) => {
         /**
          * Runa after game has unlocked.
          * 
@@ -47,12 +49,14 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onCommand: async () => {
+    onCommand: async (command: Command) => {
         /**
          * Text commands only for the forseeable future.
          * 
-         * command: { name: string, arguments: (string | number, boolean)[] } - Text Commands Only
+         * command: Command
          */
+
+        console.log(command);
 
         return;
 
@@ -62,7 +66,7 @@ module.exports = {
     },
     onMessage: async (message: Message, cache: Cache) => {
         /*
-         * Keep fetches to a minimum, these can add up.
+         * Keep fetches to a minimum, these can add up. For this reason, only cache is given, only use helper functions when necessary.
          * 
          * cache: { day: number, started: boolean, channel: null | TextChannel } - TextChannel may or may not be fetched depending if bot has fully intialized
          */
@@ -75,7 +79,7 @@ module.exports = {
     },
     onEnd: async (message: Message) => {
         /**
-         * Runs durring game end processes.
+         * Runs during game end processes.
          */
 
         return;

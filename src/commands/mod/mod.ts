@@ -1,4 +1,4 @@
-import { ButtonInteraction, ChatInputCommandInteraction, InteractionType, SlashCommandBuilder, SlashCommandSubcommandBuilder, StringSelectMenuInteraction } from "discord.js";
+import { ButtonInteraction, ChatInputCommandInteraction, InteractionType, SlashCommandBuilder, SlashCommandSubcommandBuilder, SlashCommandSubcommandGroupBuilder, StringSelectMenuInteraction } from "discord.js";
 import { Command, TextCommandArguments } from "../../discord";
 import { LockCommand, LockingSelect, UnlockButton, UnlockCommand } from "./lock";
 import { ZodObject, ZodSchema, z } from "zod";
@@ -9,9 +9,10 @@ import { StartCommand } from "./start";
 import { KickCommand, SpectatorCommand } from "./invite";
 import { RemoveCommand } from "./remove";
 import { ChangeAlignmentButton, ConfirmAllignmentsButton } from "./alignments";
+import { ExtensionCommand } from "./extension";
 
 export function ModCommand() {
-    const commands = [ LockCommand, UnlockCommand, CloseCommand, OpenCommand, CreateCommand, EndCommand, StartCommand, SignupsCommand, SpectatorCommand, KickCommand, RemoveCommand ] as { name: string, description?: string, execute: Function, command: { slash: SlashCommandSubcommandBuilder, text: TextCommandArguments } }[];
+    const commands = [ LockCommand, UnlockCommand, CloseCommand, OpenCommand, CreateCommand, EndCommand, StartCommand, SignupsCommand, SpectatorCommand, KickCommand, RemoveCommand, ExtensionCommand ] as { name: string, description?: string, execute: Function, command: { slash: SlashCommandSubcommandBuilder | SlashCommandSubcommandGroupBuilder, text: TextCommandArguments } }[];
     const interactions = [ LockingSelect, UnlockButton, ReactivateButton, ConfirmAllignmentsButton, ChangeAlignmentButton ] as { name: string, type: string, command: ZodObject<any>, execute: Function }[];
 
     function getBuilders() {
@@ -34,7 +35,7 @@ export function ModCommand() {
     }
 
     async function handleCommand(interaction: Command | ChatInputCommandInteraction) {
-        const name = interaction.type == 'text' ? interaction.arguments[0] as string : interaction.options.getSubcommand();
+        const name = interaction.type == 'text' ? interaction.arguments[0] as string : interaction.options.getSubcommandGroup() ?? interaction.options.getSubcommand();
 
         const command = commands.find(command => command.name == name);
 

@@ -7,6 +7,7 @@ import { User, getUser } from "./user";
 import { Setup, getSetup } from "./setup";
 import { promise, z } from "zod";
 import { GameSetup, Signups, getGameSetup, refreshSignup } from "./games";
+import { getEnabledExtensions } from "./extensions";
 
 const pings = true;
 
@@ -26,13 +27,14 @@ export async function getGlobal(t: Transaction | undefined = undefined) {
     throw new Error("Could not find game on database.");
 }
 
-interface Global {
+export interface Global {
     started: boolean,
     locked: boolean,
     players: Player[]
     day: number,
     game: string | null,
     bulletin: string | null, 
+    extensions: string[]
 }
 
 interface Player {
@@ -458,6 +460,24 @@ export async function getAllCurrentNicknames(global: Global) {
     return nicknames;
 }
 
+export async function startExtensions(global: Global, setup: Setup, game: Signups) {
+    const extensions = await getEnabledExtensions(global);
+
+    const promises = [] as Promise<any>[];
+
+    extensions.forEach(extension => { promises.push(extension.onStart(global, setup, game)) });
+
+    const results = await Promise.allSettled(promises);
+
+    const fails = results.filter(result => result.status == "rejected");
+
+    if(fails.length > 0) {
+        console.log(fails);
+
+        throw new Error(fails.reduce<string>((accum, current) => accum + (current as unknown as PromiseRejectedResult).reason + "\n", ""));
+    }
+}
+
 export async function startGame(interaction: ChatInputCommandInteraction | Command, name: string) {
     if(interaction.type != 'text') {
         await interaction.deferReply({ ephemeral: true });
@@ -493,6 +513,7 @@ export async function startGame(interaction: ChatInputCommandInteraction | Comma
     promises.push(finishSignups(game));
     promises.push(prepareGame(game));
     promises.push(setupPermissions(setup, true));
+    promises.push(startExtensions(global, setup, game));
 
     for(let i = 0; i < game.signups.length; i++) {
         promises.push(setupPlayer(game.signups[i], setup, gameSetup));
@@ -626,6 +647,24 @@ export async function clearPlayer(id: string, setup: Setup, gameSetup: GameSetup
     }
 }
 
+export async function endExtensions(global: Global, setup: Setup, game: Signups) {
+    const extensions = await getEnabledExtensions(global);
+
+    const promises = [] as Promise<any>[];
+
+    extensions.forEach(extension => { promises.push(extension.onEnd(global, setup, game)) });
+
+    const results = await Promise.allSettled(promises);
+
+    const fails = results.filter(result => result.status == "rejected");
+
+    if(fails.length > 0) {
+        console.log(fails);
+
+        throw new Error(fails.reduce<string>((accum, current) => accum + (current as unknown as PromiseRejectedResult).reason + "\n", ""));
+    }
+}
+
 export async function endGame(interaction: ChatInputCommandInteraction | Command) {
     if(interaction.type != 'text') {
         await interaction.deferReply({ ephemeral: true });
@@ -660,6 +699,7 @@ export async function endGame(interaction: ChatInputCommandInteraction | Command
     
     promises.push(setupPermissions(setup, false));
     promises.push(archiveChannels(setup));
+    promises.push(endExtensions(global, setup, game));
 
     for(let i = 0; i < game.signups.length; i++) {
         promises.push(clearPlayer(game.signups[i], setup, gameSetup));

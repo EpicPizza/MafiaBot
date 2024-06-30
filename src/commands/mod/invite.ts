@@ -118,8 +118,8 @@ export const KickCommand = {
             .setDescription('Remove a signup.')
             .addStringOption(option =>
                 option  
-                    .setName('member')
-                    .setDescription('Nickname or ID of member to kick.')
+                    .setName('player')
+                    .setDescription('Nickname or ID of player to kick.')
                     .setRequired(true)
                     .setAutocomplete(true)
             )
