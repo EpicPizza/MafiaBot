@@ -57,8 +57,8 @@ async function handleVoteList(interaction: ChatInputCommandInteraction | Command
 
     let list = await getVotes({ day: day });
 
-    let half = Math.ceil(global.players.length / 2);
-    if(half % 2 == 0) half += 0.5;
+    let half = global.players.length / 2;
+    if(half % 1 == 0) half += 0.5;
     half = Math.ceil(half);
 
     const votes = new Map() as Map<string, Vote[]>;
