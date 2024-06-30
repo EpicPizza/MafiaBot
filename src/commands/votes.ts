@@ -107,7 +107,7 @@ async function handleVoteList(interaction: ChatInputCommandInteraction | Command
             new ButtonBuilder()
                 .setLabel("History")
                 .setStyle(ButtonStyle.Link)
-                .setURL((process.env.DEV == "TRUE" ? process.env.DEVDOMAIN as string : process.env.DOMAIN as string) + "/global/" + global.game + "/day/" + day + "/votes")
+                .setURL((process.env.DEV == "TRUE" ? process.env.DEVDOMAIN as string : process.env.DOMAIN as string) + "/game/" + global.game + "/day/" + day + "/votes")
         ])
 
     await interaction.reply({ embeds: [embed], components: [row] });
