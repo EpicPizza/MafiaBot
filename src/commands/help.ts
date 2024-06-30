@@ -260,7 +260,7 @@ const modCommandsPreGame =`**/games or ?games** See all games currently happenin
 
 **/mod signups or ?mod signups {name}** Creates signups for a new game. You can only have one signup button for each game, old buttons can be reactivated however.
 
-**/mod close or ?mod close** Closes signups for a game.
+**/mod close or ?mod close {name}** Closes signups for a game.
 
 **/mod open or ?mod open {name}** Reopens signups for a game whose signups have been closed.
 
