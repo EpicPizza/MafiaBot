@@ -1,10 +1,11 @@
 import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
 import { Command, TextCommandArguments, removeReactions } from "../../discord";
 import { z } from "zod";
-import { getGameByName, getGlobal } from "../../utils/main";
+import { getGameByID, getGameByName, getGlobal, setMafiaSpectator } from "../../utils/main";
 import { firebaseAdmin } from "../../firebase";
 import { getSetup } from "../../utils/setup";
 import { User, getUser } from "../../utils/user";
+import { getGameSetup } from "../../utils/games";
 
 export const RemoveCommand = {
     name: "remove",
@@ -38,6 +39,10 @@ export const RemoveCommand = {
 
         if(setup.primary.mod.members.get(interaction.user.id) == undefined) throw new Error("You're not a mod!");
 
+        const game = await getGameByID(global.game ?? "");
+
+        const gameSetup = await getGameSetup(game, setup);
+
         if(global.started == false) throw new Error("Game has not started.");
 
         const player = interaction.type == 'text' ? interaction.arguments[1] : interaction.options.getString('player');
@@ -69,10 +74,7 @@ export const RemoveCommand = {
         await dead.roles.add(setup.secondary.spec);
 
         const mafia = await setup.tertiary.guild.members.fetch(user.id).catch(() => undefined);
-        if(mafia) {
-            await mafia.roles.remove(setup.tertiary.access);
-            await mafia.roles.add(setup.tertiary.spec);
-        }
+        await setMafiaSpectator(mafia, main.id, setup, gameSetup, user);
 
         const db = firebaseAdmin.getFirestore();
 
