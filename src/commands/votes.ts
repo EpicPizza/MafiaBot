@@ -97,7 +97,10 @@ async function handleVoteList(interaction: ChatInputCommandInteraction | Command
         .setTitle("Votes » " + (global.day == day ? "Today (Day " + day + ")" : "Day " + day))
         .setColor(Colors.Gold)
         .setDescription(message == "" ? "No votes recorded." : message)
-        .setFooter({ text: "Hammer is at " + half + " vote" + (half == 1 ? "" : "s") + "." });
+    
+    if(global.day == day) {
+        embed.setFooter({ text: "Hammer is at " + half + " vote" + (half == 1 ? "" : "s") + "." });
+    }
 
     const row = new ActionRowBuilder<ButtonBuilder>()
         .setComponents([
