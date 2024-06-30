@@ -18,23 +18,11 @@ export async function trackMessage(message: Message, cache: Cache) {
         ref.update({
             messages: FieldValue.increment(1),
             words: FieldValue.increment(message.content.split(" ").length),
-            log: FieldValue.arrayUnion({
-                words: message.content.split(" ").length,
-                timestamp: message.createdAt.valueOf(),
-                characters: message.content.length,
-                attachments: message.attachments.size,
-            })
         })
     } else {
         ref.set({
             messages: FieldValue.increment(1),
             words: FieldValue.increment(message.content.split(" ").length),
-            log: FieldValue.arrayUnion({
-                words: message.content.split(" ").length,
-                timestamp: message.createdAt.valueOf(),
-                characters: message.content.length,
-                attachments: message.attachments.size,
-            })
         })
     }
 }
