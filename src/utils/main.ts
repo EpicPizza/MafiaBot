@@ -79,9 +79,28 @@ export function editOverwrites() {
     }
 }
 
+export async function unlockExtensions(global: Global, setup: Setup, game: Signups) {
+    const extensions = await getEnabledExtensions(global);
+
+    const promises = [] as Promise<any>[];
+
+    extensions.forEach(extension => { promises.push(extension.onUnlock(global, setup, game)) });
+
+    const results = await Promise.allSettled(promises);
+
+    const fails = results.filter(result => result.status == "rejected");
+
+    if(fails.length > 0) {
+        console.log(fails);
+
+        throw new Error(fails.reduce<string>((accum, current) => accum + (current as unknown as PromiseRejectedResult).reason + "\n", ""));
+    }
+}
+
 export async function unlockGame(increment: boolean = false) {
     const global = await getGlobal();
     const setup = await getSetup();
+    const game = await getGameByID(global.game ?? "");
 
     if(setup == undefined) throw new Error("Setup not complete.");
     if(typeof setup == 'string') throw new Error("An unexpected error occurred.");
@@ -138,11 +157,32 @@ export async function unlockGame(increment: boolean = false) {
         CreatePrivateThreads: false, 
         SendMessagesInThreads: false
     });
+
+    await unlockExtensions(global, setup, game);
+}
+
+export async function lockExtensions(global: Global, setup: Setup, game: Signups) {
+    const extensions = await getEnabledExtensions(global);
+
+    const promises = [] as Promise<any>[];
+
+    extensions.forEach(extension => { promises.push(extension.onLock(global, setup, game)) });
+
+    const results = await Promise.allSettled(promises);
+
+    const fails = results.filter(result => result.status == "rejected");
+
+    if(fails.length > 0) {
+        console.log(fails);
+
+        throw new Error(fails.reduce<string>((accum, current) => accum + (current as unknown as PromiseRejectedResult).reason + "\n", ""));
+    }
 }
 
 export async function lockGame() {
     const global = await getGlobal();
     const setup = await getSetup();
+    const game = await getGameByID(global.game ?? "");
 
     if(setup == undefined) throw new Error("Setup not complete.");
     if(typeof setup == 'string') throw new Error("An unexpected error occurred.");
@@ -176,6 +216,8 @@ export async function lockGame() {
         CreatePrivateThreads: false, 
         SendMessagesInThreads: false
     });
+
+    await lockExtensions(global, setup, game);
 }
 
 export async function checkSignups(signups: string[], setup: Setup) { //probably could be optimized in a better way but who cares :)

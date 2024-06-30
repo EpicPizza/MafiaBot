@@ -182,12 +182,7 @@ module.exports = {
                     }
                 }
 
-                let specific = votes.filter(vote => vote.for == user.id);
-
-                let half = list.length / 2;
-                if(half % 1 == 0) half += 0.5;
-
-                let message = voter.nickname + (voted ? " voted for " : " removed vote for ") + user.nickname + "!"; //+ (half - specific.length < 4 && half - specific.length > 0 ? " " + Math.ceil(half - specific.length) + " vote" + (Math.ceil(half - specific.length) == 1 ? "" : "s") + " until hammer!" : "");
+                let message = voter.nickname + (voted ? " voted for " : " removed vote for ") + user.nickname + "!";
 
                 if('arguments' in interaction) {
                     if(voted) {
@@ -195,18 +190,17 @@ module.exports = {
                     } else {
                         await interaction.message.react("🗑️")
                     }
-
-                    /*if(half - specific.length < 4 && half - specific.length > 0) {
-                        await setup.primary.chat.send(Math.ceil(half - specific.length) + " vote" + (Math.ceil(half - specific.length) == 1 ? "" : "s") + " until hammer!");
-                    }*/
                 } else {
                     await interaction.editReply(message);
                 }
 
                 await addVoteLog({ message, id: author.id, day: global.day, type: voted ? "vote" : "unvote", for: voted ? user.id : null });
 
-
-                if(specific.length >= half) {
+                let votesForHammer = votes.filter(vote => vote.for == user.id);
+                let half = list.length / 2;
+                if(half % 1 == 0) half += 0.5;
+                
+                if(votesForHammer.length >= half) {
                     await lockGame();
                     await setup.primary.chat.send(user.nickname + " has been hammered!");
                 }

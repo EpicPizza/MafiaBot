@@ -6,13 +6,15 @@ import { ZodAny, ZodAnyDef, ZodBoolean, ZodNull, ZodNumber, ZodString, ZodLitera
 import { archiveMessage } from "./archive";
 import { checkFutureLock } from "./utils/timing";
 import { firebaseAdmin } from "./firebase";
-import { getSetup } from "./utils/setup";
+import { Setup, getSetup } from "./utils/setup";
 import { editOverwrites, generateOverwrites, getGlobal } from "./utils/main";
 import { getUser } from "./utils/user";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { isDisabled } from "./disable";
 import { trackMessage } from "./utils/tracking";
-import { getEnabledExtensions } from "./utils/extensions";
+import { getEnabledExtensions, getExtensions } from "./utils/extensions";
+import { Global } from "./utils/main";
+import { Signups } from "./utils/games";
 
 dotenv.config();
 
@@ -41,12 +43,14 @@ export interface Cache {
     day: number,
     started: boolean,
     channel: null | TextChannel,
+    extensions: string[]
 }
 
 const cache: Cache = {
     day: 0,
     started: false,
     channel: null,
+    extensions: [],
 } satisfies Cache
 
 export type Data = ({
@@ -126,7 +130,7 @@ for(const file of commandFiles) {
 client.on(Events.ClientReady, async () => {
     console.log("Bot is ready!");
 
-    client.user?.setActivity({ type: ActivityType.Watching, name: "/ongoing", });
+    client.user?.setActivity({ type: ActivityType.Watching, name: "/games", });
 
     try {
         const global = await getGlobal();
@@ -138,6 +142,7 @@ client.on(Events.ClientReady, async () => {
         cache.channel = setup.primary.chat;
         cache.day = global.day;   
         cache.started = global.started;
+        cache.extensions = global.extensions;
     } catch(e) {
         console.log(e);
     }
@@ -157,6 +162,7 @@ client.on(Events.ClientReady, async () => {
             cache.channel = setup.primary.chat;
             cache.day = global.day;   
             cache.started = global.started;
+            cache.extensions = global.extensions;
         } catch(e) {
             console.log(e);
         }
@@ -237,6 +243,8 @@ client.on(Events.MessageCreate, async (message) => {
     try {
         if(!message.content.startsWith("?") || message.content.length < 2 || message.content.replace(/\?/g, "").length == 0) {
             await trackMessage(message, cache);
+
+            if(cache.started) await messageExtensions(cache.extensions, message, cache);
 
             return;
         }
@@ -726,5 +734,23 @@ export async function removeReactions(message: Message) {
         }
     } catch (error) {
         console.error('Failed to remove reactions.');
+    }
+}
+
+export async function messageExtensions(extensionNames: string[], message: Message, cache: Cache) {
+    const extensions = getExtensions(extensionNames);
+
+    const promises = [] as Promise<any>[];
+
+    extensions.forEach(extension => { promises.push(extension.onMessage(message, cache)) });
+
+    const results = await Promise.allSettled(promises);
+
+    const fails = results.filter(result => result.status == "rejected");
+
+    if(fails.length > 0) {
+        console.log(fails);
+
+        throw new Error(fails.reduce<string>((accum, current) => accum + (current as unknown as PromiseRejectedResult).reason + "\n", ""));
     }
 }

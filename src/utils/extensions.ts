@@ -33,3 +33,7 @@ for(const file of extensionFiles) {
 export async function getEnabledExtensions(global: Global) {
     return extensions.filter(extension => global.extensions.find(enabled => enabled == extension.name));
 }
+
+export function getExtensions(extensionNames: string[]) {
+    return extensions.filter(extension => extensionNames.find(enabled => enabled == extension.name));
+}
