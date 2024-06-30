@@ -57,7 +57,7 @@ async function handleVoteList(interaction: ChatInputCommandInteraction | Command
 
     let list = await getVotes({ day: day });
 
-    let half = Math.ceil(list.length / 2);
+    let half = Math.ceil(global.players.length / 2);
     if(half % 2 == 0) half += 0.5;
     half = Math.ceil(half);
 
