@@ -90,7 +90,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
     list = list.filter(stat => stat.words > 0);
     list = list.filter(stat => game.signups.includes(stat.id));
 
-    const id = (await db.collection('graphs').add({ stats: list.map(entry => { return { name: entry.name, id: entry.id, messages: entry.messages, words: entry.words, show: entry.show } }), day: global.day, name: game.name, timestamp: interaction.type == 'text' ? interaction.message.createdAt.valueOf() : interaction.createdAt.valueOf() })).id;
+    const id = (await db.collection('graphs').add({ stats: list.map(entry => { return { name: entry.name, id: entry.id, messages: entry.messages, words: entry.words, show: entry.show } }), day: day, name: game.name, timestamp: interaction.type == 'text' ? interaction.message.createdAt.valueOf() : interaction.createdAt.valueOf() })).id;
 
     const message = (() => {
         if(interaction.type == 'text' && interaction.arguments[0] == "stats") {
@@ -116,10 +116,9 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
     })();
 
     const embed = new EmbedBuilder()
-        .setTitle("Stats")
+        .setTitle("Stats » " + (global.day == day ? "Today (Day " + global.day + ")" : "Day " + day))
         .setColor(Colors.Gold)
         .setDescription(message == '' ? "No Stats" : message)
-        .setFooter({ text: global.day == day ? "Showing stats for current day (" + day + ")." : "Showing votes for day " + day + "." });
 
     const row = new ActionRowBuilder<ButtonBuilder>()
         .addComponents([

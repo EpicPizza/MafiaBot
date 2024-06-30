@@ -18,7 +18,7 @@ module.exports = {
                 .addNumberOption(option =>
                     option
                         .setName('day')
-                        .setDescription('Which day to show votes from.')
+                        .setDescription('game day to show votes from.')
                 )
         },
         {
@@ -36,26 +36,30 @@ module.exports = {
 }
 
 async function handleVoteList(interaction: ChatInputCommandInteraction | Command) {
-    const game = await getGlobal();
+    const global = await getGlobal();
 
-    if(game.started == false) throw new Error("Game has not started.");
+    if(global.started == false) throw new Error("global has not started.");
 
-    const which = await getGameByID(game.game != null ? game.game : "bruh");
+    const game = await getGameByID(global.game != null ? global.game : "bruh");
 
-    if(which == null) throw new Error("Game not found.");
+    if(game == null) throw new Error("global not found.");
 
     const setup = await getSetup();
 
     if(typeof setup == 'string') throw new Error("Setup Incomplete");
     
-    const day = interaction.type == 'text' ? interaction.arguments[0] as number ?? game.day : Math.round(interaction.options.getNumber("day") ?? game.day);
+    const day = interaction.type == 'text' ? interaction.arguments[0] as number ?? global.day : Math.round(interaction.options.getNumber("day") ?? global.day);
 
-    if(day > game.day) throw new Error("Not on day " + day + " yet!");
+    if(day > global.day) throw new Error("Not on day " + day + " yet!");
     if(day < 1) throw new Error("Must be at least day 1.");
 
-    const users = await getUsers(which.signups);
+    const users = await getUsers(game.signups);
 
     let list = await getVotes({ day: day });
+
+    let half = Math.ceil(list.length / 2);
+    if(half % 2 == 0) half += 0.5;
+    half = Math.ceil(half);
 
     const votes = new Map() as Map<string, Vote[]>;
 
@@ -90,17 +94,17 @@ async function handleVoteList(interaction: ChatInputCommandInteraction | Command
     }
 
     const embed = new EmbedBuilder()
-        .setTitle("Votes")
+        .setTitle("Votes » " + (global.day == day ? "Today (Day " + day + ")" : "Day " + day))
         .setColor(Colors.Gold)
         .setDescription(message == "" ? "No votes recorded." : message)
-        .setFooter({ text: game.day == day ? "Showing votes for current day (" + day + ")." : "Showing votes for day " + day + "." });
+        .setFooter({ text: "Hammer is at " + half + " vote" + (half == 1 ? "" : "s") + "." });
 
     const row = new ActionRowBuilder<ButtonBuilder>()
         .setComponents([
             new ButtonBuilder()
                 .setLabel("History")
                 .setStyle(ButtonStyle.Link)
-                .setURL((process.env.DEV == "TRUE" ? process.env.DEVDOMAIN as string : process.env.DOMAIN as string) + "/game/" + game.game + "/day/" + game.day + "/votes")
+                .setURL((process.env.DEV == "TRUE" ? process.env.DEVDOMAIN as string : process.env.DOMAIN as string) + "/global/" + global.game + "/day/" + day + "/votes")
         ])
 
     await interaction.reply({ embeds: [embed], components: [row] });
