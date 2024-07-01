@@ -10,7 +10,7 @@ module.exports = {
     name: "Example",
     commandName: "example",
     description: "This is an example extension.",
-    priority: [ "onVote", "onVotes" ], //events that need a return can only have one extensions modifying it, this prevents multiple extensions from modifying the same event
+    priority: [ "onVote" ], //events that need a return can only have one extensions modifying it, this prevents multiple extensions from modifying the same event
     help: "help",
     commands: [
         {
@@ -25,8 +25,6 @@ module.exports = {
          * Runs during game start processes.
          */
 
-        console.log("Extension Start");
-
         return;
 
         /**
@@ -37,8 +35,6 @@ module.exports = {
         /**
          * Runs after game has locked.
          */
-
-        console.log("Extension Lock");
     },
     onUnlock: async (global, setup, game, incremented: boolean) => {
         /**
@@ -46,8 +42,6 @@ module.exports = {
          * 
          * incremented: boolean - Whether day has advanced or not.
          */
-
-        console.log("Extension Unlock", incremented);
 
         return;
 
@@ -77,46 +71,35 @@ module.exports = {
          * cache: { day: number, started: boolean, channel: null | TextChannel } - TextChannel may or may not be fetched depending if bot has fully intialized
          */
 
-        console.log("Extension", message);
-
         return;
 
         /**
          * Nothing to return.
          */
     },
-    onEnd: async (global, setup, game) => {
+    onEnd: async (message: Message) => {
         /**
          * Runs during game end processes.
          */
 
-        console.log("Extension End");
-
         return;
 
         /**
          * Nothing to return.
          */
     },
-    onVote: async (votes: Vote[], vote: Vote ,voted: boolean, global, setup, game) => {
+    onVote: async (votes: Vote[], vote: Vote) => {
         /**
          * Runs after vote is counted, before vote/hammer is annouced.
          * 
          * vote: { id: string, for: string, timestamp: number }[]
          */
 
-        console.log(vote, voted, votes);
-
-        return { hammer: true, message: "hiiiiiii" };
+        return { hammer: false, message: null };
 
         /**
          * hammer: boolean - Tells to hammer or not.
          * message: string | null - Message to append to vote/hammer, null will return default.
          */
-    },
-    onVotes: async (voting: string[], votes: Map<string, Vote[]>, global, setup, game) => {
-        console.log(voting, votes)
-        
-        return "This votes counter has been overtaken by extension."
     }
 }

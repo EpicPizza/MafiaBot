@@ -244,7 +244,7 @@ client.on(Events.MessageCreate, async (message) => {
         if(!message.content.startsWith("?") || message.content.length < 2 || message.content.replace(/\?/g, "").length == 0) {
             await trackMessage(message, cache);
 
-            if(cache.started && !message.author.bot) await messageExtensions(cache.extensions, message, cache);
+            if(cache.started) await messageExtensions(cache.extensions, message, cache);
 
             return;
         }
