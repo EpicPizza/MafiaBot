@@ -7,8 +7,8 @@ import { z } from "zod";
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
 module.exports = {
-    name: "Example",
-    commandName: "example",
+    name: "Two",
+    commandName: "two",
     description: "This is an example extension.",
     priority: [ "onVote", "onVotes" ], //events that need a return can only have one extensions modifying it, this prevents multiple extensions from modifying the same event
     help: "help",
