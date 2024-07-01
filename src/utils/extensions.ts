@@ -20,7 +20,8 @@ interface Extension {
     onCommand: Function,
     onMessage: Function,
     onEnd: Function,
-    onVote: Function
+    onVote: Function,
+    onVotes: Function
 }
 
 for(const file of extensionFiles) {

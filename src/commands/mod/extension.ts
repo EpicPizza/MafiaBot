@@ -71,7 +71,15 @@ export const ExtensionCommand = {
 
             interaction.reply({ embeds: [embed], ephemeral: true });
         } else if(command == "enable") {
-            if(enabled.find(enabledExtension => enabledExtension.name.toLowerCase() == extension.toLowerCase() )) throw new Error("Extension already enabled.");
+            const enabling = disabled.find(enabledExtension => enabledExtension.name.toLowerCase() == extension.toLowerCase() );
+
+            if(enabling == undefined || enabled.find(enabledExtension => enabledExtension.name.toLowerCase() == extension.toLowerCase() )) throw new Error("Extension already enabled.");
+
+            const voteExtension = enabled.find(extension => extension.priority.includes("onVote"));
+            const votesExtension = enabled.find(extension => extension.priority.includes("onVotes"));
+
+            if(enabling.priority.includes("onVote") && voteExtension) throw new Error("Cannot be enabled with " + voteExtension.name + " Extension since they both modify vote command.");
+            if(enabling.priority.includes("onVotes") && votesExtension) throw new Error("Cannot be enabled with " + votesExtension.name + " Extension since they both modify votes command.");
 
             const db = firebaseAdmin.getFirestore();
 

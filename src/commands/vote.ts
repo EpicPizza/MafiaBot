@@ -4,9 +4,10 @@ import { firebaseAdmin } from "../firebase";
 import { set, z } from "zod";
 import { getGlobal, getGameByName, lockGame, getGameByID, getAllCurrentNicknames, getAllUsers, getAllNicknames } from "../utils/main";
 import { User, getUser, getUsers, getUsersArray } from "../utils/user";
-import { addVoteLog, getVotes, removeVote, setVote } from "../utils/vote";
+import { Vote, addVoteLog, getVotes, removeVote, setVote } from "../utils/vote";
 import { getSetup } from "../utils/setup";
 import { Command } from "../discord";
+import { getEnabledExtensions } from "../utils/extensions";
 
 module.exports = {
     data: [
@@ -129,6 +130,10 @@ module.exports = {
 
             const vote = votes.find(vote => vote.id == author.id);
 
+            const extensions = await getEnabledExtensions(global);
+
+            const extension = extensions.find(extension => extension.priority.includes("onVote"));
+
             if(voter && vote && (!('arguments' in interaction) ? interaction.commandName == "unvote" : interaction.name == "unvote" )) {
                 removeVote({ id: author.id, day: global.day });
 
@@ -138,11 +143,35 @@ module.exports = {
 
                 await addVoteLog({ message, id: author.id, day: global.day, for: null, type: "unvote" });
 
-                if('arguments' in interaction) {
-                    return await interaction.message.react("✅")
+                if(extension == undefined) {
+                    if('arguments' in interaction) {
+                        return await interaction.message.react("✅")
+                    } else {
+                        await interaction.editReply(message);
+                    }
                 } else {
-                    return await interaction.editReply(message);
+                    const result = await extension.onVote(votes, vote, false, global, setup, game) as { hammer: boolean, message: string | null };
+
+                    if('arguments' in interaction) {
+                        await interaction.message.react("✅")
+                        
+                        if(!result.hammer && result.message) await setup.primary.chat.send(result.message);
+                    } else {
+                        await interaction.editReply(message + (!result.hammer && result.message ? result.message : ""));
+                    }
+
+                    if(result.hammer) {
+                        await lockGame();
+
+                        if(result.message) {
+                            await setup.primary.chat.send(result.message);
+                        } else {
+                            await setup.primary.chat.send("Game has been locked by " + extension.name + " Extension.");
+                        }
+                    }
                 }
+
+                return;
             } else if((!('arguments' in interaction) ? interaction.commandName == "unvote" : interaction.name == "unvote" )) {
                 if('arguments' in interaction) {
                     return await interaction.message.react("❎")
@@ -184,25 +213,51 @@ module.exports = {
 
                 let message = voter.nickname + (voted ? " voted for " : " removed vote for ") + user.nickname + "!";
 
-                if('arguments' in interaction) {
-                    if(voted) {
-                        await interaction.message.react("✅")
-                    } else {
-                        await interaction.message.react("🗑️")
-                    }
-                } else {
-                    await interaction.editReply(message);
-                }
-
                 await addVoteLog({ message, id: author.id, day: global.day, type: voted ? "vote" : "unvote", for: voted ? user.id : null });
 
-                let votesForHammer = votes.filter(vote => vote.for == user.id);
-                let half = list.length / 2;
-                if(half % 1 == 0) half += 0.5;
-                
-                if(votesForHammer.length >= half) {
-                    await lockGame();
-                    await setup.primary.chat.send(user.nickname + " has been hammered!");
+                if(extension == undefined) {
+                    let votesForHammer = votes.filter(vote => vote.for == user.id);
+                    let half = list.length / 2;
+                    if(half % 1 == 0) half += 0.5;
+
+                    if('arguments' in interaction) {
+                        if(voted) {
+                            await interaction.message.react("✅")
+                        } else {
+                            await interaction.message.react("🗑️")
+                        }
+                    } else {
+                        await interaction.editReply(message);
+                    }
+                    
+                    if(votesForHammer.length >= half) {
+                        await lockGame();
+                        await setup.primary.chat.send(user.nickname + " has been hammered!");
+                    }
+                } else {
+                    const result = await extension.onVote(votes, vote, true, global, setup, game) as { hammer: boolean, message: string | null };
+
+                    if('arguments' in interaction) {
+                        if(voted) {
+                            await interaction.message.react("✅")
+                        } else {
+                            await interaction.message.react("🗑️")
+                        }
+
+                        if(!result.hammer && result.message) await setup.primary.chat.send(result.message);
+                    } else {
+                        await interaction.editReply(message + (!result.hammer && result.message ? result.message : ""));
+                    }
+
+                    if(result.hammer) {
+                        await lockGame();
+
+                        if(result.message) {
+                            await setup.primary.chat.send(result.message);
+                        } else {
+                            await setup.primary.chat.send(user.nickname + " has been hammered!");
+                        }
+                    }
                 }
             }   
         }

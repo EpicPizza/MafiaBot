@@ -79,12 +79,12 @@ export function editOverwrites() {
     }
 }
 
-export async function unlockExtensions(global: Global, setup: Setup, game: Signups) {
+export async function unlockExtensions(global: Global, setup: Setup, game: Signups, increment: boolean) {
     const extensions = await getEnabledExtensions(global);
 
     const promises = [] as Promise<any>[];
 
-    extensions.forEach(extension => { promises.push(extension.onUnlock(global, setup, game)) });
+    extensions.forEach(extension => { promises.push(extension.onUnlock(global, setup, game, increment)) });
 
     const results = await Promise.allSettled(promises);
 
@@ -158,7 +158,7 @@ export async function unlockGame(increment: boolean = false) {
         SendMessagesInThreads: false
     });
 
-    await unlockExtensions(global, setup, game);
+    await unlockExtensions(global, setup, game, increment);
 }
 
 export async function lockExtensions(global: Global, setup: Setup, game: Signups) {

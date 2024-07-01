@@ -21,7 +21,7 @@ export async function addVoteLog(options: { id: string, message: string, day: nu
         message: options.message,
         timestamp: new Date().valueOf(),
         type: options.type,
-        for: options.for
+        for: options.for,
     })
 } 
 
