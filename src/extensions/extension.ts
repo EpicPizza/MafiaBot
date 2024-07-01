@@ -16,6 +16,7 @@ module.exports = {
         {
             name: "list",
             arguments: {
+                required: [ z.string() ],
                 optional: [ z.coerce.number() ]
             }
         }
@@ -115,8 +116,19 @@ module.exports = {
          */
     },
     onVotes: async (voting: string[], votes: Map<string, Vote[]>, global, setup, game) => {
-        console.log(voting, votes)
+        /**
+         * Runs while processing votes command.
+         * 
+         * voting: string[] - array of each voted person's id
+         * votes: Map<string, Vote[]> - array of votes for each voted person, key is person's id
+         */
+
+        console.log(voting, votes);
         
         return "This votes counter has been overtaken by extension."
+
+        /**
+         * A string that will replace the votes list in votes command.
+         */
     }
 }

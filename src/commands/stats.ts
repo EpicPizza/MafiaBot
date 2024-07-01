@@ -87,7 +87,6 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
         }
     }
 
-    list = list.filter(stat => stat.words > 0);
     list = list.filter(stat => game.signups.includes(stat.id));
 
     const id = (await db.collection('graphs').add({ stats: list.map(entry => { return { name: entry.name, id: entry.id, messages: entry.messages, words: entry.words, show: entry.show } }), day: day, name: game.name, timestamp: interaction.type == 'text' ? interaction.message.createdAt.valueOf() : interaction.createdAt.valueOf() })).id;
@@ -109,6 +108,8 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
                 return previous += current.name + " » " + times + " time" + (times == 1 ? "" : "s") + "\n";
             }, "");
         } else {
+            list = list.filter(stat => stat.words > 0);
+
             list = list.sort((a, b) => b.messages - a.messages);
 
             return list.reduce((previous, current) => previous += current.name + " » " + current.messages + " message" + (current.messages== 1 ? "" : "s") + " containing " + current.words + " word" + (current.words== 1 ? "" : "s") + " with " + (current.words / current.messages).toFixed(2) + " wpm" + "\n", "");
