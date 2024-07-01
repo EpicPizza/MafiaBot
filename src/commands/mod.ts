@@ -11,6 +11,7 @@ import dnt from 'date-and-time';
 import meridiem from 'date-and-time/plugin/meridiem'
 import { activateSignup, archiveGame, closeSignups, createGame, getGameSetup, getGames, openSignups, refreshSignup, removeSignup } from "../utils/games";
 import { ModCommand } from "./mod/mod";
+import { extensions } from "../utils/extensions";
 
 dnt.plugin(meridiem);
 
@@ -27,7 +28,11 @@ module.exports = {
                     .setDescription('Mod only commands.')
                 
                 mod.getBuilders().forEach(subcommand => {
-                    command.addSubcommand(subcommand);
+                    if('addSubcommand' in subcommand) {
+                        command.addSubcommandGroup(subcommand);
+                    } else {
+                        command.addSubcommand(subcommand);
+                    }
                 })
 
                 return command;
@@ -44,18 +49,37 @@ module.exports = {
             if(focusedValue.name == "game") {
                 const games = await getGames();
 
-                const filtered = games.filter(choice => choice.name.startsWith(focusedValue.value)).slice(0, 25);;
+                const filtered = games.filter(choice => choice.name.startsWith(focusedValue.value)).slice(0, 25);
 
                 await interaction.respond(
                     filtered.map(choice => ({ name: choice.name, value: choice.name })),
                 );
-            } else {
+            } else if(focusedValue.value == "player") {
                 const nicknames = await getAllNicknames();
                 
-                const filtered = nicknames.filter(choice => choice.toLowerCase().startsWith(focusedValue.value.toLowerCase())).slice(0, 25);;
+                const filtered = nicknames.filter(choice => choice.toLowerCase().startsWith(focusedValue.value.toLowerCase())).slice(0, 25);
 
                 await interaction.respond(
                     filtered.map(choice => ({ name: choice, value: choice })),
+                );
+            } else {
+                const action = interaction.options.getSubcommand();
+
+                const global = await getGlobal();
+
+                let names = extensions.map(extension => extension.name).splice(0, 25);
+
+                switch(action) {
+                    case 'disable':
+                        names = names.filter(extension => global.extensions.find(enabled => enabled == extension));
+                        break;
+                    case 'enable':
+                        names = names.filter(extension => !global.extensions.find(enabled => enabled == extension));
+                        break;
+                }
+
+                await interaction.respond(
+                    names.map(choice => ({ name: choice + " Extension", value: choice })),
                 );
             }
 

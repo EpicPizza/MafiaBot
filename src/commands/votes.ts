@@ -6,6 +6,7 @@ import { getUser, getUsers, User } from "../utils/user";
 import { Vote, getVotes } from "../utils/vote";
 import { z } from "zod";
 import { Command } from "../discord";
+import { getEnabledExtensions } from "../utils/extensions";
 
 module.exports = {
     data: [
@@ -38,11 +39,11 @@ module.exports = {
 async function handleVoteList(interaction: ChatInputCommandInteraction | Command) {
     const global = await getGlobal();
 
-    if(global.started == false) throw new Error("global has not started.");
+    if(global.started == false) throw new Error("Game has not started.");
 
     const game = await getGameByID(global.game != null ? global.game : "bruh");
 
-    if(game == null) throw new Error("global not found.");
+    if(game == null) throw new Error("Game not found.");
 
     const setup = await getSetup();
 
@@ -69,34 +70,44 @@ async function handleVoteList(interaction: ChatInputCommandInteraction | Command
         if(counted == undefined) {
             votes.set(list[i].for, [list[i]]);
         } else {
-            votes.set(list[i].for, [...counted, list[i]]);
+            votes.set(list[i].for, [...counted, list[i]].sort((a, b) => a.timestamp - b.timestamp));
         }
     }
-
-    let message = "";
 
     let voting = Array.from(votes.keys());
 
     voting = voting.sort((a, b) => (votes.get(b)?.length ?? -1) - (votes.get(a)?.length ?? -1));
 
-    for(let i = 0; i < voting.length; i++) {
-        const voted = votes.get(voting[i]) ?? [];
+    const extensions = await getEnabledExtensions(global);
 
-        voted.sort((a, b) => a.timestamp - b.timestamp);
+    const extension = extensions.find(extension => extension.priority.includes("onVote"));
 
-        message += voted.length + " - " + (users.get(voting[i])?.nickname ?? "<@" + voting[i] + ">") + " « " + voted.reduce((previous, current) => previous += (users.get(current.id)?.nickname ?? "<@" + current + ">") + ", ", "");
+    let message = "";
 
-        console.log(message);
+    if(extension == undefined) {
+        for(let i = 0; i < voting.length; i++) {
+            const voted = votes.get(voting[i]) ?? [];
 
-        message = message.substring(0, message.length - 2);
+            message += voted.length + " - " + (users.get(voting[i])?.nickname ?? "<@" + voting[i] + ">") + " « " + voted.reduce((previous, current) => previous += (users.get(current.id)?.nickname ?? "<@" + current + ">") + ", ", "");
 
-        message += "\n";
+            console.log(message);
+
+            message = message.substring(0, message.length - 2);
+
+            message += "\n";
+        }
+
+        if(message == "") {
+            message = "No votes recorded.";
+        }
+    } else {
+        message = await extension.onVotes(voting, votes, global, setup, game);
     }
 
     const embed = new EmbedBuilder()
         .setTitle("Votes » " + (global.day == day ? "Today (Day " + day + ")" : "Day " + day))
         .setColor(Colors.Gold)
-        .setDescription(message == "" ? "No votes recorded." : message)
+        .setDescription(message)
     
     if(global.day == day) {
         embed.setFooter({ text: "Hammer is at " + half + " vote" + (half == 1 ? "" : "s") + "." });
