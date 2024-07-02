@@ -45,7 +45,7 @@ export const RemoveCommand = {
 
         if(global.started == false) throw new Error("Game has not started.");
 
-        const player = interaction.type == 'text' ? interaction.arguments[1] : interaction.options.getString('player');
+        const player = interaction.type == 'text' ? interaction.arguments[1] as string : interaction.options.getString('player');
 
         if(player == null) throw new Error("Choose a player.");
 
@@ -59,7 +59,7 @@ export const RemoveCommand = {
             list.push(user);
         }
 
-        const user = list.find(user => user.nickname == player);
+        const user = list.find(user => user.nickname == capitalize(player));
 
         if(!user) throw new Error("Player not found.");
 
@@ -96,4 +96,8 @@ export const RemoveCommand = {
             await interaction.message.react("✅");
         }
     }
+}
+
+function capitalize(input: string) {
+    return input.substring(0, 1).toUpperCase() + input.substring(1, input.length).toLowerCase();
 }
