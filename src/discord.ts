@@ -659,8 +659,6 @@ client.on(Events.InteractionCreate, async interaction => {
             } catch(e) {}
         }
     } else if(interaction.isChatInputCommand()) {
-        await interaction.reply("Slash commands are disabled.");
-
         const command = client.commands.get(`slash-${interaction.commandName}`);
 
         if(command == undefined || typeof command == 'object') {
