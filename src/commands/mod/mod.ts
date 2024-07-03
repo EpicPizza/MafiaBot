@@ -3,7 +3,7 @@ import { Command, TextCommandArguments } from "../../discord";
 import { LockCommand, LockingSelect, UnlockButton, UnlockCommand } from "./lock";
 import { ZodObject, ZodSchema, z } from "zod";
 import { CloseCommand, OpenCommand, ReactivateButton, SignupsCommand } from "./signups";
-import { CreateCommand } from "./game";
+import { ArchiveCommand, CreateCommand } from "./game";
 import { EndCommand } from "./end";
 import { StartCommand } from "./start";
 import { KickCommand, SpectatorCommand } from "./invite";
@@ -12,7 +12,7 @@ import { ChangeAlignmentButton, ConfirmAllignmentsButton } from "./alignments";
 import { ExtensionCommand } from "./extension";
 
 export function ModCommand() {
-    const commands = [ LockCommand, UnlockCommand, CloseCommand, OpenCommand, CreateCommand, EndCommand, StartCommand, SignupsCommand, SpectatorCommand, KickCommand, RemoveCommand, ExtensionCommand ] as { name: string, description?: string, execute: Function, command: { slash: SlashCommandSubcommandBuilder | SlashCommandSubcommandGroupBuilder, text: TextCommandArguments } }[];
+    const commands = [ LockCommand, UnlockCommand, CloseCommand, OpenCommand, CreateCommand, EndCommand, StartCommand, SignupsCommand, SpectatorCommand, KickCommand, RemoveCommand, ExtensionCommand, ArchiveCommand ] as { name: string, description?: string, execute: Function, command: { slash: SlashCommandSubcommandBuilder | SlashCommandSubcommandGroupBuilder, text: TextCommandArguments } }[];
     const interactions = [ LockingSelect, UnlockButton, ReactivateButton, ConfirmAllignmentsButton, ChangeAlignmentButton ] as { name: string, type: string, command: ZodObject<any>, execute: Function }[];
 
     function getBuilders() {
