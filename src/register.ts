@@ -44,7 +44,7 @@ export async function register(exit: boolean = false) {
 
             const data = await rest.put(
                 (process.env.DEV == 'TRUE') ? Routes.applicationGuildCommands(process.env.DEVCLIENT as string, process.env.DEVGUILD as string) : Routes.applicationCommands(process.env.CLIENT as string),
-                { body: {} },
+                { body: commands },
             ) as any[];
 
             console.log(`Successfully reloaded ${data.length} application (/) commands.`);

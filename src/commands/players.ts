@@ -49,7 +49,7 @@ module.exports = {
     ] satisfies Data[],
 
     execute: async (interaction: ChatInputCommandInteraction | AutocompleteInteraction | Command) => {
-        /*if(interaction.type != 'text' && interaction.isAutocomplete()) {
+        if(interaction.type != 'text' && interaction.isAutocomplete()) {
             const focusedValue = interaction.options.getFocused();
 
             const games = await getGames();
@@ -61,9 +61,7 @@ module.exports = {
             );
 
             return;
-        } */
-
-        if(interaction.type != 'text') throw new Error("command not available");
+        } 
 
         return handlePlayerList(interaction);
     }
