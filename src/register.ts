@@ -4,7 +4,9 @@ import path from 'node:path';
 import type { Data } from './discord';
 
 export async function register(exit: boolean = false) {
-    const commands = [] as any[];
+    process.exit();
+
+    /*const commands = [] as any[];
 
     // Grab all the command files from the commands directory you created earlier
     const commandsPath = path.join(__dirname, 'commands');
@@ -57,5 +59,5 @@ export async function register(exit: boolean = false) {
             process.exit();
         }
 
-    })();
+    })();*/
 }
