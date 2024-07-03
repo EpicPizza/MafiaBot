@@ -21,14 +21,16 @@ interface Extension {
     onMessage: Function,
     onEnd: Function,
     onVote: Function,
-    onVotes: Function
+    onVotes: Function,
+    onHammer: Function,
+    onRemove: Function,
 }
 
 for(const file of extensionFiles) {
     const filePath = path.join(extensionsPath, file);
     const extension = require(filePath);
 
-    extensions.push(extension);
+    if(extension.name != "Example") extensions.push(extension);
 }
 
 export async function getEnabledExtensions(global: Global) {

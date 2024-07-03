@@ -108,14 +108,14 @@ module.exports = {
 
         console.log(vote, voted, votes);
 
-        return { hammer: true, message: "hiiiiiii" };
+        return { hammer: true, message: "hiiiiiii", hammered: "put an id here" };
 
         /**
          * hammer: boolean - Tells to hammer or not.
          * message: string | null - Message to append to vote/hammer, null will return default.
          */
     },
-    onVotes: async (voting: string[], votes: Map<string, Vote[]>, global, setup, game) => {
+    onVotes: async (voting: string[], votes: Map<string, Vote[]>, day: number, global, setup, game) => {
         /**
          * Runs while processing votes command.
          * 
@@ -125,10 +125,12 @@ module.exports = {
 
         console.log(voting, votes);
         
-        return "This votes counter has been overtaken by extension."
+        return { description: "This votes counter has been overtaken by extension.", message: "" }
 
         /**
          * A string that will replace the votes list in votes command.
          */
-    }
+    },
+    onHammer: async (global, setup, game, hammered: string) => {},
+    onRemove: async (global, setup, game, removed: string) => {}
 }

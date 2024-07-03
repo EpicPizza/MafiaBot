@@ -275,6 +275,7 @@ client.on(Events.MessageCreate, async (message) => {
 
             command = {
                 execute: (command: Command) => {
+                    command.name = command.arguments[0] as string;
                     command.arguments = command.arguments.splice(1, command.arguments.length);
 
                     return extension.onCommand(command);

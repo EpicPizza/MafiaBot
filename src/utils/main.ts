@@ -639,13 +639,13 @@ export async function archiveChannels(setup: Setup) {
     }
 }
 
-export async function setMafiaSpectator(mafiaPlayer: GuildMember | undefined, id: string, setup: Setup, gameSetup: GameSetup, userProfile: User) {
+export async function setMafiaSpectator(mafiaPlayer: GuildMember | undefined, id: string, setup: Setup, gameSetup: GameSetup, userProfile: User, dm: boolean = true) {
     const db = firebaseAdmin.getFirestore();
     
     if(mafiaPlayer) {
         await mafiaPlayer.roles.add(setup.tertiary.spec);
         await mafiaPlayer.roles.remove(setup.tertiary.access);
-    } else {
+    } else if(dm) {
         const invite = await setup.tertiary.guild.invites.create(gameSetup.mafia.id, { unique: true });
 
         await db.collection('invites').add({
@@ -676,7 +676,7 @@ export async function clearPlayer(id: string, setup: Setup, gameSetup: GameSetup
         promises.push(deadPlayer.roles.remove(setup.secondary.access));
     }
 
-    promises.push(setMafiaSpectator(mafiaPlayer, id, setup, gameSetup, userProfile));
+    promises.push(setMafiaSpectator(mafiaPlayer, id, setup, gameSetup, userProfile, false));
 
     const results = await Promise.allSettled(promises);
 
@@ -918,7 +918,7 @@ async function getPlayer(id: string, game: Awaited<ReturnType<typeof getGlobal>>
 }
 
 
-async function deleteCollection(db: Firestore, collection: CollectionReference, batchSize: number) {
+export async function deleteCollection(db: Firestore, collection: CollectionReference, batchSize: number) {
     const count = (await collection.count().get()).data().count;
 
     for(let i = 0; i < Math.ceil(count / 20); i++) {

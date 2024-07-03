@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getSetup } from "../utils/setup";
 import { getGlobal } from "../utils/main";
 import { Command } from "../discord";
+import { getEnabledExtensions } from "../utils/extensions";
 
 module.exports = {
     data: [
@@ -19,7 +20,7 @@ module.exports = {
             name: 'button-help',
             command: z.object({
                 name: z.literal("help"),
-                page: z.number(),
+                page: z.number().or(z.string()),
                 id: z.string(),
             })
         },
@@ -32,14 +33,27 @@ module.exports = {
 
     execute: async (interaction: ChatInputCommandInteraction | ButtonInteraction | Command ) => {
         const global = await getGlobal();
+
+        const extensions = await getEnabledExtensions(global);
+
+        const extensionsRow = new ActionRowBuilder<ButtonBuilder>()
+            .addComponents(
+                extensions.map(
+                    extension => 
+                        new ButtonBuilder()
+                            .setLabel(extension.name + " Extension")
+                            .setCustomId(JSON.stringify({ name: "help", page: extension.commandName, id: interaction.user.id }))
+                            .setStyle(ButtonStyle.Primary),
+                )
+            )
         
         if(interaction.type == 'text') {
             const embed = new EmbedBuilder()
-            .setTitle("Mafia Bot Help")
-            .setColor(Colors.Green)
-            .setDescription(help);
+                .setTitle("Mafia Bot Help")
+                .setColor(Colors.Green)
+                .setDescription(help);
 
-             const row = new ActionRowBuilder<ButtonBuilder>()
+            const row = new ActionRowBuilder<ButtonBuilder>()
                 .addComponents([
                     new ButtonBuilder()
                         .setLabel("Player Commands")
@@ -50,12 +64,16 @@ module.exports = {
                         .setCustomId(JSON.stringify({ name: "help", page: global.started ? 3 : 4, id: interaction.user.id }))
                         .setStyle(ButtonStyle.Primary),
                     new ButtonBuilder()
-                        .setLabel("Setup Commands")
+                        .setLabel("Extension Commands")
+                        .setCustomId(JSON.stringify({ name: "help", page: 6, id: interaction.user.id }))
+                        .setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .setEmoji("⚒️")
                         .setCustomId(JSON.stringify({ name: "help", page: 5, id: interaction.user.id }))
-                        .setStyle(ButtonStyle.Primary)
+                        .setStyle(ButtonStyle.Secondary),
                 ])
 
-            await interaction.reply({ embeds: [embed], components: [row] })
+            await interaction.reply({ embeds: [embed], components: [row, ...(extensions.length == 0 ? [] : [ extensionsRow ])] })
         } else if(interaction.isChatInputCommand()) {
             const embed = new EmbedBuilder()
                 .setTitle("Mafia Bot Help")
@@ -73,12 +91,16 @@ module.exports = {
                         .setCustomId(JSON.stringify({ name: "help", page: global.started ? 3 : 4, id: interaction.user.id }))
                         .setStyle(ButtonStyle.Primary),
                     new ButtonBuilder()
-                        .setLabel("Setup Commands")
+                        .setLabel("Extension Commands")
+                        .setCustomId(JSON.stringify({ name: "help", page: 6, id: interaction.user.id }))
+                        .setStyle(ButtonStyle.Primary),
+                     new ButtonBuilder()
+                        .setEmoji("⚒️")
                         .setCustomId(JSON.stringify({ name: "help", page: 5, id: interaction.user.id }))
-                        .setStyle(ButtonStyle.Primary)
+                        .setStyle(ButtonStyle.Secondary),
                 ])
 
-            await interaction.reply({ embeds: [embed], components: [row] })
+            await interaction.reply({ embeds: [embed], components: [row, ...(extensions.length == 0 ? [] : [ extensionsRow ])] })
         } else if(interaction.isButton()) {
             const command = JSON.parse(interaction.customId);
 
@@ -101,12 +123,16 @@ module.exports = {
                             .setCustomId(JSON.stringify({ name: "help", page: global.started ? 3 : 4, id: interaction.user.id }))
                             .setStyle(ButtonStyle.Primary),
                         new ButtonBuilder()
-                            .setLabel("Setup Commands")
+                            .setLabel("Extension Commands")
+                            .setCustomId(JSON.stringify({ name: "help", page: 6, id: interaction.user.id }))
+                            .setStyle(ButtonStyle.Primary),
+                        new ButtonBuilder()
+                            .setEmoji("⚒️")
                             .setCustomId(JSON.stringify({ name: "help", page: 5, id: interaction.user.id }))
-                            .setStyle(ButtonStyle.Primary)
+                            .setStyle(ButtonStyle.Secondary),
                     ])
 
-                await interaction.update({ embeds: [embed], components: [row] })
+                await interaction.update({ embeds: [embed], components: [row, ...(extensions.length == 0 ? [] : [ extensionsRow ])] })
             } else if(command.page == 1) {
                 const embed = new EmbedBuilder()
                     .setTitle("Mafia Bot Help » Player Commands")
@@ -218,12 +244,48 @@ module.exports = {
                     ])
 
                 await interaction.update({ embeds: [embed], components: [row] })
+            } else if(command.page == 6) {
+                const embed = new EmbedBuilder()
+                    .setTitle("Mafia Bot Help » Extension Commands")
+                    .setColor(Colors.Purple)
+                    .setDescription(extensionsCommands);
+
+                const row = new ActionRowBuilder<ButtonBuilder>()
+                    .addComponents([
+                        new ButtonBuilder()
+                            .setLabel("Back")
+                            .setCustomId(JSON.stringify({ name: "help", page: 0, id: interaction.user.id }))
+                            .setStyle(ButtonStyle.Secondary)
+                    ])
+
+                await interaction.update({ embeds: [embed], components: [row] })
+            } else {
+                const extension = extensions.find(extension => extension.commandName == command.page);
+
+                if(extension == undefined) {
+                    throw new Error("Extension not found.");
+                } else {
+                    const embed = new EmbedBuilder()
+                    .setTitle("Mafia Bot Help » " + extension.name + " Extension")
+                    .setColor(Colors.Purple)
+                    .setDescription(extension.help);
+
+                    const row = new ActionRowBuilder<ButtonBuilder>()
+                        .addComponents([
+                            new ButtonBuilder()
+                                .setLabel("Back")
+                                .setCustomId(JSON.stringify({ name: "help", page: 0, id: interaction.user.id }))
+                                .setStyle(ButtonStyle.Secondary)
+                        ])
+
+                    await interaction.update({ embeds: [embed], components: [row] });
+                }
             }
         }
     }
 }
 
-const help = `This bot is primarly used through slash commands.  Each category of commands is listed below. Note: setup commands are admin only.
+const help = `This bot is primarly used through slash commands.  Each category of commands is listed below. Note: setup commands (⚒️) are admin only.
 
 ----------***How to Play***----------
 
@@ -289,4 +351,13 @@ const setupCommands = `**/setup mod** Gives mod roles in all three servers. Also
 **/setup permissions** Refreshes permissions in main channel.
 
 **/setup refresh** Refreshes signups for a game.
+`
+
+const extensionsCommands = `Extensions allow for added features or edited bot functionality. Mods can manage extensions before a game starts. Extensions currently only support text commands.
+
+**/mod extension list or ?mod extension list** - List all extensions and whther they are enabled or disabled.
+
+**/mod extension enable {extension} or ?mod extension enable {extension}** - Enable an extension. Some extensions cannot be enabled at the same time if they modify the same bot behavior.
+
+**/mod extension disable {extension} or ?mod extension disable {extension}** - Disable an extension.
 `

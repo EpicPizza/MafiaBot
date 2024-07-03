@@ -5,9 +5,11 @@ import { set, z } from "zod";
 import { getGlobal, getGameByName, lockGame, getGameByID, getAllCurrentNicknames, getAllUsers, getAllNicknames } from "../utils/main";
 import { User, getUser, getUsers, getUsersArray } from "../utils/user";
 import { Vote, addVoteLog, getVotes, removeVote, setVote } from "../utils/vote";
-import { getSetup } from "../utils/setup";
+import { Setup, getSetup } from "../utils/setup";
 import { Command } from "../discord";
 import { getEnabledExtensions } from "../utils/extensions";
+import { Signups } from "../utils/games";
+import { Global } from "../utils/main";
 
 module.exports = {
     data: [
@@ -150,7 +152,7 @@ module.exports = {
                         await interaction.editReply(message);
                     }
                 } else {
-                    const result = await extension.onVote(votes, vote, false, global, setup, game) as { hammer: boolean, message: string | null };
+                    const result = await extension.onVote(votes, vote, false, global, setup, game) as { hammer: boolean, message: string | null, hammered: string };
 
                     if('arguments' in interaction) {
                         await interaction.message.react("✅")
@@ -162,6 +164,7 @@ module.exports = {
 
                     if(result.hammer) {
                         await lockGame();
+                        await hammerExtensions(global, setup, game, result.hammered);
 
                         if(result.message) {
                             await setup.primary.chat.send(result.message);
@@ -232,10 +235,12 @@ module.exports = {
                     
                     if(votesForHammer.length >= half) {
                         await lockGame();
+                        await hammerExtensions(global, setup, game, user.id);
+
                         await setup.primary.chat.send(user.nickname + " has been hammered!");
                     }
                 } else {
-                    const result = await extension.onVote(votes, vote, true, global, setup, game) as { hammer: boolean, message: string | null };
+                    const result = await extension.onVote(votes, { for: user.id, id: voter.id, timestamp: new Date().valueOf() }, true, list, global, setup, game) as { hammer: boolean, message: string | null, hammered: string };
 
                     if('arguments' in interaction) {
                         if(voted) {
@@ -251,6 +256,7 @@ module.exports = {
 
                     if(result.hammer) {
                         await lockGame();
+                        await hammerExtensions(global, setup, game, result.hammered);
 
                         if(result.message) {
                             await setup.primary.chat.send(result.message);
@@ -262,4 +268,22 @@ module.exports = {
             }   
         }
     } 
+}
+
+export async function hammerExtensions(global: Global, setup: Setup, game: Signups, hammered: string) {
+    const extensions = await getEnabledExtensions(global);
+
+    const promises = [] as Promise<any>[];
+
+    extensions.forEach(extension => { promises.push(extension.onHammer(global, setup, game, hammered)) });
+
+    const results = await Promise.allSettled(promises);
+
+    const fails = results.filter(result => result.status == "rejected");
+
+    if(fails.length > 0) {
+        console.log(fails);
+
+        throw new Error(fails.reduce<string>((accum, current) => accum + (current as unknown as PromiseRejectedResult).reason + "\n", ""));
+    }
 }

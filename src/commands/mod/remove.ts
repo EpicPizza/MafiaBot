@@ -3,9 +3,11 @@ import { Command, TextCommandArguments, removeReactions } from "../../discord";
 import { z } from "zod";
 import { getGameByID, getGameByName, getGlobal, setMafiaSpectator } from "../../utils/main";
 import { firebaseAdmin } from "../../firebase";
-import { getSetup } from "../../utils/setup";
+import { Setup, getSetup } from "../../utils/setup";
 import { User, getUser } from "../../utils/user";
-import { getGameSetup } from "../../utils/games";
+import { Signups, getGameSetup } from "../../utils/games";
+import { getEnabledExtensions } from "../../utils/extensions";
+import { Global } from '../../utils/main';
 
 export const RemoveCommand = {
     name: "remove",
@@ -88,6 +90,8 @@ export const RemoveCommand = {
             })
         });
 
+        await onRemove(global, setup, game, user.id);
+
         if(interaction.type != 'text') {
             await interaction.editReply({ content: "Player removed."});
         } else {
@@ -95,6 +99,24 @@ export const RemoveCommand = {
 
             await interaction.message.react("✅");
         }
+    }
+}
+
+export async function onRemove(global: Global, setup: Setup, game: Signups, removed: string) {
+    const extensions = await getEnabledExtensions(global);
+
+    const promises = [] as Promise<any>[];
+
+    extensions.forEach(extension => { promises.push(extension.onRemove(global, setup, game, removed)) });
+
+    const results = await Promise.allSettled(promises);
+
+    const fails = results.filter(result => result.status == "rejected");
+
+    if(fails.length > 0) {
+        console.log(fails);
+
+        throw new Error(fails.reduce<string>((accum, current) => accum + (current as unknown as PromiseRejectedResult).reason + "\n", ""));
     }
 }
 

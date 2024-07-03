@@ -22,6 +22,18 @@ export async function getUserByName(name: string) {
     return undefined;
 }
 
+export async function getUserByChannel(channel: string) {
+    const db = firebaseAdmin.getFirestore();
+
+    const ref = db.collection('users');
+
+    const docs = (await ref.where('channel', '==', channel).get()).docs;
+
+    if(docs.length > 0) return docs[0].data() as User;
+
+    return undefined;
+}
+
 export async function createUser(id: string, nickname: string) {
     const db = firebaseAdmin.getFirestore();
 

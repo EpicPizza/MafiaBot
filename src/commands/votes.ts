@@ -82,35 +82,37 @@ async function handleVoteList(interaction: ChatInputCommandInteraction | Command
 
     const extension = extensions.find(extension => extension.priority.includes("onVote"));
 
-    let message = "";
+    let message = { description: "", footer: "" };
 
     if(extension == undefined) {
         for(let i = 0; i < voting.length; i++) {
             const voted = votes.get(voting[i]) ?? [];
 
-            message += voted.length + " - " + (users.get(voting[i])?.nickname ?? "<@" + voting[i] + ">") + " « " + voted.reduce((previous, current) => previous += (users.get(current.id)?.nickname ?? "<@" + current + ">") + ", ", "");
+            message.description += voted.length + " - " + (users.get(voting[i])?.nickname ?? "<@" + voting[i] + ">") + " « " + voted.reduce((previous, current) => previous += (users.get(current.id)?.nickname ?? "<@" + current + ">") + ", ", "");
 
             console.log(message);
 
-            message = message.substring(0, message.length - 2);
+            message.description = message.description.substring(0, message.description.length - 2);
 
-            message += "\n";
+            message.description += "\n";
         }
 
-        if(message == "") {
-            message = "No votes recorded.";
+        if(message.description == "") {
+            message.description = "No votes recorded.";
         }
+
+        message.footer = "Hammer is at " + half + " vote" + (half == 1 ? "" : "s") + "."
     } else {
-        message = await extension.onVotes(voting, votes, global, setup, game);
+        message = await extension.onVotes(voting, votes, day, users, global, setup, game, interaction);
     }
 
     const embed = new EmbedBuilder()
         .setTitle("Votes » " + (global.day == day ? "Today (Day " + day + ")" : "Day " + day))
         .setColor(Colors.Gold)
-        .setDescription(message)
+        .setDescription(message.description)
     
     if(global.day == day) {
-        embed.setFooter({ text: "Hammer is at " + half + " vote" + (half == 1 ? "" : "s") + "." });
+        embed.setFooter({ text: message.footer });
     }
 
     const row = new ActionRowBuilder<ButtonBuilder>()

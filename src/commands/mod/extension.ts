@@ -71,6 +71,8 @@ export const ExtensionCommand = {
 
             interaction.reply({ embeds: [embed], ephemeral: true });
         } else if(command == "enable") {
+            if(global.started) throw new Error("Cannot enable or disable extensions if the game has already started.");
+            
             const enabling = disabled.find(enabledExtension => enabledExtension.name.toLowerCase() == extension.toLowerCase() );
 
             if(enabling == undefined || enabled.find(enabledExtension => enabledExtension.name.toLowerCase() == extension.toLowerCase() )) throw new Error("Extension already enabled.");
@@ -95,6 +97,8 @@ export const ExtensionCommand = {
                 await interaction.reply({ content: "Extension enabled.", ephemeral: true })
             }
         } else if(command == "disable") {
+            if(global.started) throw new Error("Cannot enable or disable extensions if the game has already started.");
+
             if(disabled.find(disabledExtension => disabledExtension.name.toLowerCase() == extension.toLowerCase() )) throw new Error("Extension already disabled.");
 
             const db = firebaseAdmin.getFirestore();
