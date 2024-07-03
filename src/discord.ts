@@ -261,7 +261,6 @@ client.on(Events.MessageCreate, async (message) => {
             const extension = extensions.find(extension => extension.commandName == name);
 
             if(extension == null) {
-                message.reply("Command not found.");
                 return;
             }
 
