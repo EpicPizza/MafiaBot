@@ -63,6 +63,8 @@ module.exports = {
             return;
         } 
 
+        if(interaction.type != 'text') throw new Error("command not available");
+
         return handlePlayerList(interaction);
     }
 }
