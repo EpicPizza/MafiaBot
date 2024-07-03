@@ -239,7 +239,7 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
     }
 })
 
-/*client.on(Events.MessageCreate, async (message) => {
+client.on(Events.MessageCreate, async (message) => {
     try {
         if(!message.content.startsWith("?") || message.content.length < 2 || message.content.replace(/\?/g, "").length == 0) {
             await trackMessage(message, cache);
@@ -260,7 +260,10 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
 
             const extension = extensions.find(extension => extension.commandName == name);
 
-            if(extension == null) return message.reply("Command not found.");
+            if(extension == null) {
+                message.reply("Command not found.");
+                return;
+            }
 
             //if(!global.started) throw new Error("Extensions can only be used in-game.");
 
@@ -339,9 +342,9 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
 
         console.log(e);
     }
-})*/
+})
 
-/*client.on(Events.MessageDelete, async (message) => {
+client.on(Events.MessageDelete, async (message) => {
     try {
         if(!cache.started) return;
 
@@ -364,6 +367,8 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
             name: 'Mafia Bot Snipe',
         });
 
+        if(webhook.token == null) return;
+
         const client = new WebhookClient({
             id: webhook.id,
             token: webhook.token,
@@ -383,7 +388,7 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
     } catch(e) {
         console.log(e);
     }
-})*/
+})
 
 client.on(Events.GuildMemberAdd, async (member) => {
     try {
