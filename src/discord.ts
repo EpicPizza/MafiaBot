@@ -654,7 +654,7 @@ client.on(Events.InteractionCreate, async interaction => {
             } catch(e) {}
         }
     } else if(interaction.isChatInputCommand()) {
-        const command = client.commands.get(`slash-${interaction.commandName}`);
+        /*const command = client.commands.get(`slash-${interaction.commandName}`);
 
         if(command == undefined || typeof command == 'object') {
             await interaction.reply({ content: "Slash command not found.", ephemeral: true });
@@ -674,7 +674,7 @@ client.on(Events.InteractionCreate, async interaction => {
                     await interaction.reply({ content: e.message as string, ephemeral: true });
                 }
             } catch(e) {}
-        }
+        }*/
     } else if(interaction.isContextMenuCommand()) {
         const command = client.commands.get(`context-${interaction.commandName}`);
 
