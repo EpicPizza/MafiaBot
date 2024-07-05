@@ -97,7 +97,7 @@ export async function unlockExtensions(global: Global, setup: Setup, game: Signu
     }
 }
 
-export async function unlockGame(increment: boolean = false) {
+export async function unlockGame(increment: boolean = false, ping: boolean = true) {
     const global = await getGlobal();
     const setup = await getSetup();
     const game = await getGameByID(global.game ?? "");
@@ -125,7 +125,7 @@ export async function unlockGame(increment: boolean = false) {
         game: global.game,
     })
 
-    if(pings) {
+    if(pings && ping) {
         await setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game has unlocked!");
     } else {
         await setup.primary.chat.send("Game has unlocked!");
@@ -341,12 +341,11 @@ export async function setupPermissions(setup: Setup, lock: boolean) {
     }
 }
 
-export async function setupDeadPlayer(id: string, setup: Setup) {
-    const dead = await setup.secondary.guild.members.fetch(id).catch(() => undefined);
-    if(dead != null) {
-        await dead.roles.remove(setup.secondary.mod);
-        await dead.roles.remove(setup.secondary.spec);
-        await dead.roles.remove(setup.secondary.access);
+export async function setupDeadPlayer(player: Discord.GuildMember | undefined, setup: Setup) {
+    if(player != undefined) {
+        await player.roles.remove(setup.secondary.mod);
+        await player.roles.remove(setup.secondary.spec);
+        await player.roles.remove(setup.secondary.access);
     }
 }
 
@@ -400,7 +399,7 @@ export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup
     const { deadPlayer, userProfile, player, mafiaPlayer } = await getPlayerObjects(id, setup);
 
     await setupMainPlayer(player, setup);
-    await setupDeadPlayer(id, setup)
+    await setupDeadPlayer(deadPlayer, setup)
     await setupMafiaPlayer(mafiaPlayer, setup, gameSetup);
 
     let channel = await setup.secondary.guild.channels.fetch(userProfile.channel ?? "");
