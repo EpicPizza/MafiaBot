@@ -7,9 +7,10 @@ import { Setup, getSetup } from "../utils/setup";
 import { User, getUser, getUserByChannel, getUserByName } from "../utils/user";
 import { firebaseAdmin } from "../firebase";
 import { Global } from "../utils/main";
-import { addSignup, getGameSetup } from "../utils/games";
+import { Signups, addSignup, getGameSetup } from "../utils/games";
 import { FieldValue } from "firebase-admin/firestore";
 import { addMafiaPlayer } from "../commands/mod/alignments";
+import { getEnabledExtensions } from "../utils/extensions";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -19,9 +20,9 @@ const help = `**?backup queue {nickname} {nicknames...}** Queue a backup player,
 
 **?backup complete** Original player will be given spectator perms and be removed from dm. (Runs in dm.)
 
-**Additional Notes:** For a player to queued, they need to be registed with the bot, which basically means the player needs to have set a nickname before.
-
-Psst, be wary with this extension as it may be bug prone due to its intensive database edits and funky stuff.
+**Additional Notes:** 
+- For a player to queued, they need to be registed with the bot, which basically means the player needs to have set a nickname before.
+- Other extensions will see the replaced player as a new player, so you may need to rerun commands, such as resetting mayor and readding the player to whispers.
 `
 
 module.exports = {
@@ -253,6 +254,8 @@ module.exports = {
 
             const mafia = await setup.tertiary.guild.members.fetch(replacing.id).catch(() => undefined);
             await setMafiaSpectator(mafia, main.id, setup, gameSetup, replacing);
+
+            onRemove(global, setup, game, replacing.id);
         }
 
         await removeReactions(command.message);
@@ -306,5 +309,23 @@ function messageOverwrites() {
         UseExternalEmojis: true,
         SendTTSMessages: false,
         UseApplicationCommands: true,
+    }
+}
+
+export async function onRemove(global: Global, setup: Setup, game: Signups, removed: string) {
+    const extensions = await getEnabledExtensions(global);
+
+    const promises = [] as Promise<any>[];
+
+    extensions.forEach(extension => { promises.push(extension.onRemove(global, setup, game, removed)) });
+
+    const results = await Promise.allSettled(promises);
+
+    const fails = results.filter(result => result.status == "rejected");
+
+    if(fails.length > 0) {
+        console.log(fails);
+
+        throw new Error(fails.reduce<string>((accum, current) => accum + (current as unknown as PromiseRejectedResult).reason + "\n", ""));
     }
 }
