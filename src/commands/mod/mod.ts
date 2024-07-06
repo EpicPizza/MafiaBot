@@ -5,7 +5,7 @@ import { ZodObject, ZodSchema, z } from "zod";
 import { CloseCommand, OpenCommand, ReactivateButton, SignupsCommand } from "./signups";
 import { ArchiveCommand, CreateCommand } from "./game";
 import { EndCommand } from "./end";
-import { StartCommand } from "./start";
+import { CancelButton, StartButton, StartCommand } from "./start";
 import { KickCommand, SpectatorCommand } from "./invite";
 import { RemoveCommand } from "./remove";
 import { ChangeAlignmentButton, ConfirmAllignmentsButton } from "./alignments";
@@ -13,7 +13,7 @@ import { ExtensionCommand } from "./extension";
 
 export function ModCommand() {
     const commands = [ LockCommand, UnlockCommand, CloseCommand, OpenCommand, CreateCommand, EndCommand, StartCommand, SignupsCommand, SpectatorCommand, KickCommand, RemoveCommand, ExtensionCommand, ArchiveCommand ] as { name: string, description?: string, execute: Function, command: { slash: SlashCommandSubcommandBuilder | SlashCommandSubcommandGroupBuilder, text: TextCommandArguments } }[];
-    const interactions = [ LockingSelect, UnlockButton, ReactivateButton, ConfirmAllignmentsButton, ChangeAlignmentButton ] as { name: string, type: string, command: ZodObject<any>, execute: Function }[];
+    const interactions = [ LockingSelect, UnlockButton, ReactivateButton, ConfirmAllignmentsButton, ChangeAlignmentButton, StartButton, CancelButton ] as { name: string, type: string, command: ZodObject<any>, execute: Function }[];
 
     function getBuilders() {
         return commands.map(command => command.command.slash)

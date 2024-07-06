@@ -332,6 +332,8 @@ client.on(Events.MessageCreate, async (message) => {
             try {
                 console.log(e);
 
+                await removeReactions(message);
+
                 await message.reply({ content: e.message as string });
             } catch(e) {}
         }

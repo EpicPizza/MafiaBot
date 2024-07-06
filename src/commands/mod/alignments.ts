@@ -3,8 +3,9 @@ import { z } from "zod";
 import { getGameByID, getGlobal } from "../../utils/main";
 import { firebaseAdmin } from "../../firebase";
 import { getGameSetup } from "../../utils/games";
-import { getSetup } from "../../utils/setup";
+import { Setup, getSetup } from "../../utils/setup";
 import { getUser } from "../../utils/user";
+import { Global } from "../../utils/main";
 
 export const ChangeAlignmentButton = {
     type: 'button',
@@ -94,39 +95,41 @@ export const ConfirmAllignmentsButton = {
 
         for(let i = 0; i < global.players.length; i++) {
             if(global.players[i].alignment == 'mafia') {
-                const mafiaMember = await setup.tertiary.guild.members.fetch(global.players[i].id).catch(() => undefined);
-
-                const user = await getUser(global.players[i].id);
-
-                if(user == undefined || user.channel == null) throw new Error("User not found/setup.");
-
-                const channel = await setup.secondary.guild.channels.fetch(user.channel).catch(() => null) as TextChannel | null;
-
-                if(channel == null) throw new Error("Channel not found.");
-
-                if(mafiaMember?.joinedTimestamp) {
-                    await mafiaMember.roles.remove(setup.tertiary.spec);
-                    await mafiaMember.roles.add(setup.tertiary.access);
-
-                    await channel.send("You are mafia! \nYou now have access to mafia chat.");
-                } else {
-                    const db = firebaseAdmin.getFirestore();
-
-                    await db.collection('invites').add({
-                        id: user.id,
-                        type: 'mafia',
-                        timestamp: new Date().valueOf(),
-                    });
-                }
+                await addMafiaPlayer(global.players[i], setup);
             }
         }
 
-        const invite = await setup.tertiary.guild.invites.create((await gameSetup).mafia, { unique: true });
+        const invite = await setup.tertiary.guild.invites.create(gameSetup.mafia, { unique: true });
 
         await gameSetup.spec.send("Here is the invite link for mafia server: \nhttps://discord.com/invite/" + invite.code + "\nUse the **\/mod unlock** command to start the game when it's ready!");
 
         await firebaseAdmin.getFirestore().collection('settings').doc('game').update({
             day: 1,
+        });
+    }
+}
+
+export async function addMafiaPlayer(player: Global["players"][0], setup: Setup) {
+    const mafiaMember = await setup.tertiary.guild.members.fetch(player.id).catch(() => undefined);
+
+    const user = await getUser(player.id);
+
+    if(user == undefined || user.channel == null) throw new Error("User not found/setup.");
+
+    const channel = await setup.secondary.guild.channels.fetch(user.channel).catch(() => null) as TextChannel | null;
+
+    if(channel == null) throw new Error("Channel not found.");
+
+    if(mafiaMember?.joinedTimestamp) {
+        await mafiaMember.roles.remove(setup.tertiary.spec);
+        await mafiaMember.roles.add(setup.tertiary.access);
+    } else {
+        const db = firebaseAdmin.getFirestore();
+
+        await db.collection('invites').add({
+            id: user.id,
+            type: 'mafia',
+            timestamp: new Date().valueOf(),
         });
     }
 }

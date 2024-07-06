@@ -63,10 +63,8 @@ export const ExtensionCommand = {
             const embed = new EmbedBuilder()
                 .setTitle("Extensions")
                 .setColor(Colors.Purple)
-                .setDescription("**----- Enabled Extensions -----**" 
-                    + (enabled.length == 0 ? "\n\nNo enabled extensions." : enabled.reduce((previous, current) => previous + "\n\n**" + current.name + " Extension**\n" + current.description, "")) + "\n\n"
-                    + "**----- Disabled Extensions -----**" 
-                    + (disabled.length == 0 ? "\n\nNo disabled extensions." : disabled.reduce((previous, current) => previous + "\n\n**" + current.name + " Extension**\n" + current.description, ""))
+                .setDescription(
+                    extensions.reduce((previous, current) => previous + "\n\n" + (enabled.find(extension => extension.name == current.name) ? ":white_check_mark: " : "<:cross:1258228069156655259> ") + "**" + current.name + " Extension**\n" + current.description, "")
                 )
 
             interaction.reply({ embeds: [embed], ephemeral: true });
