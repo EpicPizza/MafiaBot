@@ -1,7 +1,7 @@
 import { Transaction, FieldValue, Firestore, CollectionReference, Query, DocumentReference, DocumentSnapshot } from "firebase-admin/firestore";
 import { firebaseAdmin } from "../firebase";
 import client, { Command, removeReactions } from "../discord";
-import Discord, { ActionRow, ActionRowComponent, BaseGuildTextChannel, ButtonStyle, ChannelType, ChatInputCommandInteraction, Collection, Colors, CommandInteraction, ComponentEmojiResolvable, FetchMembersOptions, GuildBasedChannel, GuildMember, PermissionsBitField, TextChannel } from "discord.js";
+import Discord, { ActionRow, ActionRowComponent, BaseGuildTextChannel, ButtonInteraction, ButtonStyle, ChannelType, ChatInputCommandInteraction, Collection, Colors, CommandInteraction, ComponentEmojiResolvable, FetchMembersOptions, GuildBasedChannel, GuildMember, PermissionsBitField, TextChannel } from "discord.js";
 import { ActionRowBuilder, ButtonBuilder, EmbedBuilder } from "@discordjs/builders";
 import { User, getUser } from "./user";
 import { Setup, getSetup } from "./setup";
@@ -519,7 +519,7 @@ export async function startExtensions(global: Global, setup: Setup, game: Signup
     }
 }
 
-export async function startGame(interaction: ChatInputCommandInteraction | Command, name: string) {
+export async function startGame(interaction: ChatInputCommandInteraction | Command | ButtonInteraction, name: string) {
     if(interaction.type != 'text') {
         await interaction.deferReply({ ephemeral: true });
     } else {
