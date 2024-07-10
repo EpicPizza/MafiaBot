@@ -26,8 +26,9 @@ const help = `This extension can support mayor in three different ways: hidden, 
 
 module.exports = {
     name: "Mayors",
+    emoji: "🗳️",
     commandName: "mayor",
-    description: "An extension to include mayors in games.",
+    description: "Includes mayors and similar roles in games.",
     priority: [ "onVote", "onVotes" ], //events that need a return can only have one extensions modifying it, this prevents multiple extensions from modifying the same event
     help: help,
     commands: [

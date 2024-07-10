@@ -10,6 +10,7 @@ export const extensions = [] as Extension[];
 interface Extension {
     name: string,
     commandName: string,
+    emoji: string,
     description: string,
     priority: string[],
     help: string,

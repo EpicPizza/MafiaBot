@@ -21,14 +21,15 @@ const help = `**?backup queue {nickname} {nicknames...}** Queue a backup player,
 **?backup complete** Original player will be given spectator perms and be removed from dm. (Runs in dm.)
 
 **Additional Notes:** 
-- For a player to queued, they need to be registed with the bot, which basically means the player needs to have set a nickname before.
+- For a player to queued, they need to be registered with the bot, which basically means the player needs to have set a nickname before.
 - Other extensions will see the replaced player as a new player, so you may need to rerun commands, such as resetting mayor and readding the player to whispers.
 `
 
 module.exports = {
     name: "Backups",
+    emoji: "💾",
     commandName: "backup",
-    description: "Allow player backups to be queued and replace inactive players.",
+    description: "Adds backup players for replacing inactive players.",
     priority: [ ], //events that need a return can only have one extensions modifying it, this prevents multiple extensions from modifying the same event
     help: help,
     commands: [
