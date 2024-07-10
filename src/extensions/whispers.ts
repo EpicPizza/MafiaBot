@@ -33,8 +33,9 @@ const help = `**This extension can only be run by mods. Other than the create co
 
 module.exports = {
     name: "Whispers",
+    emoji: "💬",
     commandName: "whisper",
-    description: "Create whispers in dms between players.",
+    description: "Creates whispers in dms between players.",
     priority: [ ], //events that need a return can only have one extensions modifying it, this prevents multiple extensions from modifying the same event
     help: help,
     commands: [

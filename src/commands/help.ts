@@ -1,4 +1,4 @@
-import { ActionRow, ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, EmbedBuilder, Message, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
+import { ActionRow, ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, EmbedBuilder, Message, PermissionFlagsBits, SlashCommandBuilder, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { Data } from "../discord";
 import { z } from "zod";
 import { getSetup } from "../utils/setup";
@@ -16,11 +16,10 @@ module.exports = {
                 .setDescription('How to use Mafia Bot and its commands.')
         },
         {
-            type: 'button',
-            name: 'button-help',
+            type: 'select',
+            name: 'select-help',
             command: z.object({
                 name: z.literal("help"),
-                page: z.number().or(z.string()),
                 id: z.string(),
             })
         },
@@ -31,254 +30,236 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction | ButtonInteraction | Command ) => {
+    execute: async (interaction: ChatInputCommandInteraction | StringSelectMenuInteraction | Command ) => {
         const global = await getGlobal();
 
         const extensions = await getEnabledExtensions(global);
+        
+        const embed = new EmbedBuilder()
+            .setTitle("Mafia Bot Help")
+            .setColor(Colors.Green)
+            .setDescription(help);
 
-        const extensionsRow = new ActionRowBuilder<ButtonBuilder>()
-            .addComponents(
-                extensions.map(
-                    extension => 
-                        new ButtonBuilder()
-                            .setLabel(extension.name + " Extension")
-                            .setCustomId(JSON.stringify({ name: "help", page: extension.commandName, id: interaction.user.id }))
-                            .setStyle(ButtonStyle.Primary),
-                )
-            )
+        const page = interaction.type != 'text' && interaction.isStringSelectMenu() ? interaction.values[0] : "0";
+
+        const select = new ActionRowBuilder<StringSelectMenuBuilder>()
+            .addComponents([
+                new StringSelectMenuBuilder()
+                    .setCustomId(JSON.stringify({ name: "help", id: interaction.user.id }))
+                    .addOptions([
+                        new StringSelectMenuOptionBuilder()
+                            .setLabel("Home")
+                            .setDescription("Home for help command.")
+                            .setEmoji("🏠")
+                            .setDefault(page == "0")
+                            .setValue("0"),
+                        new StringSelectMenuOptionBuilder()
+                            .setLabel("Player Commands")
+                            .setDescription("Commands for playing the game, joining games, etc.")
+                            .setEmoji("🔪")
+                            .setDefault(page == "1" || page == "2")
+                            .setValue((global.started ? 1 : 2).toString()),
+                        new StringSelectMenuOptionBuilder()
+                            .setLabel("Mod Commands")
+                            .setDescription("Commands for creating games, adding spectators, running games, etc.")
+                            .setEmoji("📡")
+                            .setDefault(page == "3" || page == "4" || page == "6")
+                            .setValue((global.started ? 3 : 4).toString()),
+                        new StringSelectMenuOptionBuilder()
+                            .setLabel("Setup Commands")
+                            .setDescription("Commands for setting up the bot and troubleshooting.")
+                            .setEmoji("🛠️")
+                            .setDefault(page == "5")
+                            .setValue("5"),
+                        ...extensions.map(
+                            extension => 
+                                new StringSelectMenuOptionBuilder()
+                                    .setLabel(extension.name + " Extension")
+                                    .setDescription(extension.description)
+                                    .setEmoji(extension.emoji)
+                                    .setDefault(page == extension.commandName)
+                                    .setValue(extension.commandName),
+                        )
+                    ])
+            ]);
         
         if(interaction.type == 'text') {
-            const embed = new EmbedBuilder()
-                .setTitle("Mafia Bot Help")
-                .setColor(Colors.Green)
-                .setDescription(help);
+         
 
-            const row = new ActionRowBuilder<ButtonBuilder>()
-                .addComponents([
-                    new ButtonBuilder()
-                        .setLabel("Player Commands")
-                        .setCustomId(JSON.stringify({ name: "help", page: global.started ? 1 : 2, id: interaction.user.id }))
-                        .setStyle(ButtonStyle.Primary),
-                    new ButtonBuilder()
-                        .setLabel("Mod Commands")
-                        .setCustomId(JSON.stringify({ name: "help", page: global.started ? 3 : 4, id: interaction.user.id }))
-                        .setStyle(ButtonStyle.Primary),
-                    new ButtonBuilder()
-                        .setLabel("Extension Commands")
-                        .setCustomId(JSON.stringify({ name: "help", page: 6, id: interaction.user.id }))
-                        .setStyle(ButtonStyle.Primary),
-                    new ButtonBuilder()
-                        .setEmoji("⚒️")
-                        .setCustomId(JSON.stringify({ name: "help", page: 5, id: interaction.user.id }))
-                        .setStyle(ButtonStyle.Secondary),
-                ])
-
-            await interaction.reply({ embeds: [embed], components: [row, ...(extensions.length == 0 ? [] : [ extensionsRow ])] })
+            await interaction.reply({ embeds: [embed], components: [select] });
         } else if(interaction.isChatInputCommand()) {
-            const embed = new EmbedBuilder()
-                .setTitle("Mafia Bot Help")
-                .setColor(Colors.Green)
-                .setDescription(help);
-
-            const row = new ActionRowBuilder<ButtonBuilder>()
-                .addComponents([
-                    new ButtonBuilder()
-                        .setLabel("Player Commands")
-                        .setCustomId(JSON.stringify({ name: "help", page: global.started ? 1 : 2, id: interaction.user.id }))
-                        .setStyle(ButtonStyle.Primary),
-                    new ButtonBuilder()
-                        .setLabel("Mod Commands")
-                        .setCustomId(JSON.stringify({ name: "help", page: global.started ? 3 : 4, id: interaction.user.id }))
-                        .setStyle(ButtonStyle.Primary),
-                    new ButtonBuilder()
-                        .setLabel("Extension Commands")
-                        .setCustomId(JSON.stringify({ name: "help", page: 6, id: interaction.user.id }))
-                        .setStyle(ButtonStyle.Primary),
-                     new ButtonBuilder()
-                        .setEmoji("⚒️")
-                        .setCustomId(JSON.stringify({ name: "help", page: 5, id: interaction.user.id }))
-                        .setStyle(ButtonStyle.Secondary),
-                ])
-
-            await interaction.reply({ embeds: [embed], components: [row, ...(extensions.length == 0 ? [] : [ extensionsRow ])] })
-        } else if(interaction.isButton()) {
+            await interaction.reply({ embeds: [embed], components: [select] });
+        } else if(interaction.isStringSelectMenu()) {
             const command = JSON.parse(interaction.customId);
 
             if(command.id != interaction.user.id) return await interaction.reply({ ephemeral: true, content: "This is not your button! Run the /help command yourself." });
 
-            if(command.page == 0) {
-                const embed = new EmbedBuilder()
-                    .setTitle("Mafia Bot Help")
-                    .setColor(Colors.Green)
-                    .setDescription(help);
-
-                const row = new ActionRowBuilder<ButtonBuilder>()
-                    .addComponents([
-                        new ButtonBuilder()
-                            .setLabel("Player Commands")
-                            .setCustomId(JSON.stringify({ name: "help", page: global.started ? 1 : 2, id: interaction.user.id }))
-                            .setStyle(ButtonStyle.Primary),
-                        new ButtonBuilder()
-                            .setLabel("Mod Commands")
-                            .setCustomId(JSON.stringify({ name: "help", page: global.started ? 3 : 4, id: interaction.user.id }))
-                            .setStyle(ButtonStyle.Primary),
-                        new ButtonBuilder()
-                            .setLabel("Extension Commands")
-                            .setCustomId(JSON.stringify({ name: "help", page: 6, id: interaction.user.id }))
-                            .setStyle(ButtonStyle.Primary),
-                        new ButtonBuilder()
-                            .setEmoji("⚒️")
-                            .setCustomId(JSON.stringify({ name: "help", page: 5, id: interaction.user.id }))
-                            .setStyle(ButtonStyle.Secondary),
-                    ])
-
-                await interaction.update({ embeds: [embed], components: [row, ...(extensions.length == 0 ? [] : [ extensionsRow ])] })
-            } else if(command.page == 1) {
+            if(page == "0") {
+                await interaction.update({ embeds: [embed], components: [select] });
+            } else if(page == "1") {
                 const embed = new EmbedBuilder()
                     .setTitle("Mafia Bot Help » Player Commands")
                     .setColor(Colors.Orange)
                     .setDescription(playerCommandsInGame);   
 
-                const row = new ActionRowBuilder<ButtonBuilder>()
+                const additionalSelect = new ActionRowBuilder<StringSelectMenuBuilder>()
                     .addComponents([
-                        new ButtonBuilder()
-                            .setLabel("In-Game Commands")
-                            .setCustomId(JSON.stringify({ name: "help", page: 1, id: interaction.user.id }))
-                            .setStyle(ButtonStyle.Primary)
-                            .setDisabled(true),
-                        new ButtonBuilder()
-                            .setLabel("Pre-Game Commands")
-                            .setCustomId(JSON.stringify({ name: "help", page: 2, id: interaction.user.id }))
-                            .setStyle(ButtonStyle.Primary),
-                        new ButtonBuilder()
-                            .setLabel("Back")
-                            .setCustomId(JSON.stringify({ name: "help", page: 0, id: interaction.user.id }))
-                            .setStyle(ButtonStyle.Secondary)
+                        new StringSelectMenuBuilder()
+                            .setCustomId(JSON.stringify({ name: "help", type: "sub", id: interaction.user.id }))
+                            .addOptions([
+                                new StringSelectMenuOptionBuilder()
+                                    .setLabel("In-Game Commands")
+                                    .setDescription("Commands for playing the game.")
+                                    .setEmoji("🎮")
+                                    .setDefault()
+                                    .setValue("1"),
+                                new StringSelectMenuOptionBuilder()
+                                    .setLabel("Pre-Game Commands")
+                                    .setDescription("Commands for joining games, changing nickname, etc.")
+                                    .setEmoji("📝")
+                                    .setValue("2"),
+                            ])
                     ])
 
-                await interaction.update({ embeds: [embed], components: [row] })
-            } else if(command.page == 2) {
+                await interaction.update({ embeds: [embed], components: [additionalSelect, select] })
+            } else if(page == "2") {
                 const embed = new EmbedBuilder()
                     .setTitle("Mafia Bot Help » Player Commands")
                     .setColor(Colors.Orange)
                     .setDescription(playerCommandsPreGame);   
 
-                const row = new ActionRowBuilder<ButtonBuilder>()
+                const additionalSelect = new ActionRowBuilder<StringSelectMenuBuilder>()
                     .addComponents([
-                        new ButtonBuilder()
-                            .setLabel("In-Game Commands")
-                            .setCustomId(JSON.stringify({ name: "help", page: 1, id: interaction.user.id }))
-                            .setStyle(ButtonStyle.Primary),
-                        new ButtonBuilder()
-                            .setLabel("Pre-Game Commands")
-                            .setCustomId(JSON.stringify({ name: "help", page: 2, id: interaction.user.id }))
-                            .setStyle(ButtonStyle.Primary)
-                            .setDisabled(true),
-                        new ButtonBuilder()
-                            .setLabel("Back")
-                            .setCustomId(JSON.stringify({ name: "help", page: 0, id: interaction.user.id }))
-                            .setStyle(ButtonStyle.Secondary)
+                        new StringSelectMenuBuilder()
+                            .setCustomId(JSON.stringify({ name: "help", type: "sub", id: interaction.user.id }))
+                            .addOptions([
+                                new StringSelectMenuOptionBuilder()
+                                    .setLabel("In-Game Commands")
+                                    .setDescription("Commands for playing the game.")
+                                    .setEmoji("🎮")
+                                    .setValue("1"),
+                                new StringSelectMenuOptionBuilder()
+                                    .setLabel("Pre-Game Commands")
+                                    .setDescription("Commands for joining games, changing nickname, etc.")
+                                    .setEmoji("📝")
+                                    .setDefault()
+                                    .setValue("2"),
+                            ])
                     ])
 
-                await interaction.update({ embeds: [embed], components: [row] })
-            } else if(command.page == 3) {
+                await interaction.update({ embeds: [embed], components: [additionalSelect, select] })
+            } else if(page == "3") {
                 const embed = new EmbedBuilder()
                     .setTitle("Mafia Bot Help » Mod Commands")
                     .setColor(Colors.Red)
                     .setDescription(modCommandsInGame);   
 
-                const row = new ActionRowBuilder<ButtonBuilder>()
+                const additionalSelect = new ActionRowBuilder<StringSelectMenuBuilder>()
                     .addComponents([
-                        new ButtonBuilder()
-                            .setLabel("In-Game Commands")
-                            .setCustomId(JSON.stringify({ name: "help", page: 3, id: interaction.user.id }))
-                            .setStyle(ButtonStyle.Primary)
-                            .setDisabled(true),
-                        new ButtonBuilder()
-                            .setLabel("Pre-Game/Post-Game Commands")
-                            .setCustomId(JSON.stringify({ name: "help", page: 4, id: interaction.user.id }))
-                            .setStyle(ButtonStyle.Primary),
-                        new ButtonBuilder()
-                            .setLabel("Back")
-                            .setCustomId(JSON.stringify({ name: "help", page: 0, id: interaction.user.id }))
-                            .setStyle(ButtonStyle.Secondary)
+                        new StringSelectMenuBuilder()
+                            .setCustomId(JSON.stringify({ name: "help", type: "sub", id: interaction.user.id }))
+                            .addOptions([
+                                new StringSelectMenuOptionBuilder()
+                                    .setLabel("In-Game Commands")
+                                    .setDescription("Commands for running the game.")
+                                    .setEmoji("👷‍♂️")
+                                    .setDefault()
+                                    .setValue("3"),
+                                new StringSelectMenuOptionBuilder()
+                                    .setLabel("Pre-Game/Post-Game Commands")
+                                    .setDescription("Commands for creating games, archiving games, etc.")
+                                    .setEmoji("📝")
+                                    .setValue("4"),
+                                new StringSelectMenuOptionBuilder()
+                                    .setLabel("Extension Commands")
+                                    .setDescription("Commands for enabling and disabling extensions.")
+                                    .setEmoji("🔌")
+                                    .setValue("6"),
+                            ])
                     ])
 
-                await interaction.update({ embeds: [embed], components: [row] })
-            } else if(command.page == 4) {
+                await interaction.update({ embeds: [embed], components: [additionalSelect, select] })
+            } else if(page == "4") {
                 const embed = new EmbedBuilder()
                     .setTitle("Mafia Bot Help » Mod Commands")
                     .setColor(Colors.Red)
                     .setDescription(modCommandsPreGame);   
 
-                const row = new ActionRowBuilder<ButtonBuilder>()
+                const additionalSelect = new ActionRowBuilder<StringSelectMenuBuilder>()
                     .addComponents([
-                        new ButtonBuilder()
-                            .setLabel("In-Game Commands")
-                            .setCustomId(JSON.stringify({ name: "help", page: 3, id: interaction.user.id }))
-                            .setStyle(ButtonStyle.Primary),
-                        new ButtonBuilder()
-                            .setLabel("Pre-Game/Post-Game Commands")
-                            .setCustomId(JSON.stringify({ name: "help", page: 5, id: interaction.user.id }))
-                            .setStyle(ButtonStyle.Primary)
-                            .setDisabled(true),
-                        new ButtonBuilder()
-                            .setLabel("Back")
-                            .setCustomId(JSON.stringify({ name: "help", page: 0, id: interaction.user.id }))
-                            .setStyle(ButtonStyle.Secondary)
+                        new StringSelectMenuBuilder()
+                            .setCustomId(JSON.stringify({ name: "help", type: "sub", id: interaction.user.id }))
+                            .addOptions([
+                                new StringSelectMenuOptionBuilder()
+                                    .setLabel("In-Game Commands")
+                                    .setDescription("Commands for running the game.")
+                                    .setEmoji("👷‍♂️")
+                                    .setValue("3"),
+                                new StringSelectMenuOptionBuilder()
+                                    .setLabel("Pre-Game/Post-Game Commands")
+                                    .setDescription("Commands for creating games, archiving games, etc.")
+                                    .setEmoji("📝")
+                                    .setDefault()
+                                    .setValue("4"),
+                                new StringSelectMenuOptionBuilder()
+                                    .setLabel("Extension Commands")
+                                    .setDescription("Commands for enabling and disabling extensions.")
+                                    .setEmoji("🔌")
+                                    .setValue("6"),
+                            ])
                     ])
 
-                await interaction.update({ embeds: [embed], components: [row] })
-            } else if(command.page == 5) {
+                await interaction.update({ embeds: [embed], components: [additionalSelect, select] })
+            } else if(page == "5") {
                 const embed = new EmbedBuilder()
                     .setTitle("Mafia Bot Help » Setup Commands")
                     .setColor(Colors.Yellow)
                     .setDescription(setupCommands);
 
-                const row = new ActionRowBuilder<ButtonBuilder>()
-                    .addComponents([
-                        new ButtonBuilder()
-                            .setLabel("Back")
-                            .setCustomId(JSON.stringify({ name: "help", page: 0, id: interaction.user.id }))
-                            .setStyle(ButtonStyle.Secondary)
-                    ])
-
-                await interaction.update({ embeds: [embed], components: [row] })
-            } else if(command.page == 6) {
+                await interaction.update({ embeds: [embed], components: [select] })
+            } else if(page == "6") {
                 const embed = new EmbedBuilder()
-                    .setTitle("Mafia Bot Help » Extension Commands")
-                    .setColor(Colors.Purple)
+                    .setTitle("Mafia Bot Help » Mod Commands")
+                    .setColor(Colors.Red)
                     .setDescription(extensionsCommands);
 
-                const row = new ActionRowBuilder<ButtonBuilder>()
+                 const additionalSelect = new ActionRowBuilder<StringSelectMenuBuilder>()
                     .addComponents([
-                        new ButtonBuilder()
-                            .setLabel("Back")
-                            .setCustomId(JSON.stringify({ name: "help", page: 0, id: interaction.user.id }))
-                            .setStyle(ButtonStyle.Secondary)
+                        new StringSelectMenuBuilder()
+                            .setCustomId(JSON.stringify({ name: "help", type: "sub", id: interaction.user.id }))
+                            .addOptions([
+                                new StringSelectMenuOptionBuilder()
+                                    .setLabel("In-Game Commands")
+                                    .setDescription("Commands for running the game.")
+                                    .setEmoji("👷‍♂️")
+                                    .setValue("3"),
+                                new StringSelectMenuOptionBuilder()
+                                    .setLabel("Pre-Game/Post-Game Commands")
+                                    .setDescription("Commands for creating games, archiving games, etc.")
+                                    .setEmoji("📝")
+                                    .setValue("4"),
+                                new StringSelectMenuOptionBuilder()
+                                    .setLabel("Extension Commands")
+                                    .setDescription("Commands for enabling and disabling extensions.")
+                                    .setEmoji("🔌")
+                                    .setDefault()
+                                    .setValue("6"),
+                            ])
                     ])
 
-                await interaction.update({ embeds: [embed], components: [row] })
+                await interaction.update({ embeds: [embed], components: [additionalSelect, select] })
             } else {
-                const extension = extensions.find(extension => extension.commandName == command.page);
+                const extension = extensions.find(extension => extension.commandName == page);
 
                 if(extension == undefined) {
                     throw new Error("Extension not found.");
                 } else {
                     const embed = new EmbedBuilder()
-                    .setTitle("Mafia Bot Help » " + extension.name + " Extension")
-                    .setColor(Colors.Purple)
-                    .setDescription(extension.help);
+                        .setTitle("Mafia Bot Help » " + extension.name + " Extension")
+                        .setColor(Colors.Purple)
+                        .setDescription(extension.help);
 
-                    const row = new ActionRowBuilder<ButtonBuilder>()
-                        .addComponents([
-                            new ButtonBuilder()
-                                .setLabel("Back")
-                                .setCustomId(JSON.stringify({ name: "help", page: 0, id: interaction.user.id }))
-                                .setStyle(ButtonStyle.Secondary)
-                        ])
-
-                    await interaction.update({ embeds: [embed], components: [row] });
+                    await interaction.update({ embeds: [embed], components: [select] });
                 }
             }
         }

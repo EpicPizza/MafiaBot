@@ -8,6 +8,7 @@ import { z } from "zod";
 
 module.exports = {
     name: "Example",
+    emoji: "📕",
     commandName: "example",
     description: "This is an example extension.",
     priority: [ "onVote", "onVotes" ], //events that need a return can only have one extensions modifying it, this prevents multiple extensions from modifying the same event

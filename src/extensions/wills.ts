@@ -23,8 +23,9 @@ const help = `A simple extension that allows players to give a will that the bot
 
 module.exports = {
     name: "Wills",
+    emoji: "🪦",
     commandName: "will",
-    description: "Allow players to give a will for when they're hammered.",
+    description: "Set a will for when you're hammered.",
     priority: [ ], //events that need a return can only have one extensions modifying it, this prevents multiple extensions from modifying the same event
     help: help,
     commands: [
