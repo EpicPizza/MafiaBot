@@ -420,8 +420,6 @@ export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup
         await channel.setParent(setup.secondary.dms.id);
     }
 
-    await channel.permissionOverwrites.create(userProfile.id, editOverwrites());
-
     if(!deadPlayer) {
         const invite = await setup.secondary.guild.invites.create(channel, { unique: true });
 
@@ -439,6 +437,8 @@ export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup
             dm.send("Join the Dead Chat server to play in mafia! Here's a server invite: \nhttps://discord.com/invite/" + invite.code);
         }
     } else if(newPlayer) {
+        await channel.permissionOverwrites.create(userProfile.id, editOverwrites());
+
         channel.send("Welcome <@" + userProfile.id + ">! Check out the pins in the main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod.");
     }
 }
