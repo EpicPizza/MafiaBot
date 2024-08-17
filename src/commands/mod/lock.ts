@@ -137,8 +137,8 @@ async function handleLocking(interaction: ChatInputCommandInteraction | Command,
     for(let i = 0; i < 24; i++) {
         date = date.plus({ hours: 1 });
 
-        if(date.hour > 0 && date.hour < 12) {
-            date = date.set({ hour: 12 });
+        if(date.hour > 0 && date.hour < 10) {
+            date = date.set({ hour: 10 });
         }
 
         select.addOptions(
