@@ -125,7 +125,7 @@ module.exports = {
 
             const author = ('arguments' in interaction) ? interaction.message.author : interaction.user;
 
-            const user = list.find(user => (typeof player == 'string' ? user.nickname.toLowerCase() == player.toLowerCase() : false) || user.id == player);
+            const user = list.find(user => (typeof player == 'string' ? user.nickname.toLowerCase() == player.toLowerCase() || user.id == player || (player.startsWith("<@") && player.length > 4 && player.substring(2, player.length - 1) == user.id) : false));
             const voter = list.find(user => user.id == author.id);
 
             let votes = await getVotes({ day: global.day });
