@@ -45,7 +45,7 @@ module.exports = {
             type: 'text',
             name: 'text-vote',
             command: {
-                required: [ z.string().min(1).max(100) ]
+                optional: [ z.string().min(1).max(100) ]
             }
         },
         {
@@ -136,7 +136,7 @@ module.exports = {
 
             const extension = extensions.find(extension => extension.priority.includes("onVote"));
 
-            if(voter && vote && (!('arguments' in interaction) ? interaction.commandName == "unvote" : interaction.name == "unvote" )) {
+            if(voter && vote && (!('arguments' in interaction) ? interaction.commandName == "unvote" : (interaction.name == "unvote" || interaction.arguments.length == 0) )) {
                 removeVote({ id: author.id, day: global.day });
 
                 const previous = fullList.find(user => user.id == vote.for);
@@ -175,7 +175,7 @@ module.exports = {
                 }
 
                 return;
-            } else if((!('arguments' in interaction) ? interaction.commandName == "unvote" : interaction.name == "unvote" )) {
+            } else if((!('arguments' in interaction) ? interaction.commandName == "unvote" : (interaction.name == "unvote" || interaction.arguments.length == 0) )) {
                 if('arguments' in interaction) {
                     return await interaction.message.react("❎")
                 } else {
