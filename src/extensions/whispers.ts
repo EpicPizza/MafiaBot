@@ -9,6 +9,7 @@ import { Signups } from "../utils/games";
 import { Global } from "../utils/main";
 import { User, getUser, getUserByName } from "../utils/user";
 import { FieldValue } from "firebase-admin/firestore";
+import { checkMod } from "../utils/mod";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -139,7 +140,9 @@ module.exports = {
 
         const setup = await getSetup();
         const member = await setup.primary.guild.members.fetch(command.user.id);
-        if(!member?.roles.cache.has(setup.primary.mod.id)) throw new Error("You're not a mod!");
+
+        checkMod(setup, command.user.id);
+        
         if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
 
         const db = firebaseAdmin.getFirestore();

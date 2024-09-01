@@ -8,6 +8,7 @@ import { User, getUser } from "../../utils/user";
 import { Signups, getGameSetup } from "../../utils/games";
 import { getEnabledExtensions } from "../../utils/extensions";
 import { Global } from '../../utils/main';
+import { checkMod } from "../../utils/mod";
 
 export const RemoveCommand = {
     name: "remove",
@@ -39,7 +40,7 @@ export const RemoveCommand = {
         const setup  = await getSetup();
         if(typeof setup == 'string') throw new Error("Setup Incomplete");
 
-        if(setup.primary.mod.members.get(interaction.user.id) == undefined) throw new Error("You're not a mod!");
+        checkMod(setup, interaction.user.id)
 
         const game = await getGameByID(global.game ?? "");
 

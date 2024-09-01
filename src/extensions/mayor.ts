@@ -8,6 +8,7 @@ import { Setup, getSetup } from "../utils/setup";
 import { Signups, getGameSetup } from "../utils/games";
 import { Global } from "../utils/main"
 import { User, getUser, getUserByChannel, getUserByName, getUsers, getUsersArray } from "../utils/user";
+import { checkMod } from "../utils/mod";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -75,7 +76,8 @@ module.exports = {
         const game = await getGameByID(global.game ?? "");
 
         if(command.name == "set") {
-            if(!member?.roles.cache.has(setup.primary.mod.id)) throw new Error("You're not a mod!");
+            checkMod(setup, command.user.id);
+
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
 
             const user = await getUserByChannel(command.message.channel.id);

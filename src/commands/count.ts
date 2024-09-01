@@ -6,6 +6,7 @@ import meridiem from 'date-and-time/plugin/meridiem'
 import { DateTime } from "luxon";
 import { Command } from "../discord";
 import { getSetup } from "../utils/setup";
+import { checkMod } from "../utils/mod";
 
 dnt.plugin(meridiem);
 
@@ -21,8 +22,7 @@ module.exports = {
     execute: async function(interaction: Command) {
         const setup = await getSetup();
 
-        const member = await setup.primary.guild.members.fetch(interaction.user.id);
-        if(!member?.roles.cache.has(setup.primary.mod.id)) throw new Error("You're not a mod!");
+        checkMod(setup, interaction.user.id);
 
         const message = await interaction.message.reply("Fetching messages...");
 

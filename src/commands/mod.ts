@@ -12,6 +12,7 @@ import meridiem from 'date-and-time/plugin/meridiem'
 import { activateSignup, archiveGame, closeSignups, createGame, getGameSetup, getGames, openSignups, refreshSignup, removeSignup } from "../utils/games";
 import { ModCommand } from "./mod/mod";
 import { extensions } from "../utils/extensions";
+import { checkMod } from "../utils/mod";
 
 dnt.plugin(meridiem);
 
@@ -88,8 +89,8 @@ module.exports = {
 
         const setup  = await getSetup();
         if(typeof setup == 'string') throw new Error("Setup Incomplete");
-        const member = await setup.primary.guild.members.fetch(interaction.user.id);
-        if(!member?.roles.cache.has(setup.primary.mod.id)) throw new Error("You're not a mod!");
+
+        await checkMod(setup, interaction.user.id);
 
         if(interaction.type == 'text' || interaction.isChatInputCommand()) {
             await mod.handleCommand(interaction)

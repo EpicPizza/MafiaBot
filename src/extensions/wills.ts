@@ -7,6 +7,7 @@ import { Setup, getSetup } from "../utils/setup";
 import { getUser, getUserByChannel } from "../utils/user";
 import { firebaseAdmin } from "../firebase";
 import { Global } from "../utils/main";
+import { checkMod } from "../utils/mod";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -92,8 +93,8 @@ module.exports = {
 
             await command.message.react("✅");
         } else if(command.name == "lock") {
-            const member = await setup.primary.guild.members.fetch(command.user.id);
-            if(!member?.roles.cache.has(setup.primary.mod.id)) throw new Error("You're not a mod!");
+            checkMod(setup, command.user.id);
+            
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
 
             const player = await getUserByChannel(command.message.channelId);
@@ -111,8 +112,8 @@ module.exports = {
 
             await command.message.react("✅");
         } else {
-            const member = await setup.primary.guild.members.fetch(command.user.id);
-            if(!member?.roles.cache.has(setup.primary.mod.id)) throw new Error("You're not a mod!");
+            checkMod(setup, command.user.id);
+
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
 
             const player = await getUserByChannel(command.message.channelId);
