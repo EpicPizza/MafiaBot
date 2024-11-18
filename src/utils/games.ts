@@ -229,7 +229,7 @@ export async function createGame(interaction: ChatInputCommandInteraction | Comm
 
     if(exists) throw new Error("Duplicate game names not allowed.");
 
-    const requirements = z.string().min(1, "Minimum 1 character.").max(20, "Max length 20 characters.").regex(/^[a-zA-Z_]+( [a-zA-Z_]+)*$/, "Only letters and spaces allowed.");
+    const requirements = z.string().min(1, "Minimum 1 character.").max(20, "Max length 20 characters.").regex(/^[a-zA-Z0-9_]+( [a-zA-Z0-9_]+)*$/, "Only letters, spaces, and numbers allowed.");
 
     const check = requirements.safeParse(name);
 
