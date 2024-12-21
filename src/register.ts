@@ -43,8 +43,8 @@ export async function register(exit: boolean = false) {
             //await rest.put(Routes.applicationCommands(process.env.DEV == 'TRUE' ? process.env.DEVCLIENT as string : process.env.CLIENT as string), { body: [] });
 
             const data = await rest.put(
-                (process.env.DEV == 'TRUE') ? Routes.applicationGuildCommands(process.env.DEVCLIENT as string, process.env.DEVGUILD as string) : Routes.applicationCommands(process.env.CLIENT as string),
-                { body: commands },
+                (process.env.DEV == 'FALSE') ? Routes.applicationGuildCommands(process.env.DEVCLIENT as string, process.env.DEVGUILD as string) : Routes.applicationCommands(process.env.DEVCLIENT as string),
+                { body: {} },
             ) as any[];
 
             console.log(`Successfully reloaded ${data.length} application (/) commands.`);

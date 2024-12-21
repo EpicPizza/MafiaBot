@@ -161,7 +161,7 @@ async function handleSignup(interaction: ChatInputCommandInteraction | Command, 
         const row = new ActionRowBuilder<ButtonBuilder>()
             .addComponents([
                 new ButtonBuilder() 
-                    .setCustomId(JSON.stringify({ name: 'set-nickname', autoSignUp: true, game: game.name }))
+                    .setCustomId(JSON.stringify({ name: 'set-nickname', autoSignUp: true, type: interaction.type == 'text' ? 'text' : 'command', game: game.name }))
                     .setStyle(ButtonStyle.Success)
                     .setLabel("Add Nickname")
             ]);

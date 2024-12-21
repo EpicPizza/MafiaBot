@@ -6,6 +6,7 @@ import { getGlobal } from "../utils/main";
 import { User, getUser } from "../utils/user";
 import { checkSetup, getPartialSetup, getSetup } from "../utils/setup";
 import { refreshSignup } from "../utils/games";
+import { checkMod } from "../utils/mod";
 
 module.exports = {
     data: [
@@ -139,6 +140,8 @@ module.exports = {
 
     execute: async (interaction: ChatInputCommandInteraction | ButtonInteraction) => {
         if(!interaction.memberPermissions?.has(PermissionFlagsBits.ManageRoles)) throw new Error("You're not allowed to use this command!");
+
+        if(!(interaction.user.id == process.env.OWNER)) throw new Error("You're not a mod!");
 
         if(interaction.isChatInputCommand() && interaction.options.getSubcommand() == "database") {
             const db = firebaseAdmin.getFirestore();

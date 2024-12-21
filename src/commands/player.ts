@@ -11,6 +11,7 @@ const setNickname = z.object({
     autoSignUp: z.boolean(),
     game: z.string().optional(),
     for: z.string().optional(),
+    type: z.string().optional()
 })
 
 module.exports = {
@@ -102,7 +103,7 @@ module.exports = {
 
             if(id.for && id.for != interaction.user.id) throw new Error("This isn't for you!")
 
-            await showModal(interaction, id.autoSignUp, id.game);
+            await showModal(interaction, id.autoSignUp, id.type ?? "text", id.game);
         } else if(interaction.type != 'text' && (interaction.isChatInputCommand() && interaction.commandName == "info") || (interaction.type == 'text' && interaction.name == "info")) {
             const userOption = interaction.type == 'text' ? interaction.arguments[0] as string : interaction.options.getUser("user");
             const nicknameOption = interaction.type == 'text' ? interaction.arguments[0] as string : interaction.options.getString("nickname");
@@ -131,7 +132,7 @@ module.exports = {
 
             await interaction.reply({ embeds: [embed], ephemeral: true });
         } else if(interaction.type != 'text' && interaction.isChatInputCommand() && interaction.commandName == "nickname") {
-            await showModal(interaction, false);
+            await showModal(interaction, false, "command");
         } else if(interaction.type != 'text' && interaction.isModalSubmit()) {
             const global = await getGlobal();
 
@@ -169,7 +170,9 @@ module.exports = {
                 await refreshSignup(id.game);
 
                 if(interaction.isFromMessage()) {
-                    if(interaction.message.deletable) {
+                    console.log(id, (!('type' in id) || id.type == 'text'));
+
+                    if(interaction.message.deletable && (!('type' in id) || id.type == 'text')) {
                         await interaction.reply({ content: 'You are now signed up!', ephemeral: true });
 
                         const reference = await interaction.message.fetchReference().catch(() => undefined);
@@ -196,7 +199,7 @@ module.exports = {
     }
 }
 
-async function showModal(interaction: ButtonInteraction | ChatInputCommandInteraction,autoSignUp: boolean, game: string | undefined = undefined) {
+async function showModal(interaction: ButtonInteraction | ChatInputCommandInteraction,autoSignUp: boolean, type: string, game: string | undefined = undefined) {
     const global = await getGlobal();
 
     if(global.started) throw new Error("Cannot change nickname while game is underway.");
@@ -204,7 +207,7 @@ async function showModal(interaction: ButtonInteraction | ChatInputCommandIntera
     const user = await getUser(interaction.user.id);
     
     const modal = new ModalBuilder()
-        .setCustomId(JSON.stringify({ name: 'set-nickname', autoSignUp: autoSignUp, ...(game ? { game: game} : {}) }))
+        .setCustomId(JSON.stringify({ name: 'set-nickname', type: type == 'text' ? 'text' : 'command', autoSignUp: autoSignUp, ...(game ? { game: game} : {}) }))
         .setTitle("Set Nickname")
 
     const nicknameInput = new TextInputBuilder()
