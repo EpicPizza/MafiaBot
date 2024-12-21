@@ -258,7 +258,7 @@ client.on(Events.MessageCreate, async (message) => {
 
             const extensions = await getEnabledExtensions(global);
 
-            const extension = extensions.find(extension => extension.commandName == name);
+            const extension = extensions.find(extension => typeof extension.commandName == 'string' ? extension.commandName == name : extension.commandName.includes(name));
 
             if(extension == null) {
                 return;
@@ -266,23 +266,37 @@ client.on(Events.MessageCreate, async (message) => {
 
             //if(!global.started) throw new Error("Extensions can only be used in-game.");
 
-            const subcommandName = message.content.indexOf(" ") == -1 ? undefined : message.content.substring(message.content.indexOf(" ") + 1, message.content.length).split(" ")[0];
+            if(typeof extension.commandName == 'string') {
+                const subcommandName = message.content.indexOf(" ") == -1 ? undefined : message.content.substring(message.content.indexOf(" ") + 1, message.content.length).split(" ")[0];
 
-            const subcommand = extension.commands.find(command => command.name == subcommandName)
+                const subcommand = extension.commands.find(command => command.name == subcommandName)
 
-            if(!subcommand) throw new Error(extension.name + " Extension command not found.");
+                if(!subcommand) throw new Error(extension.name + " Extension command not found.");
 
-            command = {
-                execute: (command: Command) => {
-                    command.name = command.arguments[0] as string;
-                    command.arguments = command.arguments.splice(1, command.arguments.length);
+                command = {
+                    execute: (command: Command) => {
+                        command.name = command.arguments[0] as string;
+                        command.arguments = command.arguments.splice(1, command.arguments.length);
 
-                    return extension.onCommand(command);
-                },
-                zod: {
-                    required: subcommand.arguments.required ? [ true, ...subcommand.arguments.required ] : [ true ],
-                    optional: subcommand.arguments.optional
-                },
+                        return extension.onCommand(command);
+                    },
+                    zod: {
+                        required: subcommand.arguments.required ? [ true, ...subcommand.arguments.required ] : [ true ],
+                        optional: subcommand.arguments.optional
+                    },
+                }
+            } else {
+                const subcommand = extension.commands.find(command => command.name == name);
+
+                if(!subcommand) throw new Error(extension.name + " Extension command not found.");
+
+                command = {
+                    execute: (command: Command) => extension.onCommand(command),
+                    zod: {
+                        required: subcommand.arguments.required,
+                        optional: subcommand.arguments.optional
+                    }
+                }
             }
 
             //the point of all this extension command handling is so its basically unnoticable that this is being handled like a subcommand within the extension
