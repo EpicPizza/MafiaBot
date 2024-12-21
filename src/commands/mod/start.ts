@@ -48,7 +48,7 @@ export const StartCommand = {
                 },
                 {
                     name: 'Extensions',
-                    value: global.extensions.join("\n"),
+                    value: global.extensions.length == 0 ? "None enabled." : global.extensions.join("\n"),
                     inline: true
                 }
             ])

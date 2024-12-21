@@ -103,9 +103,13 @@ export const SpectatorCommand = {
             dm.send("You're now a spectator, here are invites to the servers you're not in:\n" + message);
         }
 
-        if(interaction.type == 'text') await removeReactions(interaction.message);
-
-        await interaction.reply({ ephemeral: true, content: "Spectator has been added. You may need to rerun this command after a game starts (since invites reset)." });
+        if(interaction.type == 'text') {
+            await removeReactions(interaction.message);
+            await interaction.reply({ content: "Spectator has been added. You may need to rerun this command after a game starts (since invites reset)." });
+        } else {
+            await interaction.editReply({ content: "Spectator has been added. You may need to rerun this command after a game starts (since invites reset)." });
+        }
+    
     }
 }
 

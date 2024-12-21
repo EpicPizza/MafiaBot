@@ -141,7 +141,7 @@ module.exports = {
 
                 const previous = fullList.find(user => user.id == vote.for);
 
-                let message = voter.nickname + " removed vote for " + previous?.nickname ?? "<@" + vote.for + ">" + "!";
+                let message = voter.nickname + " removed vote for " + (previous?.nickname ?? "<@" + vote.for + ">") + "!";
 
                 await addVoteLog({ message, id: author.id, day: global.day, for: null, type: "unvote" });
 

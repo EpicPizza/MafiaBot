@@ -440,6 +440,8 @@ export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup
         await channel.permissionOverwrites.create(userProfile.id, editOverwrites());
 
         channel.send("Welcome <@" + userProfile.id + ">! Check out the pins in the main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod.");
+    } else {
+        await channel.permissionOverwrites.create(userProfile.id, editOverwrites());
     }
 }
 
@@ -560,12 +562,6 @@ export async function startGame(interaction: ChatInputCommandInteraction | Comma
         promises.push(setupPlayer(game.signups[i], setup, gameSetup));
     }
 
-    if(pings) {
-        promises.push(setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game is starting!"));
-    } else {
-        promises.push(setup.primary.chat.send("Game is starting!"));
-    }
-
     const results = await Promise.allSettled(promises);
 
     const fails = results.filter(result => result.status == "rejected");
@@ -585,6 +581,12 @@ export async function startGame(interaction: ChatInputCommandInteraction | Comma
 
                 return await interaction.reply({ embeds: [embed] });
             }
+    }
+
+    if(pings) {
+        await setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game is starting!");
+    } else {
+        await setup.primary.chat.send("Game is starting!");
     }
 
     if(interaction.type != 'text') {
