@@ -12,7 +12,7 @@ export function parse(input: string): Date {
     return (parseHumanRelativeTime(input, dt) as DateTime).toJSDate();
 } 
 
-export async function setFuture(date: Date, increment: boolean, locking: boolean) {
+export async function setFuture(date: Date, increment: boolean, locking: boolean, grace: boolean) {
     const db = firebaseAdmin.getFirestore();
 
     const ref = db.collection('settings').doc("lock");
@@ -25,7 +25,40 @@ export async function setFuture(date: Date, increment: boolean, locking: boolean
         when: date,
         increment: increment,
         type: locking,
+        grace: grace,
     });
+}
+
+export async function setGrace(type: boolean, date: Date) {
+    const db = firebaseAdmin.getFirestore();
+
+    const ref = db.collection('settings').doc("grace");
+
+    const data = (await ref.get()).data();
+
+    if(!data) throw new Error("Database not setup.");
+
+    await ref.update({
+        type: type,
+        when: date,
+    });
+}
+
+export async function getGrace() {
+    const db = firebaseAdmin.getFirestore();
+
+    const ref = db.collection('settings').doc("grace");
+
+    const data = (await ref.get()).data();
+
+    if(!data) throw new Error("Database not setup.");
+
+    if(data.when == null) return undefined;
+
+    return { 
+        when: data.when.toDate() as Date,
+        type: data.type as boolean,  
+    }
 }
 
 export async function getFuture() {
@@ -68,6 +101,38 @@ export async function checkFutureLock() {
             } else {
                 await unlockGame(data.increment);
             }
+
+            await db.collection('settings').doc('game').update({
+                grace: data.grace,
+            });
+
+            await ref.update({
+                when: null,
+            });
+        } catch(e) {
+            console.log(e);
+
+            return;
+        }
+    }
+}
+
+export async function checkFutureGrace() {
+    const db = firebaseAdmin.getFirestore();
+
+    const ref = db.collection('settings').doc("grace");
+
+    const data = (await ref.get()).data();
+
+    if(!data) throw new Error("Database not setup.");
+
+    if(data.when == null) return;
+
+    if(data.when.toDate().valueOf() < new Date().valueOf()) {
+        try {
+            await db.collection('settings').doc('game').update({
+                grace: data.type,
+            });
 
             await ref.update({
                 when: null,

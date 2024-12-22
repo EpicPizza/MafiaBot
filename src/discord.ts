@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ZodAny, ZodAnyDef, ZodBoolean, ZodNull, ZodNumber, ZodString, ZodLiteral, ZodSchema, z, type ZodObject } from "zod";
 import { archiveMessage } from "./archive";
-import { checkFutureLock } from "./utils/timing";
+import { checkFutureGrace, checkFutureLock } from "./utils/timing";
 import { firebaseAdmin } from "./firebase";
 import { Setup, getSetup } from "./utils/setup";
 import { editOverwrites, generateOverwrites, getGlobal } from "./utils/main";
@@ -150,6 +150,7 @@ client.on(Events.ClientReady, async () => {
     setInterval(async () => {
         try {
             await checkFutureLock();
+            await checkFutureGrace();
 
             client.user?.setActivity({ type: ActivityType.Watching, name: "/games", });
 

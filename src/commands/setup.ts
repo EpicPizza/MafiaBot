@@ -151,7 +151,13 @@ module.exports = {
             await ref.doc('lock').set({
                 increment: false,
                 when: null,
-                setup: false,
+                type: false,
+                grace: true,
+            })
+
+            await ref.doc('grace').set({
+                when: null,
+                type: false,
             })
 
             await ref.doc('setup').set({
@@ -189,7 +195,8 @@ module.exports = {
                 players: [],
                 started: false,
                 bulletin: null,
-                extensions: []
+                extensions: [],
+                grace: false,
             })
 
             return await interaction.reply({ content: "Database setup.", ephemeral: true });

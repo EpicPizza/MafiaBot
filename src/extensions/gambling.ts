@@ -185,6 +185,8 @@ module.exports = {
                     return await command.reply({ embeds: [ embed ] });
                 }
             } else if(command.name == "buy") {
+                if(global.locked) return await command.reply("Game is locked.");
+
                 const name = command.arguments[0] as string + " " + command.arguments[1] as string;
 
                 const item = items.find(item => item.name.toLowerCase() == name.toLowerCase());
@@ -273,6 +275,8 @@ module.exports = {
                 await command.message.react("✅");
                 
             } else if(command.name == "use") {
+                if(global.locked) return await command.reply("Game is locked.");
+
                 const name = command.arguments[0] as string + " " + command.arguments[1] as string;
 
                 const item = items.find(item => item.name.toLowerCase() == name.toLowerCase());

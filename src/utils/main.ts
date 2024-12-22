@@ -34,7 +34,8 @@ export interface Global {
     day: number,
     game: string | null,
     bulletin: string | null, 
-    extensions: string[]
+    extensions: string[],
+    grace: boolean,
 }
 
 interface Player {

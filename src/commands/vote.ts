@@ -99,6 +99,8 @@ module.exports = {
         }
 
         if(global.locked == true) throw new Error("Game is locked!");
+
+        if(global.grace == true) throw new Error("Game is in grace period.");
         
         const setup = await getSetup();
 
