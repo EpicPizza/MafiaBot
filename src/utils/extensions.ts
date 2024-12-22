@@ -9,7 +9,7 @@ export const extensions = [] as Extension[];
 
 interface Extension {
     name: string,
-    commandName: string,
+    commandName: string | string[],
     emoji: string,
     description: string,
     priority: string[],

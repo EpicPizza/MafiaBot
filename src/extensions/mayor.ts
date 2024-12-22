@@ -162,7 +162,7 @@ module.exports = {
         let votesForHammer = votes.reduce((prev, vote) => {
             const mayor = mayors.find(mayor => mayor.id == vote.id);
 
-            if(mayor && (mayor.type != "classic" || ("classic" && mayor.reveal == true))) {
+            if(mayor && (mayor.type != "classic" || (mayor.type == "classic" && mayor.reveal == true))) {
                 return prev + mayor.weight;
             } else {
                 return prev + 1;
@@ -205,7 +205,7 @@ module.exports = {
             const voters = voted.reduce((previous, current) => {
                 const mayor = mayors.find(mayor => mayor.id == current.id);
 
-                if(mayor && (((mayor.type == "classic" || mayor.type == "secret") && mayor.reveal == true) || (deadChat && (mayor.type != "classic" || ("classic" && mayor.reveal == true))))) {
+                if(mayor && (((mayor.type == "classic" || mayor.type == "secret") && mayor.reveal == true) || (deadChat && (mayor.type != "classic" || (mayor.type == "classic" && mayor.reveal == true))))) {
                     count += mayor.weight;
                 } else {
                     count++;

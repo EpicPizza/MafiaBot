@@ -77,8 +77,8 @@ module.exports = {
                                     .setLabel(extension.name + " Extension")
                                     .setDescription(extension.description)
                                     .setEmoji(extension.emoji)
-                                    .setDefault(page == extension.commandName)
-                                    .setValue(extension.commandName),
+                                    .setDefault(page == extension.name)
+                                    .setValue(extension.name),
                         )
                     ])
             ]);
@@ -249,7 +249,7 @@ module.exports = {
 
                 await interaction.update({ embeds: [embed], components: [additionalSelect, select] })
             } else {
-                const extension = extensions.find(extension => extension.commandName == page);
+                const extension = extensions.find(extension => extension.name == page);
 
                 if(extension == undefined) {
                     throw new Error("Extension not found.");
