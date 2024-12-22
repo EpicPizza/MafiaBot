@@ -332,12 +332,17 @@ module.exports = {
 
                 let message = "";
 
+                let total = 0;
+
                 for(let i = 0; i < players.length; i++) {
                     const data = balances.find(doc => doc.id == players[i].id)?.data();
                     const balance = data ? data.balance : 0;
 
-                    message += players[i].nickname + " - " + balance + " nilla dollar" + (balance == 1 ? "" : "s") + "\n";
+                    message += players[i].nickname + " - $" + balance + "\n";
+                    total += balance;
                 }
+
+                message += "\nTotal: $" + total;
 
                 const embed = new EmbedBuilder()
                     .setTitle("Balances")
@@ -385,7 +390,7 @@ module.exports = {
                     const data = balances.find(doc => doc.id == players[i].id)?.data();
                     const balance = data ? data.balance : 0;
 
-                    message += players[i].nickname + " - " + balance + " nilla dollar" + (balance == 1 ? "" : "s") + "\n";
+                    message += players[i].nickname + " - $" + balance + "\n";
                 }
 
                 const embed = new EmbedBuilder()
