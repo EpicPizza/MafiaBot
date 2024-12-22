@@ -547,7 +547,7 @@ module.exports = {
                     total++;
                 }
 
-                return prev + total;
+                return prev + total + 1;
             }, 0);
 
             const added = docs.filter(item => item.data().name == "Common Vote" && item.data().activated).length;
@@ -560,6 +560,8 @@ module.exports = {
             if(toHammer) {
                 const items = docs.filter(item => item.data().target == vote.id && item.data().name == "City Permit" && item.data().activated) ?? new Array();
         
+                console.log(items);
+
                 if(items.length > 0) {
                     toHammer = false;
                 }
