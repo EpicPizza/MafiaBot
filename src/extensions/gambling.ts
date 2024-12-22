@@ -19,7 +19,7 @@ const help = `This is the game specific extension for Gambling Mafia.
 
 **?buy {item}** Buy an item that may be bought during the day. Items may only be bought with commands in DMs.
 
-**?use {item} {nickname*}** Use an item during the day. Some items may only be used with commands in DMs.
+**?use {item} {nickname*}** Use an item during the day. Items may only be used with commands in DMs.
 
 **?set {balance}** Mod command for setting balance.
 
@@ -34,6 +34,7 @@ const items = [
     {
         name: "Common Vote",
         cost: 20,
+        discount: 15,
     },
     {
         name: "Power Vote",
@@ -198,6 +199,10 @@ module.exports = {
                 
                 if(data.balance < 0) return await command.reply("You have no balance.");
 
+                let cost = item.cost;
+
+                if(data.discount == true) cost == item.discount; 
+
                 if(data.balance < item.cost) return await command.reply("You do not have enough nilla dollars.");
 
                 const result = await db.runTransaction(async (transaction) => {
@@ -222,12 +227,7 @@ module.exports = {
 
                 await ref.update({ balance: data.balance - item.cost });
 
-                const embed = new EmbedBuilder()
-                    .setTitle("Buy")
-                    .setDescription("You have bought " + item.name + " for " + item.cost + " nilla dollar" + (item.cost == 1 ? "" : "s") + ".")
-                    .setColor(Colors.Green);
-
-                return await command.reply({ embeds: [ embed ] });
+                await command.message.react("✅");
             } else if(command.name == "items") {
                 const items = (await db.collection('items').where('id', '==', dm.id).get()).docs;
 
@@ -558,12 +558,10 @@ module.exports = {
             let toHammer = votesForHammer >= half;
 
             if(toHammer) {
-                for(let i = 0; i < votes.length; i++) {
-                    const items = docs.filter(item => item.data().target == votes[i].id && item.data().name == "City Permit" && item.data().activated) ?? new Array();
+                const items = docs.filter(item => item.data().target == vote.id && item.data().name == "City Permit" && item.data().activated) ?? new Array();
         
-                    if(items.length > 0) {
-                        toHammer = false;
-                    }
+                if(items.length > 0) {
+                    toHammer = false;
                 }
             }
     
