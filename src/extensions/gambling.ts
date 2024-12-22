@@ -528,17 +528,24 @@ module.exports = {
              * vote: { id: string, for: string, timestamp: number }[]
              */
     
+            console.log("votes", votes);
+            console.log("vote", vote);
+            console.log("voted", voted);
+            console.log("users", users);
+
             if(!voted || vote == undefined) return { hammer: false, message: null };
     
             const user = users.find(user => user.id == vote.id);
+            const target = users.find(user => user.id == vote.for);
     
             if(user == undefined) throw new Error("User not found.");
+            if(target == undefined) throw new Error("User not found.");
 
             const db = firebaseAdmin.getFirestore();
     
             let docs = (await db.collection('items').get()).docs ?? [];
     
-            let votesForHammer = votes.reduce((prev, vote) => {
+            let votesForHammer = votes.filter(v => v.for == vote.for).reduce((prev, vote) => {
                 const items = docs.filter(item => item.data().id == vote.id && item.data().name != "City Permit" && item.data().activated) ?? new Array();
     
                 let total = 0;
@@ -558,7 +565,7 @@ module.exports = {
             let toHammer = votesForHammer >= half;
 
             if(toHammer) {
-                const items = docs.filter(item => item.data().target == vote.id && item.data().name == "City Permit" && item.data().activated) ?? new Array();
+                const items = docs.filter(item => item.data().target == target.id && item.data().name == "City Permit" && item.data().activated) ?? new Array();
         
                 console.log(items);
 
@@ -567,7 +574,7 @@ module.exports = {
                 }
             }
     
-            return { hammer: toHammer, message: toHammer ? user.nickname + " has been hammered!" : null, hammered: user.id };
+            return { hammer: toHammer, message: toHammer ? target.nickname + " has been hammered!" : null, hammered: target.id };
     
             /**
              * hammer: boolean - Tells to hammer or not.
