@@ -24,6 +24,8 @@ const help = `This is the game specific extension for Gambling Mafia.
 **?set {balance}** Mod command for setting balance.
 
 **?give {item}** Mod command for giving items.
+
+**?random** Gives a number between 1 and 100.
 `
 
 const items = [
@@ -45,7 +47,7 @@ const items = [
 module.exports = {
     name: "Gambling",
     emoji: "💸",
-    commandName: ["balance", "buy", "use", "items", "activated", "set", "give"],
+    commandName: ["balance", "buy", "use", "items", "activated", "set", "give", "random"],
     description: "For gambling of course! Game specific extension.",
     priority: [ "onVote", "onVotes" ], //events that need a return can only have one extensions modifying it, this prevents multiple extensions from modifying the same event
     help: help,
@@ -88,6 +90,12 @@ module.exports = {
             }
         }, {
             name: "activated",
+            arguments: {
+                required: [],
+                optional: []
+            }
+        },  {
+            name: "random",
             arguments: {
                 required: [],
                 optional: []
@@ -160,6 +168,12 @@ module.exports = {
         const db = firebaseAdmin.getFirestore();
 
         console.log(command);
+
+        if(command.name == "random") {
+            const number = Math.floor(Math.random() * 100) + 1;
+
+            return await command.reply(number.toString());
+        }
 
         if(dm && global.players.find(player => player.id == dm.id) != null && dm.channel == command.message.channelId) {
             if(command.name == "balance") {
