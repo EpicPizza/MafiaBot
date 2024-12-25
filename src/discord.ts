@@ -378,6 +378,8 @@ client.on(Events.MessageDelete, async (message) => {
 
         const db = firebaseAdmin.getFirestore();
 
+        if((await db.collection('delete').doc(message.id).get()).exists) return;
+
         const doc = await db.collection('edits').doc(message.id).get();
 
         const webhook = await setup.primary.chat.createWebhook({

@@ -321,6 +321,8 @@ const modCommandsInGame = `**/mod start or ?mod start {name}** Starts the game. 
 
 **/mod grace or ?mod grace {on | off}** Sets the grace of the game on or off. Grace is when players cannot vote.
 
+**Delete or ?delete** Deletes message without triggering bot delete logger. Can be accessed in the apps section of message options, or replying ?delete to the wanted message.
+
 **/mod remove or ?mod remove {nickname}** Removes a player from the game. Gives them access to spectator channel and removes their alive role.
 
 **/mod end or ?mod end** Ends the game. Gives spectator perms to everyone, and invites to mafia server if they are not already in mafia server.`
