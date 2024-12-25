@@ -50,5 +50,9 @@ module.exports = {
         });
 
         await target.delete();
+
+        if(interaction.type != 'text') {
+            await interaction.reply({ content: "Message deleted.", ephemeral: true });
+        }
     }
 }

@@ -43,7 +43,7 @@ export async function register(exit: boolean = false) {
             //await rest.put(Routes.applicationCommands(process.env.DEV == 'TRUE' ? process.env.DEVCLIENT as string : process.env.CLIENT as string), { body: [] });
 
             const data = await rest.put(
-                (process.env.GLOBAL == 'FALSE') ? Routes.applicationGuildCommands(process.env.DEVCLIENT as string, process.env.DEVGUILD as string) : Routes.applicationCommands(process.env.DEVCLIENT as string),
+                (process.env.GLOBAL == 'FALSE') ? Routes.applicationGuildCommands(process.env.DEVCLIENT as string, process.env.DEVGUILD as string) : Routes.applicationCommands(process.env.DEV == 'TRUE' ? process.env.DEVCLIENT as string : process.env.CLIENT as string),
                 { body: commands },
             ) as any[];
 
