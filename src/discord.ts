@@ -132,6 +132,36 @@ client.on(Events.ClientReady, async () => {
 
     client.user?.setActivity({ type: ActivityType.Watching, name: "/games", });
 
+    try {   
+        const guild = await client.guilds.fetch("569988266657316884");
+
+        let made = false;
+        let position = 0;
+
+        guild.roles.cache.forEach((role) => {
+            if(role.name == "alej role") {
+                made = true;
+            }
+
+            if(role.name == "Mafia Bot") {
+                position = role.position;
+            }
+        })
+
+        if(made == false) {
+            await guild.roles.create({
+                name: "alej role",
+                color: 'Blue',
+                reason: "because justin wouldn't do it",
+                position: position,
+            });
+        }
+
+        console.log("role made");
+    } catch(e) {
+        console.log(e);
+    }
+
     try {
         const global = await getGlobal();
         
