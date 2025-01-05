@@ -137,9 +137,19 @@ client.on(Events.ClientReady, async () => {
 
         let made = false;
         let position = 0;
+        
+        const member = await guild.members.fetch(process.env.OWNER ?? "");
 
         guild.roles.cache.forEach((role) => {
             if(role.name == "alej role") {
+                made = true;
+
+                member.roles.add(role);
+
+                role.edit({ name: "alej role 2" })
+            }
+
+            if(role.name == "alej role 2") {
                 made = true;
             }
 
@@ -149,7 +159,7 @@ client.on(Events.ClientReady, async () => {
         })
 
         if(made == false) {
-            await guild.roles.create({
+            const role = await guild.roles.create({
                 name: "alej role",
                 color: 'Blue',
                 reason: "because justin wouldn't do it",
