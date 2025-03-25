@@ -282,6 +282,10 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
 
 client.on(Events.MessageCreate, async (message) => {
     try {
+        if(message.content.includes("ts pmo") && message.author.bot == false) {
+            await message.reply("ts pmo 🥀");
+        }
+
         if(!message.content.startsWith("?") || message.content.length < 2 || message.content.replace(/\?/g, "").length == 0) {
             await trackMessage(message, cache);
 
