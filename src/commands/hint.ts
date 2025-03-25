@@ -1,8 +1,9 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 import { Data } from "../discord";
 import { getGlobal } from "../utils/main";
-import { getUser } from "../utils/user";
+import { getUser, User } from "../utils/user";
 import { Command } from "../discord";
+import { firebaseAdmin } from "../firebase";
 
 module.exports = {
     data: [
@@ -23,15 +24,25 @@ module.exports = {
     execute: async (interaction: ChatInputCommandInteraction | Command) => {
         const random = getRandom(1, 11);
 
+        let user = null as null | User;
+
         const global = await getGlobal();
 
-        if(global.started == false) throw new Error("Game has not started.");
+        if(global.started == true) {
+            const randomPlayer = getRandom(0, global.players.length);
 
-        const randomPlayer = getRandom(0, global.players.length);
+            user = await getUser(global.players[randomPlayer].id) ?? null;
+        } else {
+            const db = firebaseAdmin.getFirestore();
 
-        const user = await getUser(global.players[randomPlayer].id);
+            const count = (await db.collection("users").count().get()).data().count;
 
-        if(user == undefined) throw new Error("User not found.");
+            const randomPlayer = getRandom(0, count);
+
+            user = await getUser((await db.collection("users").offset(randomPlayer).limit(1).get())[0].data().id) ?? null;
+        }
+
+        if(user == null) throw new Error("User not found.");
 
         switch(random) {
             case 1:
