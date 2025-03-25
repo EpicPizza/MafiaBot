@@ -22,7 +22,7 @@ module.exports = {
     execute: async function(interaction: Command) {
         const setup = await getSetup();
 
-        checkMod(setup, interaction.user.id);
+        checkMod(setup, interaction.user.id, interaction.message?.guild?.id ?? "");
 
         const message = await interaction.message.reply("Fetching messages...");
 

@@ -262,7 +262,7 @@ module.exports = {
 
                 return await command.reply({ embeds: [ embed ] });
             } else if(command.name == "set") {
-                checkMod(setup, command.user.id);
+                checkMod(setup, command.user.id, command.message.guildId ?? "");
 
                 const user = dm;
 
@@ -276,7 +276,7 @@ module.exports = {
 
                 await command.message.react("✅");
             } else if(command.name == "give") {
-                checkMod(setup, command.user.id);
+                checkMod(setup, command.user.id, command.message.guildId ?? "");
 
                 const name = command.arguments[0] as string + " " + command.arguments[1] as string;
 

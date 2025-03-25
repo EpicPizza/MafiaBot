@@ -40,7 +40,7 @@ export const RemoveCommand = {
         const setup  = await getSetup();
         if(typeof setup == 'string') throw new Error("Setup Incomplete");
 
-        checkMod(setup, interaction.user.id)
+        checkMod(setup, interaction.user.id, 'message' in interaction ? interaction.message?.guild?.id ?? "" : interaction.guildId ?? "");
 
         const game = await getGameByID(global.game ?? "");
 

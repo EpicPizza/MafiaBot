@@ -141,7 +141,7 @@ module.exports = {
         const setup = await getSetup();
         const member = await setup.primary.guild.members.fetch(command.user.id);
 
-        checkMod(setup, command.user.id);
+        checkMod(setup, command.user.id, command.message.guildId ?? "");
         
         if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
 

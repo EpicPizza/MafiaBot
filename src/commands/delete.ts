@@ -24,7 +24,7 @@ module.exports = {
     execute: async function(interaction: ContextMenuCommandInteraction | Command) {
         const setup = await getSetup();
 
-        await checkMod(setup, interaction.user.id);
+        await checkMod(setup, interaction.user.id, 'message' in interaction ? interaction.message?.guild?.id ?? "" : interaction.guildId ?? "");
 
         if(interaction.type != 'text' && !interaction.isMessageContextMenuCommand()) throw new Error("Unable to fetch message.");
 

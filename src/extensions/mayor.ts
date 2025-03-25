@@ -76,7 +76,7 @@ module.exports = {
         const game = await getGameByID(global.game ?? "");
 
         if(command.name == "set") {
-            checkMod(setup, command.user.id);
+            checkMod(setup, command.user.id, command.message.guildId ?? "");
 
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
 
