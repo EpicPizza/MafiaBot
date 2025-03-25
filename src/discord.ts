@@ -282,7 +282,7 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
 
 client.on(Events.MessageCreate, async (message) => {
     try {
-        if(message.content.includes("ts pmo") && message.author.bot == false) {
+        if(message.content.toLowerCase().includes("ts pmo") && message.author.bot == false) {
             await message.reply("ts pmo 🥀");
         }
 
