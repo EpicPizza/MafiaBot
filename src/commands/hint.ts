@@ -39,7 +39,7 @@ module.exports = {
 
             const randomPlayer = getRandom(0, count);
 
-            user = await getUser((await db.collection("users").offset(randomPlayer).limit(1).get())[0].data().id) ?? null;
+            user = await getUser((await db.collection("users").offset(randomPlayer).limit(1).get()).docs[0].data().id) ?? null;
         }
 
         if(user == null) throw new Error("User not found.");
