@@ -286,6 +286,10 @@ client.on(Events.MessageCreate, async (message) => {
             await message.reply("ts pmo 🥀");
         }
 
+        if(message.content.toLowerCase().includes("how long") && message.author.bot == false) {
+            await message.reply(message.content.replaceAll(" ", "").replaceAll(".", "").replaceAll("?", "").replaceAll("!", ""));
+        }
+
         if(!message.content.startsWith("?") || message.content.length < 2 || message.content.replace(/\?/g, "").length == 0) {
             await trackMessage(message, cache);
 
