@@ -286,6 +286,33 @@ client.on(Events.MessageCreate, async (message) => {
             await message.reply("ts pmo 🥀");
         }
 
+        if(message.content.toLowerCase().includes("big boom") && message.author.bot == false) {
+            const index = message.content.toLowerCase().indexOf("big boom");
+
+            let numberString = "";
+
+            for(let i = index - 2; i >= 0; i--) {
+                if(!isNaN(parseInt(message.content.charAt(i)))) {
+                    numberString = message.content.charAt(i) + numberString;
+                } else {
+                    break;
+                }
+            }
+
+            let number = parseInt(numberString);
+
+            if(number > 10) number = 10;
+
+            for(let i = 0; i < number; i++) {
+                await new Promise((resolve) => {
+                    setTimeout(() => {
+                        resolve(true);
+                    }, 1000);
+                })
+                await message.channel.send("BOOM 💥");
+            }
+        }
+
         if(message.content.toLowerCase().includes("big chomp") && message.author.bot == false) {
             const index = message.content.toLowerCase().indexOf("big chomp");
 
