@@ -42,11 +42,11 @@ export const RemoveCommand = {
 
         checkMod(setup, interaction.user.id, 'message' in interaction ? interaction.message?.guild?.id ?? "" : interaction.guildId ?? "");
 
+        if(global.started == false) throw new Error("Game has not started.");
+
         const game = await getGameByID(global.game ?? "");
 
         const gameSetup = await getGameSetup(game, setup);
-
-        if(global.started == false) throw new Error("Game has not started.");
 
         const player = interaction.type == 'text' ? interaction.arguments[1] as string : interaction.options.getString('player');
 
