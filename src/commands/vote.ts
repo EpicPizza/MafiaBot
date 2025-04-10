@@ -235,12 +235,26 @@ module.exports = {
                         await interaction.editReply(message);
                     }
                     
-                    /*if(votesForHammer.length >= half) {
+                    if(votesForHammer.length >= half) {
                         await lockGame();
                         await hammerExtensions(global, setup, game, user.id);
 
+                        await new Promise((resolve) => {
+                            setTimeout(() => {
+                                resolve(true);
+                            }, 1000);
+                        });
+
+                        await setup.primary.chat.send("BOOM 💥");
+
+                        await new Promise((resolve) => {
+                            setTimeout(() => {
+                                resolve(true);
+                            }, 1000);
+                        });
+
                         await setup.primary.chat.send(user.nickname + " has been hammered!");
-                    }*/
+                    }
                 } else {
                     const result = await extension.onVote(votes, { for: user.id, id: voter.id, timestamp: new Date().valueOf() }, true, list, global, setup, game) as { hammer: boolean, message: string | null, hammered: string };
 

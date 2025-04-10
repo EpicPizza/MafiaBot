@@ -101,7 +101,7 @@ async function handleVoteList(interaction: ChatInputCommandInteraction | Command
             message.description = "No votes recorded.";
         }
 
-        message.footer = "Auto hammer disabled."
+        message.footer = half + " vote" + (half == 1 ? "": "s") + " to hammer";
     } else {
         message = await extension.onVotes(voting, votes, day, users, global, setup, game, interaction);
     }

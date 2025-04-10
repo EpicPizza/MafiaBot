@@ -340,6 +340,34 @@ client.on(Events.MessageCreate, async (message) => {
             }
         }
 
+        if(message.content.toLowerCase().includes("big meow") && message.author.bot == false  && message.guildId != "569988266657316884") {
+            const index = message.content.toLowerCase().indexOf("big meow");
+
+            let numberString = "";
+
+            for(let i = index - 2; i >= 0; i--) {
+                if(!isNaN(parseInt(message.content.charAt(i)))) {
+                    numberString = message.content.charAt(i) + numberString;
+                } else {
+                    break;
+                }
+            }
+
+            let number = parseInt(numberString);
+
+            if(number > 10 && message.author.id != process.env.OWNER) number = 10;
+
+            for(let i = 0; i < number; i++) {
+                await new Promise((resolve) => {
+                    setTimeout(() => {
+                        resolve(true);
+                    }, 1000);
+                })
+                await message.channel.send("MEOW");
+            }
+        }
+
+
         if(message.content.toLowerCase().startsWith("how long") && message.author.bot == false && message.guildId != "569988266657316884") {
             await message.reply(message.content.replaceAll(" ", "").replaceAll(".", "").replaceAll("?", "").replaceAll("!", "").replaceAll("'", "").replaceAll('"', "").replaceAll("`", "").replaceAll("~", "").replaceAll(";", "").replaceAll(",", ""));
         }
