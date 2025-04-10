@@ -678,7 +678,7 @@ export async function clearPlayer(id: string, setup: Setup, gameSetup: GameSetup
         promises.push(deadPlayer.roles.remove(setup.secondary.access));
     }
 
-    promises.push(setMafiaSpectator(mafiaPlayer, id, setup, gameSetup, userProfile, false));
+    promises.push(setMafiaSpectator(mafiaPlayer, id, setup, gameSetup, userProfile, true));
 
     const results = await Promise.allSettled(promises);
 
