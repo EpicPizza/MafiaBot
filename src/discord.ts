@@ -363,7 +363,7 @@ client.on(Events.MessageCreate, async (message) => {
                         resolve(true);
                     }, 1000);
                 })
-                await message.channel.send("MEOW");
+                await message.channel.send("NO MEOW");
             }
         }
 
