@@ -115,6 +115,8 @@ async function handleVoteList(interaction: ChatInputCommandInteraction | Command
         embed.setFooter({ text: message.footer });
     }
 
+    //
+
     const row = new ActionRowBuilder<ButtonBuilder>()
         .setComponents([
             new ButtonBuilder()
