@@ -309,7 +309,7 @@ client.on(Events.MessageCreate, async (message) => {
             rateLimit.set(message.author.id, [now]);
         }
 
-        if(limited == false) {
+        if(limited == false || cache.started == false) {
             if(message.content.toLowerCase().includes("ts pmo") && message.author.bot == false && message.channelId != "695129859147694174") {
                 await message.reply("ts pmo 🥀");
             }
