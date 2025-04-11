@@ -313,7 +313,7 @@ client.on(Events.MessageCreate, async (message) => {
             }
         }
 
-        if(message.content.toLowerCase().includes("big chomp") && message.author.bot == false  && message.guildId != "695129859147694174") {
+        if(message.content.toLowerCase().includes("big chomp") && message.author.bot == false  && message.channelId != "695129859147694174") {
             const index = message.content.toLowerCase().indexOf("big chomp");
 
             let numberString = "";
@@ -340,7 +340,7 @@ client.on(Events.MessageCreate, async (message) => {
             }
         }
 
-        if(message.content.toLowerCase().includes("big meow") && message.author.bot == false  && message.guildId != "695129859147694174") {
+        if(message.content.toLowerCase().includes("big meow") && message.author.bot == false  && message.channelId != "695129859147694174") {
             const index = message.content.toLowerCase().indexOf("big meow");
 
             let numberString = "";
@@ -368,7 +368,7 @@ client.on(Events.MessageCreate, async (message) => {
         }
 
 
-        if(message.content.toLowerCase().startsWith("how long") && message.author.bot == false && message.guildId != "695129859147694174") {
+        if(message.content.toLowerCase().startsWith("how long") && message.author.bot == false && message.channelId != "695129859147694174") {
             await message.reply(message.content.replaceAll(" ", "").replaceAll(".", "").replaceAll("?", "").replaceAll("!", "").replaceAll("'", "").replaceAll('"', "").replaceAll("`", "").replaceAll("~", "").replaceAll(";", "").replaceAll(",", ""));
         }
 
