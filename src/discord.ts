@@ -285,7 +285,7 @@ const rateLimit = new Map<string, number[]>();
 client.on(Events.MessageCreate, async (message) => {
     try {
         const now = Date.now();
-        const FIVE_SECONDS = 5000;
+        const FIVE_SECONDS = 15000;
         const MAX_REQUESTS = 2;
 
         let limited = false;
@@ -296,6 +296,8 @@ client.on(Events.MessageCreate, async (message) => {
             while (timestamps.length > 0 && timestamps[0] <= (now - FIVE_SECONDS)) {
                 timestamps.shift();
             }
+
+            console.log(requests);
 
             if (requests.length > MAX_REQUESTS) {
                 limited = true;
