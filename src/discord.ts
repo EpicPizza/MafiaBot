@@ -278,14 +278,15 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
     } catch(e) {
         console.log(e);
     }
-})
+});
+
+const rateLimit = new Map<string, number[]>();
 
 client.on(Events.MessageCreate, async (message) => {
     try {
-        const rateLimit = new Map<string, number[]>();
         const now = Date.now();
         const FIVE_SECONDS = 5000;
-        const MAX_REQUESTS = 5;
+        const MAX_REQUESTS = 2;
 
         let limited = false;
 
