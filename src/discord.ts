@@ -214,8 +214,6 @@ client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
     try {
         if(!cache.started) return;
 
-        console.log(newMessage.content);
-
         if(newMessage.author && newMessage.author.bot == true) return;
         if(cache.channel && newMessage.channelId != cache.channel.id) return;
 
@@ -296,8 +294,6 @@ client.on(Events.MessageCreate, async (message) => {
             while (timestamps.length > 0 && timestamps[0] <= (now - FIVE_SECONDS)) {
                 timestamps.shift();
             }
-
-            console.log(requests);
 
             if (requests.length > MAX_REQUESTS) {
                 limited = true;
@@ -471,8 +467,6 @@ client.on(Events.MessageCreate, async (message) => {
             const requiredLength = command.zod.required ? command.zod.required.length : 0;
 
             if(values.length > optionalLength + requiredLength || values.length < requiredLength) throw new Error(`Invalid arguments for text command, ${name}.` + (command.description ? "\n\n" + command.description : ""));
-
-            console.log(values);
 
             if(values.length != 0) {
                 for(let i = 0; i < values.length; i++) {
