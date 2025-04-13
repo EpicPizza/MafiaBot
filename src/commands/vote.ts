@@ -242,15 +242,7 @@ module.exports = {
                         await new Promise((resolve) => {
                             setTimeout(() => {
                                 resolve(true);
-                            }, 1000);
-                        });
-
-                        await setup.primary.chat.send("BOOM 💥");
-
-                        await new Promise((resolve) => {
-                            setTimeout(() => {
-                                resolve(true);
-                            }, 1000);
+                            }, 2000);
                         });
 
                         await setup.primary.chat.send(user.nickname + " has been hammered!");
