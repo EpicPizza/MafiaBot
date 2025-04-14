@@ -280,6 +280,8 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
 
 const rateLimit = new Map<string, number[]>();
 
+let freeze = true;
+
 client.on(Events.MessageCreate, async (message) => {
     try {
         const now = Date.now();
@@ -305,6 +307,17 @@ client.on(Events.MessageCreate, async (message) => {
             rateLimit.set(message.author.id, [now]);
         }
 
+        if(message.author.id == process.env.OWNER && message.content == "freeze") {
+            freeze = !freeze;
+
+            if(!freeze) {
+                message.react("✅");
+            } else {
+                message.react("<:cross:1258228069156655259>");
+            }
+        }
+
+        
         if(limited == false || cache.started == false) {
             if(message.content.toLowerCase().includes("ts pmo") && message.author.bot == false && message.guildId != "569988266657316884") {
                 await message.reply("ts pmo 🥀");
@@ -333,6 +346,11 @@ client.on(Events.MessageCreate, async (message) => {
                             resolve(true);
                         }, 1000);
                     })
+
+                    if(freeze) {
+                        return;
+                    }
+
                     await message.channel.send("BOOM 💥");
                 }
             }
@@ -359,7 +377,12 @@ client.on(Events.MessageCreate, async (message) => {
                         setTimeout(() => {
                             resolve(true);
                         }, 1000);
-                    })
+                    });
+
+                    if(freeze) {
+                        return;
+                    }
+
                     await message.channel.send("CHOMP");
                 }
             }
@@ -386,7 +409,12 @@ client.on(Events.MessageCreate, async (message) => {
                         setTimeout(() => {
                             resolve(true);
                         }, 1000);
-                    })
+                    });
+
+                    if(freeze) {
+                        return;
+                    }
+
                     await message.channel.send("NO MEOW");
                 }
             }
