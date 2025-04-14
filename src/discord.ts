@@ -325,7 +325,7 @@ client.on(Events.MessageCreate, async (message) => {
     
                 let number = parseInt(numberString);
     
-                if(number > 10 && message.author.id != process.env.OWNER) number = 10;
+                if(!(number <= 10 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 10;
     
                 for(let i = 0; i < number; i++) {
                     await new Promise((resolve) => {
@@ -352,7 +352,7 @@ client.on(Events.MessageCreate, async (message) => {
     
                 let number = parseInt(numberString);
     
-                if(number > 10 && message.author.id != process.env.OWNER) number = 10;
+                if(!(number <= 10 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 10;
     
                 for(let i = 0; i < number; i++) {
                     await new Promise((resolve) => {
@@ -379,7 +379,7 @@ client.on(Events.MessageCreate, async (message) => {
     
                 let number = parseInt(numberString);
     
-                if(number > 10 && message.author.id != process.env.OWNER) number = 10;
+                if(!(number <= 10 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 10;
     
                 for(let i = 0; i < number; i++) {
                     await new Promise((resolve) => {
