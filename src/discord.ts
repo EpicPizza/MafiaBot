@@ -393,7 +393,7 @@ client.on(Events.MessageCreate, async (message) => {
     
     
             if(message.content.toLowerCase().startsWith("how long") && message.author.bot == false && message.guildId != "569988266657316884") {
-                await message.reply(message.content.replaceAll(" ", "").replaceAll(".", "").replaceAll("?", "").replaceAll("!", "").replaceAll("'", "").replaceAll('"', "").replaceAll("`", "").replaceAll("~", "").replaceAll(";", "").replaceAll(",", ""));
+                await message.reply(message.content.replaceAll(" ", "").replaceAll("\t", "").replaceAll("\n", "").replaceAll("]", "").replaceAll("[", "").replaceAll(")", "").replaceAll("(", "").replaceAll(".", "").replaceAll("?", "").replaceAll("!", "").replaceAll("'", "").replaceAll('"', "").replaceAll("`", "").replaceAll("~", "").replaceAll(";", "").replaceAll(",", ""));
             }
         }
 
