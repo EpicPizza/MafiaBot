@@ -16,12 +16,19 @@ export async function addVoteLog(options: { id: string, message: string, day: nu
 
     const ref = db.collection('day').doc(options.day.toString()).collection('votes').doc('history').collection('logs');
 
-    await ref.add({
+    const doc = await ref.add({
         id: options.id,
         timestamp: new Date().valueOf(),
         type: options.type,
         for: options.for,
-    })
+        message: null,
+    });
+
+    return async (messageId: string) => {
+        await ref.doc(doc.id).update({
+            message: messageId,
+        })
+    }
 } 
 
 export async function setVote(options: { id: string, for: string, day: number }) {

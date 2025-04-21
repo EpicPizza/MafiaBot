@@ -145,23 +145,35 @@ module.exports = {
 
                 let message = voter.nickname + " removed vote for " + (previous?.nickname ?? "<@" + vote.for + ">") + "!";
 
-                await addVoteLog({ message, id: author.id, day: global.day, for: null, type: "unvote" });
+                const setMessage = await addVoteLog({ message, id: author.id, day: global.day, for: null, type: "unvote" });
 
                 if(extension == undefined) {
                     if('arguments' in interaction) {
-                        return await interaction.message.react("✅")
+                        await interaction.message.react("✅");
+
+                        await setMessage(interaction.message.id);
+
+                        return;
                     } else {
                         await interaction.editReply(message);
+                        
+                        await setMessage((await interaction.fetchReply()).id);
+
+                        return;
                     }
                 } else {
                     const result = await extension.onVote(votes, vote, false, global, setup, game) as { hammer: boolean, message: string | null, hammered: string };
 
                     if('arguments' in interaction) {
-                        await interaction.message.react("✅")
+                        await interaction.message.react("✅");
                         
                         if(!result.hammer && result.message) await setup.primary.chat.send(result.message);
+
+                        await setMessage(interaction.message.id);
                     } else {
                         await interaction.editReply(message + (!result.hammer && result.message ? result.message : ""));
+
+                        await setMessage((await interaction.fetchReply()).id);
                     }
 
                     if(result.hammer) {
@@ -179,7 +191,7 @@ module.exports = {
                 return;
             } else if((!('arguments' in interaction) ? interaction.commandName == "unvote" : (interaction.name == "unvote" || interaction.arguments.length == 0) )) {
                 if('arguments' in interaction) {
-                    return await interaction.message.react("❎")
+                    return await interaction.message.react("❎");
                 } else {
                     return await interaction.editReply("No vote found.");
                 }
@@ -218,7 +230,7 @@ module.exports = {
 
                 let message = voter.nickname + (voted ? " voted for " : " removed vote for ") + user.nickname + "!";
 
-                await addVoteLog({ message, id: author.id, day: global.day, type: voted ? "vote" : "unvote", for: voted ? user.id : null });
+                const setMessage = await addVoteLog({ message, id: author.id, day: global.day, type: voted ? "vote" : "unvote", for: voted ? user.id : null });
 
                 if(extension == undefined) {
                     let votesForHammer = votes.filter(vote => vote.for == user.id);
@@ -227,12 +239,16 @@ module.exports = {
 
                     if('arguments' in interaction) {
                         if(voted) {
-                            await interaction.message.react("✅")
+                            await interaction.message.react("✅");
                         } else {
-                            await interaction.message.react("🗑️")
+                            await interaction.message.react("🗑️");
                         }
+
+                        await setMessage(interaction.message.id);
                     } else {
                         await interaction.editReply(message);
+
+                        await setMessage((await interaction.fetchReply()).id);
                     }
                     
                     if(votesForHammer.length >= half) {
@@ -252,14 +268,18 @@ module.exports = {
 
                     if('arguments' in interaction) {
                         if(voted) {
-                            await interaction.message.react("✅")
+                            await interaction.message.react("✅");
                         } else {
-                            await interaction.message.react("🗑️")
+                            await interaction.message.react("🗑️");
                         }
+
+                        await setMessage(interaction.message.id);
 
                         if(!result.hammer && result.message) await setup.primary.chat.send(result.message);
                     } else {
                         await interaction.editReply(message + (!result.hammer && result.message ? result.message : ""));
+
+                        await setMessage((await interaction.fetchReply()).id);
                     }
 
                     if(result.hammer) {
