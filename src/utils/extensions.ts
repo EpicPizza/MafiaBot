@@ -7,9 +7,10 @@ const extensionsPath = path.join(__dirname, '../extensions');
 const extensionFiles = fs.readdirSync(extensionsPath).filter(file => file.endsWith('.js') || file.endsWith('.ts'));
 export const extensions = [] as Extension[]; 
 
-interface Extension {
+export interface Extension {
     name: string,
     commandName: string | string[],
+    shorthands?: { name: string, to: string }[],
     emoji: string,
     description: string,
     priority: string[],

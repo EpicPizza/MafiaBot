@@ -7,3 +7,13 @@ export async function checkMod(setup: Setup, id: string, guild: string) {
     const member = await setup.primary.guild.members.fetch(id);
     if(!(member?.roles.cache.has(setup.primary.mod.id) || id == process.env.OWNER)) throw new Error("You're not a mod!");
 }
+
+export async function isMod(setup: Setup, id: string, guild: string) {
+    try {
+        await checkMod(setup, id, guild);
+
+        return true;
+    } catch(e) {
+        return false;
+    }
+}

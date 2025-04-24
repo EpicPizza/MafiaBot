@@ -33,15 +33,13 @@ module.exports = {
 
             user = await getUser(global.players[randomPlayer].id) ?? null;
         } else {
-            /*const db = firebaseAdmin.getFirestore();
+            const db = firebaseAdmin.getFirestore();
 
             const count = (await db.collection("users").count().get()).data().count;
 
             const randomPlayer = getRandom(0, count);
 
-            user = await getUser((await db.collection("users").offset(randomPlayer).limit(1).get()).docs[0].data().id) ?? null;*/
-
-            return await interaction.reply("<@446169109563179019> who was in paris?");
+            user = await getUser((await db.collection("users").offset(randomPlayer).limit(1).get()).docs[0].data().id) ?? null;
         }
 
         if(user == null) throw new Error("User not found.");

@@ -416,7 +416,21 @@ client.on(Events.MessageCreate, async (message) => {
 
             const extensions = await getEnabledExtensions(global);
 
-            const extension = extensions.find(extension => typeof extension.commandName == 'string' ? extension.commandName == name : extension.commandName.includes(name));
+            const extension = extensions.find(extension => {
+                const found = typeof extension.commandName == 'string' ? extension.commandName == name : extension.commandName.includes(name);
+
+                if(found) return true;
+
+                if(typeof extension.commandName == 'string' && extension.shorthands != undefined) {
+                    const subcommand = extension.shorthands.find(shorthand => shorthand.name == name);
+                    
+                    if(!subcommand) return false;
+
+                    message.content = message.content.replace(name, extension.commandName + " " + subcommand.to);
+
+                    return true;
+                }
+            });
 
             if(extension == null) {
                 return;
@@ -427,7 +441,7 @@ client.on(Events.MessageCreate, async (message) => {
             if(typeof extension.commandName == 'string') {
                 const subcommandName = message.content.indexOf(" ") == -1 ? undefined : message.content.substring(message.content.indexOf(" ") + 1, message.content.length).split(" ")[0];
 
-                const subcommand = extension.commands.find(command => command.name == subcommandName)
+                const subcommand = extension.commands.find(command => command.name == subcommandName);
 
                 if(!subcommand) throw new Error(extension.name + " Extension command not found.");
 

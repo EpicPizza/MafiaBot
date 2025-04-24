@@ -5,6 +5,7 @@ import { getSetup } from "../utils/setup";
 import { getGlobal } from "../utils/main";
 import { Command } from "../discord";
 import { getEnabledExtensions } from "../utils/extensions";
+import { checkMod, isMod } from "../utils/mod";
 
 module.exports = {
     data: [
@@ -34,25 +35,24 @@ module.exports = {
         const global = await getGlobal();
 
         const extensions = await getEnabledExtensions(global);
-        
-        const embed = new EmbedBuilder()
-            .setTitle("Mafia Bot Help")
-            .setColor(Colors.Green)
-            .setDescription(help);
 
-        const page = interaction.type != 'text' && interaction.isStringSelectMenu() ? interaction.values[0] : "0";
+        const mod = await isMod(await getSetup(), interaction.user.id, (interaction.type == 'text' ? interaction.message.guildId : interaction.guildId) ?? "");
+
+        let page = interaction.type != 'text' && interaction.isStringSelectMenu() ? interaction.values[0] : "0";
+
+        if(page == "0") {
+            if(mod) {
+                page = (global.started ? "3" : "4");
+            } else {
+                page = (global.started ? "1" : "2");
+            }
+        }
 
         const select = new ActionRowBuilder<StringSelectMenuBuilder>()
             .addComponents([
                 new StringSelectMenuBuilder()
                     .setCustomId(JSON.stringify({ name: "help", id: interaction.user.id }))
                     .addOptions([
-                        new StringSelectMenuOptionBuilder()
-                            .setLabel("Home")
-                            .setDescription("Home for help command.")
-                            .setEmoji("🏠")
-                            .setDefault(page == "0")
-                            .setValue("0"),
                         new StringSelectMenuOptionBuilder()
                             .setLabel("Player Commands")
                             .setDescription("Commands for playing the game, joining games, etc.")
@@ -82,198 +82,210 @@ module.exports = {
                         )
                     ])
             ]);
-        
-        if(interaction.type == 'text') {
-         
 
-            await interaction.reply({ embeds: [embed], components: [select] });
-        } else if(interaction.isChatInputCommand()) {
-            await interaction.reply({ embeds: [embed], components: [select] });
-        } else if(interaction.isStringSelectMenu()) {
+        if(interaction.type != 'text' && interaction.isStringSelectMenu()) {
             const command = JSON.parse(interaction.customId);
 
             if(command.id != interaction.user.id) return await interaction.reply({ ephemeral: true, content: "This is not your button! Run the /help command yourself." });
+        }
+        
 
-            if(page == "0") {
-                await interaction.update({ embeds: [embed], components: [select] });
-            } else if(page == "1") {
-                const embed = new EmbedBuilder()
-                    .setTitle("Mafia Bot Help » Player Commands")
-                    .setColor(Colors.Orange)
-                    .setDescription(playerCommandsInGame);   
+        if(page == "1") {
+            const embed = new EmbedBuilder()
+                .setTitle("Mafia Bot Help » Player Commands")
+                .setColor(Colors.Orange)
+                .setDescription(playerCommandsInGame);   
 
-                const additionalSelect = new ActionRowBuilder<StringSelectMenuBuilder>()
-                    .addComponents([
-                        new StringSelectMenuBuilder()
-                            .setCustomId(JSON.stringify({ name: "help", type: "sub", id: interaction.user.id }))
-                            .addOptions([
-                                new StringSelectMenuOptionBuilder()
-                                    .setLabel("In-Game Commands")
-                                    .setDescription("Commands for playing the game.")
-                                    .setEmoji("🎮")
-                                    .setDefault()
-                                    .setValue("1"),
-                                new StringSelectMenuOptionBuilder()
-                                    .setLabel("Pre-Game Commands")
-                                    .setDescription("Commands for joining games, changing nickname, etc.")
-                                    .setEmoji("📝")
-                                    .setValue("2"),
-                            ])
-                    ])
+            const additionalSelect = new ActionRowBuilder<StringSelectMenuBuilder>()
+                .addComponents([
+                    new StringSelectMenuBuilder()
+                        .setCustomId(JSON.stringify({ name: "help", type: "sub", id: interaction.user.id }))
+                        .addOptions([
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel("In-Game Commands")
+                                .setDescription("Commands for playing the game.")
+                                .setEmoji("🎮")
+                                .setDefault()
+                                .setValue("1"),
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel("Pre-Game Commands")
+                                .setDescription("Commands for joining games, changing nickname, etc.")
+                                .setEmoji("📝")
+                                .setValue("2"),
+                        ])
+                ])
 
-                await interaction.update({ embeds: [embed], components: [additionalSelect, select] })
-            } else if(page == "2") {
-                const embed = new EmbedBuilder()
-                    .setTitle("Mafia Bot Help » Player Commands")
-                    .setColor(Colors.Orange)
-                    .setDescription(playerCommandsPreGame);   
-
-                const additionalSelect = new ActionRowBuilder<StringSelectMenuBuilder>()
-                    .addComponents([
-                        new StringSelectMenuBuilder()
-                            .setCustomId(JSON.stringify({ name: "help", type: "sub", id: interaction.user.id }))
-                            .addOptions([
-                                new StringSelectMenuOptionBuilder()
-                                    .setLabel("In-Game Commands")
-                                    .setDescription("Commands for playing the game.")
-                                    .setEmoji("🎮")
-                                    .setValue("1"),
-                                new StringSelectMenuOptionBuilder()
-                                    .setLabel("Pre-Game Commands")
-                                    .setDescription("Commands for joining games, changing nickname, etc.")
-                                    .setEmoji("📝")
-                                    .setDefault()
-                                    .setValue("2"),
-                            ])
-                    ])
-
-                await interaction.update({ embeds: [embed], components: [additionalSelect, select] })
-            } else if(page == "3") {
-                const embed = new EmbedBuilder()
-                    .setTitle("Mafia Bot Help » Mod Commands")
-                    .setColor(Colors.Red)
-                    .setDescription(modCommandsInGame);   
-
-                const additionalSelect = new ActionRowBuilder<StringSelectMenuBuilder>()
-                    .addComponents([
-                        new StringSelectMenuBuilder()
-                            .setCustomId(JSON.stringify({ name: "help", type: "sub", id: interaction.user.id }))
-                            .addOptions([
-                                new StringSelectMenuOptionBuilder()
-                                    .setLabel("In-Game Commands")
-                                    .setDescription("Commands for running the game.")
-                                    .setEmoji("👷‍♂️")
-                                    .setDefault()
-                                    .setValue("3"),
-                                new StringSelectMenuOptionBuilder()
-                                    .setLabel("Pre-Game/Post-Game Commands")
-                                    .setDescription("Commands for creating games, archiving games, etc.")
-                                    .setEmoji("📝")
-                                    .setValue("4"),
-                                new StringSelectMenuOptionBuilder()
-                                    .setLabel("Extension Commands")
-                                    .setDescription("Commands for enabling and disabling extensions.")
-                                    .setEmoji("🔌")
-                                    .setValue("6"),
-                            ])
-                    ])
-
-                await interaction.update({ embeds: [embed], components: [additionalSelect, select] })
-            } else if(page == "4") {
-                const embed = new EmbedBuilder()
-                    .setTitle("Mafia Bot Help » Mod Commands")
-                    .setColor(Colors.Red)
-                    .setDescription(modCommandsPreGame);   
-
-                const additionalSelect = new ActionRowBuilder<StringSelectMenuBuilder>()
-                    .addComponents([
-                        new StringSelectMenuBuilder()
-                            .setCustomId(JSON.stringify({ name: "help", type: "sub", id: interaction.user.id }))
-                            .addOptions([
-                                new StringSelectMenuOptionBuilder()
-                                    .setLabel("In-Game Commands")
-                                    .setDescription("Commands for running the game.")
-                                    .setEmoji("👷‍♂️")
-                                    .setValue("3"),
-                                new StringSelectMenuOptionBuilder()
-                                    .setLabel("Pre-Game/Post-Game Commands")
-                                    .setDescription("Commands for creating games, archiving games, etc.")
-                                    .setEmoji("📝")
-                                    .setDefault()
-                                    .setValue("4"),
-                                new StringSelectMenuOptionBuilder()
-                                    .setLabel("Extension Commands")
-                                    .setDescription("Commands for enabling and disabling extensions.")
-                                    .setEmoji("🔌")
-                                    .setValue("6"),
-                            ])
-                    ])
-
-                await interaction.update({ embeds: [embed], components: [additionalSelect, select] })
-            } else if(page == "5") {
-                const embed = new EmbedBuilder()
-                    .setTitle("Mafia Bot Help » Setup Commands")
-                    .setColor(Colors.Yellow)
-                    .setDescription(setupCommands);
-
-                await interaction.update({ embeds: [embed], components: [select] })
-            } else if(page == "6") {
-                const embed = new EmbedBuilder()
-                    .setTitle("Mafia Bot Help » Mod Commands")
-                    .setColor(Colors.Red)
-                    .setDescription(extensionsCommands);
-
-                 const additionalSelect = new ActionRowBuilder<StringSelectMenuBuilder>()
-                    .addComponents([
-                        new StringSelectMenuBuilder()
-                            .setCustomId(JSON.stringify({ name: "help", type: "sub", id: interaction.user.id }))
-                            .addOptions([
-                                new StringSelectMenuOptionBuilder()
-                                    .setLabel("In-Game Commands")
-                                    .setDescription("Commands for running the game.")
-                                    .setEmoji("👷‍♂️")
-                                    .setValue("3"),
-                                new StringSelectMenuOptionBuilder()
-                                    .setLabel("Pre-Game/Post-Game Commands")
-                                    .setDescription("Commands for creating games, archiving games, etc.")
-                                    .setEmoji("📝")
-                                    .setValue("4"),
-                                new StringSelectMenuOptionBuilder()
-                                    .setLabel("Extension Commands")
-                                    .setDescription("Commands for enabling and disabling extensions.")
-                                    .setEmoji("🔌")
-                                    .setDefault()
-                                    .setValue("6"),
-                            ])
-                    ])
-
-                await interaction.update({ embeds: [embed], components: [additionalSelect, select] })
+            if(interaction.type != 'text' && interaction.isStringSelectMenu()) {
+                await interaction.update({ embeds: [embed], components: [additionalSelect, select] });
             } else {
-                const extension = extensions.find(extension => extension.name == page);
+                await interaction.reply({ embeds: [embed], components: [additionalSelect, select] });
+            }
+        } else if(page == "2") {
+            const embed = new EmbedBuilder()
+                .setTitle("Mafia Bot Help » Player Commands")
+                .setColor(Colors.Orange)
+                .setDescription(playerCommandsPreGame);   
 
-                if(extension == undefined) {
-                    throw new Error("Extension not found.");
-                } else {
-                    const embed = new EmbedBuilder()
-                        .setTitle("Mafia Bot Help » " + extension.name + " Extension")
-                        .setColor(Colors.Purple)
-                        .setDescription(extension.help);
+            const additionalSelect = new ActionRowBuilder<StringSelectMenuBuilder>()
+                .addComponents([
+                    new StringSelectMenuBuilder()
+                        .setCustomId(JSON.stringify({ name: "help", type: "sub", id: interaction.user.id }))
+                        .addOptions([
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel("In-Game Commands")
+                                .setDescription("Commands for playing the game.")
+                                .setEmoji("🎮")
+                                .setValue("1"),
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel("Pre-Game Commands")
+                                .setDescription("Commands for joining games, changing nickname, etc.")
+                                .setEmoji("📝")
+                                .setDefault()
+                                .setValue("2"),
+                        ])
+                ])
 
+            if(interaction.type != 'text' && interaction.isStringSelectMenu()) {
+                await interaction.update({ embeds: [embed], components: [additionalSelect, select] });
+            } else {
+                await interaction.reply({ embeds: [embed], components: [additionalSelect, select] });
+            }
+        } else if(page == "3") {
+            const embed = new EmbedBuilder()
+                .setTitle("Mafia Bot Help » Mod Commands")
+                .setColor(Colors.Red)
+                .setDescription(modCommandsInGame);   
+
+            const additionalSelect = new ActionRowBuilder<StringSelectMenuBuilder>()
+                .addComponents([
+                    new StringSelectMenuBuilder()
+                        .setCustomId(JSON.stringify({ name: "help", type: "sub", id: interaction.user.id }))
+                        .addOptions([
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel("In-Game Commands")
+                                .setDescription("Commands for running the game.")
+                                .setEmoji("👷‍♂️")
+                                .setDefault()
+                                .setValue("3"),
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel("Pre-Game/Post-Game Commands")
+                                .setDescription("Commands for creating games, archiving games, etc.")
+                                .setEmoji("📝")
+                                .setValue("4"),
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel("Extension Commands")
+                                .setDescription("Commands for enabling and disabling extensions.")
+                                .setEmoji("🔌")
+                                .setValue("6"),
+                        ])
+                ])
+
+            if(interaction.type != 'text' && interaction.isStringSelectMenu()) {
+                await interaction.update({ embeds: [embed], components: [additionalSelect, select] });
+            } else {
+                await interaction.reply({ embeds: [embed], components: [additionalSelect, select] });
+            }
+        } else if(page == "4") {
+            const embed = new EmbedBuilder()
+                .setTitle("Mafia Bot Help » Mod Commands")
+                .setColor(Colors.Red)
+                .setDescription(modCommandsPreGame);   
+
+            const additionalSelect = new ActionRowBuilder<StringSelectMenuBuilder>()
+                .addComponents([
+                    new StringSelectMenuBuilder()
+                        .setCustomId(JSON.stringify({ name: "help", type: "sub", id: interaction.user.id }))
+                        .addOptions([
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel("In-Game Commands")
+                                .setDescription("Commands for running the game.")
+                                .setEmoji("👷‍♂️")
+                                .setValue("3"),
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel("Pre-Game/Post-Game Commands")
+                                .setDescription("Commands for creating games, archiving games, etc.")
+                                .setEmoji("📝")
+                                .setDefault()
+                                .setValue("4"),
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel("Extension Commands")
+                                .setDescription("Commands for enabling and disabling extensions.")
+                                .setEmoji("🔌")
+                                .setValue("6"),
+                        ])
+                ])
+
+            if(interaction.type != 'text' && interaction.isStringSelectMenu()) {
+                await interaction.update({ embeds: [embed], components: [additionalSelect, select] });
+            } else {
+                await interaction.reply({ embeds: [embed], components: [additionalSelect, select] });
+            }
+        } else if(page == "5") {
+            const embed = new EmbedBuilder()
+                .setTitle("Mafia Bot Help » Setup Commands")
+                .setColor(Colors.Yellow)
+                .setDescription(setupCommands);
+
+            if(interaction.type != 'text' && interaction.isStringSelectMenu()) {
+                await interaction.update({ embeds: [embed], components: [select] });
+            } else {
+                await interaction.reply({ embeds: [embed], components: [select] });
+            }
+        } else if(page == "6") {
+            const embed = new EmbedBuilder()
+                .setTitle("Mafia Bot Help » Mod Commands")
+                .setColor(Colors.Red)
+                .setDescription(extensionsCommands);
+
+            const additionalSelect = new ActionRowBuilder<StringSelectMenuBuilder>()
+                .addComponents([
+                    new StringSelectMenuBuilder()
+                        .setCustomId(JSON.stringify({ name: "help", type: "sub", id: interaction.user.id }))
+                        .addOptions([
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel("In-Game Commands")
+                                .setDescription("Commands for running the game.")
+                                .setEmoji("👷‍♂️")
+                                .setValue("3"),
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel("Pre-Game/Post-Game Commands")
+                                .setDescription("Commands for creating games, archiving games, etc.")
+                                .setEmoji("📝")
+                                .setValue("4"),
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel("Extension Commands")
+                                .setDescription("Commands for enabling and disabling extensions.")
+                                .setEmoji("🔌")
+                                .setDefault()
+                                .setValue("6"),
+                        ])
+                ])
+
+            if(interaction.type != 'text' && interaction.isStringSelectMenu()) {
+                await interaction.update({ embeds: [embed], components: [additionalSelect, select] });
+            } else {
+                await interaction.reply({ embeds: [embed], components: [additionalSelect, select] });
+            }
+        } else {
+            const extension = extensions.find(extension => extension.name == page);
+
+            if(extension == undefined) {
+                throw new Error("Extension not found.");
+            } else {
+                const embed = new EmbedBuilder()
+                    .setTitle("Mafia Bot Help » " + extension.name + " Extension")
+                    .setColor(Colors.Purple)
+                    .setDescription(extension.help);
+
+                if(interaction.type != 'text' && interaction.isStringSelectMenu()) {
                     await interaction.update({ embeds: [embed], components: [select] });
+                } else {
+                    await interaction.reply({ embeds: [embed], components: [select] });
                 }
             }
         }
     }
 }
-
-const help = `This bot is primarly used through slash commands.  Each category of commands is listed below. Note: setup commands (⚒️) are admin only.
-
-----------***How to Play***----------
-
-1. Signup for a game with the signup button.
-2. Wait for mod to start the game to get mafia server invite.
-3. Follow instructions by mod in dms.
-4. Use player commands to play 👍.`
 
 const playerCommandsInGame = `**/players or ?players {game} {complete}** View remaining players of current mafia game (specify game name to view original signups). Complete option will also give all @.
 
