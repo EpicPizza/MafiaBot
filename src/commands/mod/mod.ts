@@ -47,7 +47,8 @@ export function ModCommand() {
             if((command.command.text.required && command.command.text.required.length != 0) || (command.command.text.optional && command.command.text.optional.length != 0)) {
                 const values = interaction.arguments.filter((argument, i) => i > 0);
 
-                const optionalLength = command.command.text.optional ? command.command.text.optional.length : 0;
+                const limited = !(command.command.text.optional && command.command.text.optional[command.command.text.optional.length - 1] == "*");
+                const optionalLength = command.command.text.optional ? (command.command.text.optional[command.command.text.optional.length - 1] == "*" ? 5000 : command.command.text.optional.length) : 0;
                 const requiredLength = command.command.text.required ? command.command.text.required.length : 0;
 
                 if(values.length > optionalLength + requiredLength || values.length < requiredLength) throw new Error(`Invalid argument for text command, ` + (command.description != undefined ? `**${command.description}**` : `${name}.`));
@@ -59,7 +60,20 @@ export function ModCommand() {
                         try {
                             if(i >= requiredLength && command.command.text.optional) {
                                 const part = command.command.text.optional[i - requiredLength];
-                                parsedValues.push(part === true ? values[i] : part.parse(values[i]));
+                                
+
+                                if(!limited && part != "*") {
+                                    parsedValues.push(part === true ? values[i] : part.parse(values[i]));
+                                    continue;
+                                }
+
+                                if(!limited && i - requiredLength == command.command.text.optional.length - 1) {
+                                    parsedValues.push(values[i]);
+                                } else if(!limited && i - requiredLength >= command.command.text.optional.length) {
+                                    parsedValues[parsedValues.length - 1] += " " + values[i];
+                                } else if(part != "*") {
+                                    parsedValues.push(part === true ? values[i] : part.parse(values[i]));
+                                }
                             } else if(command.command.text.required) {
                                 const part = command.command.text.required[i];
                                 parsedValues.push(part === true ? values[i] : part.parse(values[i]));

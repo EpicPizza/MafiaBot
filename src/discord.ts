@@ -1,7 +1,7 @@
 import { ActionRow, ActionRowBuilder, ActivityType, ButtonBuilder, ButtonStyle, ChannelType, Client, Collection, Colors, ContextMenuCommandBuilder, EmbedBuilder, Events, GatewayIntentBits, GuildCacheMessage, Message, MessageReplyOptions, Partials, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, TextChannel, WebhookClient } from "discord.js";
 import dotenv from 'dotenv';
 import fs from 'node:fs';
-import path from 'node:path';
+import path, { parse } from 'node:path';
 import { ZodAny, ZodAnyDef, ZodBoolean, ZodNull, ZodNumber, ZodString, ZodLiteral, ZodSchema, z, type ZodObject } from "zod";
 import { archiveMessage } from "./archive";
 import { checkFutureGrace, checkFutureLock } from "./utils/timing";
@@ -23,7 +23,7 @@ interface ExtendedClient extends Client {
     textCommands: Collection<string, {execute: Function, zod: TextCommandArguments, description?: string }>,
 }
 
-export type TextCommandArguments = { required?: (ZodSchema | true)[], optional?: (ZodSchema | true)[]};
+export type TextCommandArguments = { required?: (ZodSchema | true)[], optional?: (ZodSchema | true | "*")[]};
 
 export interface Command {
     name: string,
@@ -479,17 +479,30 @@ client.on(Events.MessageCreate, async (message) => {
         if((command.zod.required && command.zod.required.length != 0) || (command.zod.optional && command.zod.optional.length != 0)) {
             const values = message.content.indexOf(" ") == -1 ? [] : message.content.substring(message.content.indexOf(" ") + 1, message.content.length).split(" ") ;
 
-            const optionalLength = command.zod.optional ? command.zod.optional.length : 0;
+            const limited = !(command.zod.optional && command.zod.optional[command.zod.optional.length - 1] == "*");
+            const optionalLength = command.zod.optional ? (command.zod.optional[command.zod.optional.length - 1] == "*" ? 5000 : command.zod.optional.length) : 0;
             const requiredLength = command.zod.required ? command.zod.required.length : 0;
 
-            if(values.length > optionalLength + requiredLength || values.length < requiredLength) throw new Error(`Invalid arguments for text command, ${name}.` + (command.description ? "\n\n" + command.description : ""));
+            if( values.length > optionalLength + requiredLength || values.length < requiredLength) throw new Error(`Invalid arguments for text command, ${name}.` + (command.description ? "\n\n" + command.description : ""));
 
             if(values.length != 0) {
                 for(let i = 0; i < values.length; i++) {
                     try {
                         if(i >= requiredLength && command.zod.optional) {
                             const part = command.zod.optional[i - requiredLength];
-                            parsedValues.push(part === true ? values[i] : part.parse(values[i]));
+                            
+                            if(limited && part != "*") {
+                                parsedValues.push(part === true ? values[i] : part.parse(values[i]));
+                                continue;
+                            }
+
+                            if(!limited && i - requiredLength == command.zod.optional.length - 1) {
+                                parsedValues.push(values[i]);
+                            } else if(!limited && i - requiredLength >= command.zod.optional.length) {
+                                parsedValues[parsedValues.length - 1] += " " + values[i];
+                            } else if(part != "*") {
+                                parsedValues.push(part === true ? values[i] : part.parse(values[i]));
+                            }
                         } else if(command.zod.required) {
                             const part = command.zod.required[i];
                             parsedValues.push(part === true ? values[i] : part.parse(values[i]));
@@ -519,7 +532,9 @@ client.on(Events.MessageCreate, async (message) => {
                 await removeReactions(message);
 
                 await message.reply({ content: e.message as string });
-            } catch(e) {}
+            } catch(e) {
+                console.log(e);
+            }
         }
     } catch(e: any) {
         if(message.content.startsWith("?") && message.content.length > 1) {

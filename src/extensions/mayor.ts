@@ -9,6 +9,7 @@ import { Signups, getGameSetup } from "../utils/games";
 import { Global } from "../utils/main"
 import { User, getUser, getUserByChannel, getUserByName, getUsers, getUsersArray } from "../utils/user";
 import { checkMod } from "../utils/mod";
+import { Extension } from "../utils/extensions";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -21,7 +22,7 @@ const help = `This extension can support mayor in three different ways: hidden, 
 
 **?mayor check** List out all the mayors set. Must be run in dead chat channel.
 
-**?mayor reveal** Command used by player to reveal they are mayor.
+**?reveal** Command used by player to reveal they are mayor.
 
 **Additional Notes:** When running votes command in dead chat, hidden and secret mayors will be shown.`
 
@@ -32,6 +33,12 @@ module.exports = {
     description: "Includes mayors and similar roles in games.",
     priority: [ "onVote", "onVotes" ], //events that need a return can only have one extensions modifying it, this prevents multiple extensions from modifying the same event
     help: help,
+    shorthands: [
+        {
+            name: "reveal",
+            to: "reveal",
+        }
+    ],
     commands: [
         {
             name: "set",
@@ -254,7 +261,7 @@ module.exports = {
     },
     onHammer: async (global, setup, game, hammered: string) => {},
     onRemove: async (global, setup, game, removed: string) => {}
-}
+} satisfies Extension;
 
 function capitalize(input: string) {
     return input.substring(0, 1).toUpperCase() + input.substring(1, input.length).toLowerCase();
