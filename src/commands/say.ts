@@ -5,6 +5,8 @@ import { getUser, User } from "../utils/user";
 import { Command } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { z } from "zod";
+import { checkMod } from "../utils/mod";
+import { getSetup } from "../utils/setup";
 
 module.exports = {
     data: [
@@ -19,6 +21,10 @@ module.exports = {
     ] satisfies Data[],
 
     execute: async (interaction: Command) => {
+        const setup = await getSetup();
+
+        await checkMod(setup, interaction.user.id, interaction.message?.guild?.id ?? "");
+
         if(interaction.arguments.length < 3) throw new Error("No message to send?");
 
         const guild = client.guilds.cache.get(interaction.arguments[0] as string);
