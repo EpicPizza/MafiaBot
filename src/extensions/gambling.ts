@@ -523,7 +523,7 @@ module.exports = {
          * cache: { day: number, started: boolean, channel: null | TextChannel } - TextChannel may or may not be fetched depending if bot has fully intialized
          */
 
-        console.log("Extension", message);
+        //console.log("Extension", message);
 
         return;
 

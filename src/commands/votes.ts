@@ -80,7 +80,7 @@ async function handleVoteList(interaction: ChatInputCommandInteraction | Command
 
     const extensions = await getEnabledExtensions(global);
 
-    const extension = extensions.find(extension => extension.priority.includes("onVote"));
+    const extension = extensions.find(extension => extension.priority.includes("onVotes"));
 
     let message = { description: "", footer: "" };
 

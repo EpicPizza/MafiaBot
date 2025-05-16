@@ -278,131 +278,13 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
     }
 });
 
-const rateLimit = new Map<string, number[]>();
-
-let freeze = true;
 
 client.on(Events.MessageCreate, async (message) => {
     try {
-        if(message.author.id == process.env.OWNER && message.content == "freeze") {
-            freeze = !freeze;
-
-            if(!freeze) {
-                message.react("✅");
-            } else {
-                message.react("<:cross:1258228069156655259>");
-            }
-        }
-
-        if(message.content.toLowerCase().includes("ts pmo") && message.author.bot == false && message.guildId != "569988266657316884") {
-            await message.reply("ts pmo 🥀");
-        }
-
-        if(message.content.toLowerCase().includes("big boom") && message.author.bot == false && message.guildId != "569988266657316884") {
-            const index = message.content.toLowerCase().indexOf("big boom");
-
-            let numberString = "";
-
-            for(let i = index - 2; i >= 0; i--) {
-                if(!isNaN(parseInt(message.content.charAt(i)))) {
-                    numberString = message.content.charAt(i) + numberString;
-                } else {
-                    break;
-                }
-            }
-
-            let number = parseInt(numberString);
-
-            if(!(number <= 10 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 10;
-
-            for(let i = 0; i < number; i++) {
-                await new Promise((resolve) => {
-                    setTimeout(() => {
-                        resolve(true);
-                    }, 1000);
-                })
-
-                if(freeze) {
-                    return;
-                }
-
-                await message.channel.send("BOOM 💥");
-            }
-        }
-
-        if(message.content.toLowerCase().includes("big chomp") && message.author.bot == false  && message.guildId != "569988266657316884") {
-            const index = message.content.toLowerCase().indexOf("big chomp");
-
-            let numberString = "";
-
-            for(let i = index - 2; i >= 0; i--) {
-                if(!isNaN(parseInt(message.content.charAt(i)))) {
-                    numberString = message.content.charAt(i) + numberString;
-                } else {
-                    break;
-                }
-            }
-
-            let number = parseInt(numberString);
-
-            if(!(number <= 10 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 10;
-
-            for(let i = 0; i < number; i++) {
-                await new Promise((resolve) => {
-                    setTimeout(() => {
-                        resolve(true);
-                    }, 1000);
-                });
-
-                if(freeze) {
-                    return;
-                }
-
-                await message.channel.send("CHOMP");
-            }
-        }
-
-        if(message.content.toLowerCase().includes("big meow") && message.author.bot == false  && message.guildId != "569988266657316884") {
-            const index = message.content.toLowerCase().indexOf("big meow");
-
-            let numberString = "";
-
-            for(let i = index - 2; i >= 0; i--) {
-                if(!isNaN(parseInt(message.content.charAt(i)))) {
-                    numberString = message.content.charAt(i) + numberString;
-                } else {
-                    break;
-                }
-            }
-
-            let number = parseInt(numberString);
-
-            if(!(number <= 10 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 10;
-
-            for(let i = 0; i < number; i++) {
-                await new Promise((resolve) => {
-                    setTimeout(() => {
-                        resolve(true);
-                    }, 1000);
-                });
-
-                if(freeze) {
-                    return;
-                }
-
-                await message.channel.send("NO MEOW");
-            }
-        }
-
-
-        if(message.content.toLowerCase().startsWith("how long") && message.author.bot == false && message.guildId != "569988266657316884") {
-            await message.reply(message.content.replaceAll(" ", "").replaceAll("\t", "").replaceAll("\n", "").replaceAll("]", "").replaceAll("[", "").replaceAll(")", "").replaceAll("(", "").replaceAll(".", "").replaceAll("?", "").replaceAll("!", "").replaceAll("'", "").replaceAll('"', "").replaceAll("`", "").replaceAll("~", "").replaceAll(";", "").replaceAll(",", ""));
-        }
-
         if(!message.content.startsWith("?") || message.content.length < 2 || message.content.replace(/\?/g, "").length == 0) {
             await trackMessage(message, cache);
 
-            if(cache.started && !message.author.bot) await messageExtensions(cache.extensions, message, cache);
+            if(!message.author.bot) await messageExtensions(cache.extensions, message, cache);
 
             return;
         }

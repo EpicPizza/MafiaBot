@@ -31,7 +31,7 @@ module.exports = {
         }
     ],
     description: "Adds a skip option to the game.",
-    priority: [ "onVote" ], //events that need a return can only have one extensions modifying it, this prevents multiple extensions from modifying the same event
+    priority: [ "onVote", "onVotes" ], //events that need a return can only have one extensions modifying it, this prevents multiple extensions from modifying the same event
     help: help,
     commands: [
         {
@@ -84,6 +84,9 @@ module.exports = {
 
         const setup = await getSetup();
         const global = await getGlobal();
+
+        if(global.started == false) throw new Error("Game has not started.");
+
         const member = await setup.primary.guild.members.fetch(command.user.id);
         const game = await getGameByID(global.game ?? "");
 

@@ -292,6 +292,7 @@ async function handleLocking(interaction: ChatInputCommandInteraction | Command,
 
 async function handleLockingSelect(interaction: StringSelectMenuInteraction) {
     const setup = await getSetup();
+    const global = await getGlobal();
     const db = firebaseAdmin.getFirestore();
 
     const id = JSON.parse(interaction.customId) as { name: "future", type: boolean, through: string };
@@ -320,16 +321,15 @@ async function handleLockingSelect(interaction: StringSelectMenuInteraction) {
             .setTitle("Would like to also advance day once channel unlocks?")
             .setDescription(date == "now" ? "Channel will be unlocked immediently." : "Channel will unlock at <t:" + Math.round(date.valueOf() / 1000) + ":T>, <t:" + Math.round(date.valueOf() / 1000) + ":d>.")
             .setColor(Colors.Orange)
-            .setFooter({ text: "Game begins at day 1, do not advance if this is the first unlock that starts the game." })
 
         const row = new ActionRowBuilder<ButtonBuilder>()
             .setComponents([
                 new ButtonBuilder()
-                    .setLabel("Yes")
+                    .setLabel("Advance to Day " + (global.day + 1))
                     .setStyle(ButtonStyle.Success)
                     .setCustomId(JSON.stringify({ name: "unlock", value: date.valueOf().toString(), type: true, through: id.through, grace: grace })),
                 new ButtonBuilder()
-                    .setLabel("No")
+                    .setLabel("Stay on Day " + (global.day))
                     .setStyle(ButtonStyle.Danger)
                     .setCustomId(JSON.stringify({ name: "unlock", value: date.valueOf().toString(), type: false, through: id.through, grace: grace }))
             ])
