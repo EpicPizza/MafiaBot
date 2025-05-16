@@ -17,7 +17,7 @@ const help = `**?skip** Allows a player to skip vote.
 
 **?skipping hammer {on|off}** If autohammer is enabled or not.
 
-**?skipping type {hammer|nothing}** If number of votes reach hammer level, if it should skip day (hammer) or not (nothing). No effect if autohammer is off.
+**?skipping type {hammer|nothing}** If number of skip votes reach hammer level, if it should skip day (hammer) or not (nothing). No effect if autohammer is off.
 
 **?skipping check** See all settings.`
 
