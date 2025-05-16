@@ -9,8 +9,7 @@ import { Signups, getGameSetup } from "../utils/games";
 import { Global } from "../utils/main"
 import { User, getUser, getUserByChannel, getUserByName, getUsers, getUsersArray } from "../utils/user";
 import { checkMod } from "../utils/mod";
-import { Extension } from "../utils/extensions";
-import { hammerExtensions } from "../commands/vote";
+import { Extension, getEnabledExtensions } from "../utils/extensions";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -18,7 +17,9 @@ const help = `**?skip** Allows a player to skip vote.
 
 **?skipping hammer {on|off}** If autohammer is enabled or not.
 
-**?skipping type {hammer|nothing}** If number of votes reach hammer level, if it should skip day (hammer) or not (nothing). No effect if autohammer is off.`
+**?skipping type {hammer|nothing}** If number of votes reach hammer level, if it should skip day (hammer) or not (nothing). No effect if autohammer is off.
+
+**?skipping check** See all settings.`
 
 module.exports = {
     name: "Skip",
@@ -47,6 +48,9 @@ module.exports = {
             arguments: {
                 required: [ z.union([ z.literal('hammer'), z.literal('nothing') ]) ]
             },
+        }, {
+            name: "check",
+            arguments: {}
         }
     ] satisfies CommandOptions[],
     onStart: async (global, setup, game: Signups) => {
@@ -83,12 +87,7 @@ module.exports = {
          */
 
         const setup = await getSetup();
-        const global = await getGlobal();
-
-        if(global.started == false) throw new Error("Game has not started.");
-
         const member = await setup.primary.guild.members.fetch(command.user.id);
-        const game = await getGameByID(global.game ?? "");
 
         if(command.name == "hammer") {
             checkMod(setup, command.user.id, command.message.guildId ?? "");
@@ -99,7 +98,7 @@ module.exports = {
 
             const ref = db.collection('skip').doc('settings');
             
-            await ref.set({
+            await ref.update({
                 hammer: setting,
             });
 
@@ -113,12 +112,23 @@ module.exports = {
 
             const ref = db.collection('skip').doc('settings');
             
-            await ref.set({
-                hammer: setting,
+            await ref.update({
+                type: setting,
             });
 
             await command.message.react("✅");
+        } else if(command.name == "check") { 
+            const settings = await getSettings();
+
+            const embed = new EmbedBuilder()
+                .setTitle('Skip Settings')
+                .setDescription('Type: *' + settings.type + '*\nHammer: *' + settings.hammer + '*')
+
+            await command.reply({ embeds: [embed] });
         } else if(command.name == "vote") {
+            const global = await getGlobal();
+            const game = await getGameByID(global.game ?? "");
+
             if(global.locked == true) throw new Error("Game is locked!");
 
             if(global.grace == true) throw new Error("Game is in grace period.");
@@ -314,6 +324,24 @@ async function getSettings() {
 
     return {
         hammer: data.hammer as 'on' | 'off',
-        type: data.hammer as 'hammer' | 'nothing',
+        type: data.type as 'hammer' | 'nothing',
+    }
+}
+
+async function hammerExtensions(global: Global, setup: Setup, game: Signups, hammered: string) {
+    const extensions = await getEnabledExtensions(global);
+
+    const promises = [] as Promise<any>[];
+
+    extensions.forEach(extension => { promises.push(extension.onHammer(global, setup, game, hammered)) });
+
+    const results = await Promise.allSettled(promises);
+
+    const fails = results.filter(result => result.status == "rejected");
+
+    if(fails.length > 0) {
+        console.log(fails);
+
+        throw new Error(fails.reduce<string>((accum, current) => accum + (current as unknown as PromiseRejectedResult).reason + "\n", ""));
     }
 }

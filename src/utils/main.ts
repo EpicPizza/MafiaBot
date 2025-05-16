@@ -585,9 +585,9 @@ export async function startGame(interaction: ChatInputCommandInteraction | Comma
     }
 
     if(pings) {
-        await setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game is starting!");
+        await setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game has locked!");
     } else {
-        await setup.primary.chat.send("Game is starting!");
+        await setup.primary.chat.send("Game has locked!");
     }
 
     if(interaction.type != 'text') {
