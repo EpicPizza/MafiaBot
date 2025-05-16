@@ -224,21 +224,24 @@ module.exports = {
         if(!voted || vote == undefined) return { hammer: false, message: null };
 
         const user = users.find(user => user.id == vote.id);
-        const votesForHammer = votes.length;
+        const votedFor = users.find(user => user.id == vote.for);
 
-        if(!user) throw new Error("User not found.");
+        if(!user || !votedFor) throw new Error("User not found.");
 
-        let half = (users.length - 1) / 2;
+        const votesForHammer = votes.filter(vote => vote.for == votedFor.id).length;
+
+        let half = (global.players.length - 1) / 2;
         if(half % 1 == 0) half += 0.5;
+        half = Math.ceil(half);
 
         const settings = await getSettings();
 
-        if(vote.id == alt && settings.type == 'hammer' && settings.hammer == 'on') {
+        if(vote.for == alt && settings.type == 'hammer' && settings.hammer == 'on') {
             return { hammer: votesForHammer >= half, message: votesForHammer >= half ? "No one was voted out!" : null, hammered: alt };
-        } else if(vote.id == alt) {
+        } else if(vote.for == alt) {
             return { hammer: false, message: null, hammered: alt };
-        } else if(vote.id != alt && settings.hammer == 'on') {
-            return { hammer: votesForHammer >= half, message: votesForHammer >= half ? user.nickname + " has been hammered!" : null, hammered: user.id };
+        } else if(vote.for != alt && settings.hammer == 'on') {
+            return { hammer: votesForHammer >= half, message: votesForHammer >= half ? votedFor.nickname + " has been hammered!" : null, hammered: user.id };
         } else {
             return { hammer: false, message: null, hammered: user.id };
         }
