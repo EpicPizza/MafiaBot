@@ -192,8 +192,6 @@ module.exports = {
             }
 
             await setMessage(command.message.id);
-
-            await command.message.react("✅");
         }
 
         /**
