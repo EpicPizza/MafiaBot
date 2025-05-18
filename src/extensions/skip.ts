@@ -60,7 +60,7 @@ module.exports = {
 
         if(!game.signups.find(signup => signup == alt)) throw new Error("Skip Extension: Alt not found, extension will not work without alt. Please restart game with alt.");
 
-        const db = firebaseAdmin.getFirestore();
+        /*const db = firebaseAdmin.getFirestore();
 
         await deleteCollection(db, db.collection('skip'), 20);
 
@@ -69,7 +69,7 @@ module.exports = {
         await ref.set({
             hammer: 'on',
             type: 'nothing',
-        })
+        });*/
 
         return;
 
