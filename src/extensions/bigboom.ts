@@ -168,7 +168,7 @@ module.exports = {
             }
         }
 
-        if(message.content.toLowerCase().includes("ts pmo") && message.author.bot == false) {
+        if(message.content.toLowerCase().includes("ts pmo") && message.author.bot == false && message.guildId != "569988266657316884") {
             await message.reply("ts pmo 🥀");
         }
 
