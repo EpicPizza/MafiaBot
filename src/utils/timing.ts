@@ -1,6 +1,8 @@
 import { firebaseAdmin } from "../firebase";
-import { getGlobal, lockGame, unlockGame } from "./main";
+import { getGameByID, getGlobal, lockGame, unlockGame } from "./main";
 import { DateTime } from 'luxon';
+import { getSetup } from "./setup";
+import { getGameSetup } from "./games";
 const parseHumanRelativeTime = require('parse-human-relative-time')(DateTime)
 
 //i'll deal with this later; 
@@ -92,14 +94,10 @@ export async function checkFutureLock() {
 
     if(data.when == null) return;
 
-    if(data.when.toDate().valueOf() < new Date().valueOf()) {
+    if(data.when.toDate().valueOf() - (25 * 1000) < new Date().valueOf()) {
         try {
             if(data.type == global.locked) {
                 console.log("Already locked/unlocked.");
-            } else if(data.type) {
-                await lockGame();
-            } else {
-                await unlockGame(data.increment);
             }
 
             await db.collection('settings').doc('game').update({
@@ -109,8 +107,36 @@ export async function checkFutureLock() {
             await ref.update({
                 when: null,
             });
+
+            await new Promise((resolve) => {
+                setTimeout(() => {
+                    resolve(0);
+                }, data.when.toDate().valueOf() - new Date().valueOf() - (10 * 1000))
+            });
+                
+            const setup = await getSetup();
+
+            await setup.primary.chat.sendTyping();
+
+            await new Promise((resolve) => {
+                setTimeout(() => {
+                    resolve(0);
+                }, data.when.toDate().valueOf() - new Date().valueOf())
+            });
+
+            if(data.type) {
+                await lockGame();
+            } else {
+                await unlockGame(data.increment);
+            }
         } catch(e) {
             console.log(e);
+
+            const setup = await getSetup();
+            const global = await getGlobal();
+            const gameSetup = await getGameSetup(await getGameByID(global.game ?? ""), setup);
+
+            gameSetup.spec.send("<@&" + setup.secondary.mod.id + "> Failed to lock channel.");
 
             return;
         }
