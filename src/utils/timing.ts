@@ -95,19 +95,21 @@ export async function checkFutureLock() {
     if(data.when == null) return;
 
     if(data.when.toDate().valueOf() - (25 * 1000) < new Date().valueOf()) {
+        await db.collection('settings').doc('game').update({
+            grace: data.grace,
+        });
+
+        await ref.update({
+            when: null,
+        });
+       
+        if(data.type == global.locked) {
+            console.log("Already locked/unlocked.");
+
+            return;
+        }
+
         try {
-            if(data.type == global.locked) {
-                console.log("Already locked/unlocked.");
-            }
-
-            await db.collection('settings').doc('game').update({
-                grace: data.grace,
-            });
-
-            await ref.update({
-                when: null,
-            });
-
             await new Promise((resolve) => {
                 setTimeout(() => {
                     resolve(0);
