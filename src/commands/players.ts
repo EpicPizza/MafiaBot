@@ -38,6 +38,16 @@ module.exports = {
         },
         {
             type: 'text',
+            name: 'text-signups',
+            command: {
+                optional: [
+                    z.string().min(1).max(100).or(z.literal('complete')),
+                    z.literal('complete')
+                ]
+            }
+        },
+        {
+            type: 'text',
             name: 'text-pl',
             command: {
                 optional: [
