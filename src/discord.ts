@@ -289,6 +289,8 @@ client.on(Events.MessageCreate, async (message) => {
             return;
         }
 
+        if(message.author.bot) return;
+
         const name = message.content.substring(1, message.content.indexOf(" ") == -1 ? message.content.length : message.content.indexOf(" "));
 
         let command = client.textCommands.get(`text-${name}`);

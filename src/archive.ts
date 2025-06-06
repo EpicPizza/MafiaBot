@@ -1,10 +1,11 @@
 import { Attachment, AttachmentBuilder, Collection, EmbedBuilder, EmbedFooterOptions, Message, TextChannel, WebhookClient } from "discord.js";
 import Stream from 'stream';
 import * as https from 'https';
+import { getSetup } from "./utils/setup";
 
 //this code is from another project, i'm not sure if i even know how it works.
 
-export async function archiveMessage(channel: TextChannel, message: Message, webhook: WebhookClient) {
+export async function archiveMessage(channel: TextChannel, message: Message, webhook: WebhookClient, note = false) {
     channel.messages.cache.clear();
 
     let { newAttachments, fails } = await getAttachments(message.attachments);
@@ -32,12 +33,6 @@ export async function archiveMessage(channel: TextChannel, message: Message, web
 
     var embed = new EmbedBuilder()
 
-    const reactionsString = await getReactionsString(message);
-
-    if(reactionsString != null) {
-        embed.setDescription(reactionsString);
-    }
-
     const reference = await handleReference(message);
 
     var optionsWebhook = {
@@ -52,6 +47,16 @@ export async function archiveMessage(channel: TextChannel, message: Message, web
 
     if(message.editedTimestamp) {
         footer.text += "\nEdited";
+    }
+
+    if(note) {
+        const reactionsString = await getReactionsString(message);
+
+        if(reactionsString != null) {
+            embed.setDescription(reactionsString + "\n" + "https://discord.com/channels/" + message.guildId + "/" + message.channelId + "/" + message.id);
+        } else {
+            embed.setDescription("https://discord.com/channels/" + message.guildId + "/" + message.channelId + "/" + message.id);
+        }
     }
 
     embed.setFooter(footer);
@@ -158,12 +163,7 @@ interface Reaction {
 }
 
 async function getReactions(message: Message): Promise<Reaction[]> {
-    return [];
-
-    //Doesn't work on deleted messages. Maybe I'll add a reaction tracker.
-
-
-    /*return new Promise(async (resolve) => {
+    return new Promise(async (resolve) => {
         var index = 0;
         var fetchreactions = new Array();
         message.reactions.cache.map(async function reactionLister(reaction) {
@@ -193,7 +193,7 @@ async function getReactions(message: Message): Promise<Reaction[]> {
         if(message.reactions.cache.size == 0) {
             resolve([{id: null, emoji: null}]);
         }
-    });*/
+    });
 }
 
 function sleep(ms: number) {
