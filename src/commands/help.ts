@@ -297,7 +297,11 @@ const playerCommandsInGame = `**/players or ?players {game} {complete}** View re
 
 **/unvote or ?unvote** Remove your vote.
 
-**Snipe or ?snipe (reply to message)** Check edits for a message. Can be accessed in the apps section of message options.`;
+**Snipe or ?snipe (reply to message)** Check edits for a message. Can be accessed in the apps section of message options.
+
+**Note or ?note (reply to message)** Note a message to send to your DM or mafia chat. Can be accessed in the apps section of message options.
+
+**/note or ?note send {mafia | DM}** Set whether to send a note to your DM channel or mafia chat. Must be run in your dead chat DM.`;
 
 const playerCommandsPreGame = `**/nickname or ?nickname** Add/edit your nickname. You'll be also asked to add a nickname on signup if you're a new player.
 
