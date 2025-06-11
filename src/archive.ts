@@ -5,7 +5,7 @@ import { getSetup } from "./utils/setup";
 
 //this code is from another project, i'm not sure if i even know how it works.
 
-export async function archiveMessage(channel: TextChannel, message: Message, webhook: WebhookClient, note = false) {
+export async function archiveMessage(channel: TextChannel, message: Message, webhook: WebhookClient, note = false, name: string = "") {
     channel.messages.cache.clear();
 
     let { newAttachments, fails } = await getAttachments(message.attachments);
@@ -53,9 +53,9 @@ export async function archiveMessage(channel: TextChannel, message: Message, web
         const reactionsString = await getReactionsString(message);
 
         if(reactionsString != null) {
-            embed.setDescription(reactionsString + "\n" + "https://discord.com/channels/" + message.guildId + "/" + message.channelId + "/" + message.id);
+            embed.setDescription("Triggered by " + name + ".\n\n" + reactionsString + "\n" + "https://discord.com/channels/" + message.guildId + "/" + message.channelId + "/" + message.id);
         } else {
-            embed.setDescription("https://discord.com/channels/" + message.guildId + "/" + message.channelId + "/" + message.id);
+            embed.setDescription("Triggered by " + name + ".\n\n" + "https://discord.com/channels/" + message.guildId + "/" + message.channelId + "/" + message.id);
         }
     }
 

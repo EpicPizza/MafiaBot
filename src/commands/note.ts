@@ -1,5 +1,5 @@
 import { ActionRow, ActionRowBuilder, ApplicationCommandType, ButtonBuilder, ButtonStyle, ChannelType, Colors, CommandInteraction, ContextMenuCommandBuilder, ContextMenuCommandInteraction, Embed, EmbedBuilder, InteractionType, SlashCommandBuilder, SlashCommandStringOption, TextChannel, WebhookClient } from "discord.js";
-import { Data } from "../discord";
+import { Data, ReactionCommand } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import dnt from 'date-and-time';
 import meridiem from 'date-and-time/plugin/meridiem'
@@ -45,11 +45,18 @@ module.exports = {
                         { name: 'mafia', value: 'mafia' },
                     )
                 )
+        },
+        {
+            type: 'reaction',
+            name: 'reaction-note',
+            command: '📝'
         }
     ] satisfies Data[],
 
-    execute: async function(interaction: ContextMenuCommandInteraction | Command | CommandInteraction) {
-        if(interaction.type != "text") await interaction.deferReply({ ephemeral: true });
+    execute: async function(interaction: ContextMenuCommandInteraction | Command | CommandInteraction | ReactionCommand) {
+        if(interaction.type == 'reaction') await interaction.reaction.remove();
+
+        if(interaction.type != "text" && interaction.type != 'reaction') await interaction.deferReply({ ephemeral: true });
         
         const setup = await getSetup();
         const global = await getGlobal();
@@ -59,7 +66,7 @@ module.exports = {
 
         const db = firebaseAdmin.getFirestore();
 
-        if((interaction.type != 'text' && interaction.isChatInputCommand()) || (interaction.type == 'text' && interaction.arguments.length > 0)) {
+        if((interaction.type != 'text' && interaction.type != 'reaction' && interaction.isChatInputCommand()) || (interaction.type == 'text' && interaction.arguments.length > 0)) {
             const channelId = (interaction.type != 'text' && interaction.isChatInputCommand()) ? interaction.channelId :  interaction.message.channelId;
 
             if(channelId != user.channel) throw new Error("Must be run in dead chat!");
@@ -89,12 +96,12 @@ module.exports = {
             return;
         }
 
-        if(interaction.type != 'text' && !interaction.isMessageContextMenuCommand()) throw new Error("Unable to fetch message.");
+        if(interaction.type != 'text' && interaction.type != 'reaction' && !interaction.isMessageContextMenuCommand()) throw new Error("Unable to fetch message.");
 
-        const id = interaction.type == 'text' ? interaction.message.reference?.messageId : interaction.targetMessage.id;
+        const id = interaction.type == 'reaction' ? interaction.message.id : (interaction.type == 'text' ? interaction.message.reference?.messageId : interaction.targetMessage.id);
         if(id == undefined) throw new Error("Must refer to a message to note.");
 
-        if(interaction.type == 'text' ? interaction.message.channelId != setup.primary.chat.id : interaction.channelId != setup.primary.chat.id) throw new Error("Not main chat!");
+        if(interaction.type == 'text' || interaction.type == 'reaction' ? interaction.message.channelId != setup.primary.chat.id : interaction.channelId != setup.primary.chat.id) throw new Error("Not main chat!");
 
         const ref = db.collection('notes').doc(user.id); 
         const sendTo = ((await ref.get()).data()?.sendTo ?? 'DM') as 'DM' | 'mafia';
@@ -117,7 +124,7 @@ module.exports = {
             token: webhook.token,
         });
 
-        await archiveMessage((sendTo == 'mafia' ? mafiaChannel : channel), await setup.primary.chat.messages.fetch(id), client, true);
+        await archiveMessage((sendTo == 'mafia' ? mafiaChannel : channel), await setup.primary.chat.messages.fetch(id), client, true, user.nickname);
 
         client.destroy();
 
@@ -133,7 +140,7 @@ module.exports = {
             });
 
             await interaction.message.delete();
-        } else {
+        } else if(interaction.type != 'reaction') {
             await interaction.editReply("Noted.");
         }
     }

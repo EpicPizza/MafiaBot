@@ -1,4 +1,4 @@
-import { ActionRow, ActionRowBuilder, ActivityType, ButtonBuilder, ButtonStyle, ChannelType, Client, Collection, Colors, ContextMenuCommandBuilder, EmbedBuilder, Events, GatewayIntentBits, GuildCacheMessage, Message, MessageReplyOptions, Partials, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, TextChannel, WebhookClient } from "discord.js";
+import { ActionRow, ActionRowBuilder, ActivityType, ButtonBuilder, ButtonStyle, ChannelType, Client, Collection, Colors, ContextMenuCommandBuilder, EmbedBuilder, Events, GatewayIntentBits, GuildCacheMessage, GuildMember, Message, MessageReaction, MessageReplyOptions, PartialMessage, Partials, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, TextChannel, User, WebhookClient } from "discord.js";
 import dotenv from 'dotenv';
 import fs from 'node:fs';
 import path, { parse } from 'node:path';
@@ -21,6 +21,7 @@ dotenv.config();
 interface ExtendedClient extends Client {
     commands: Collection<string, Function | {execute: Function, zod: ZodObject<any> }>,
     textCommands: Collection<string, {execute: Function, zod: TextCommandArguments, description?: string }>,
+    reactionCommands: Collection<string, {execute: Function, name: string}>;
 }
 
 export type TextCommandArguments = { required?: (ZodSchema | true)[], optional?: (ZodSchema | true | "*")[]};
@@ -37,6 +38,16 @@ export interface Command {
 export interface CommandOptions {
     name: string,
     arguments: TextCommandArguments
+}
+
+export interface ReactionCommand {
+    name: string,
+    message: Message | PartialMessage,
+    type: 'reaction',
+    reply: Message["reply"],
+    author: Message["author"] 
+    user: User,
+    reaction: MessageReaction
 }
 
 export interface Cache {
@@ -78,6 +89,10 @@ export type Data = ({
     description?: string,
     name: string,
     command: TextCommandArguments,
+} | {
+    type: 'reaction',
+    name: string,
+    command: string,
 });
 
 const CustomId = z.object({
@@ -101,6 +116,7 @@ const client: ExtendedClient = new Client({
 
 client.commands = new Collection();
 client.textCommands = new Collection();
+client.reactionCommands = new Collection();
 
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js') || file.endsWith('.ts'));
@@ -121,6 +137,8 @@ for(const file of commandFiles) {
     data.forEach((command) => {
         if(command.type == 'text') {
             client.textCommands.set(command.name, { execute: execute, zod: command.command, description: command.description })
+        } else if(command.type == 'reaction') {
+            client.reactionCommands.set(command.command, { execute: execute, name: command.name });
         } else {
             client.commands.set(command.name, command.type == 'button' || command.type == 'modal' || command.type == 'select' ? ({ execute: execute, zod: command.command }) : execute)
         }
@@ -252,26 +270,59 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
             reaction = await reaction.fetch();
         }
 
-        const db = firebaseAdmin.getFirestore();
-
         if(user.bot == true) return;
+
+        const command = client.reactionCommands.get(reaction.emoji.toString());
+
+        if(command == undefined) {
+            const db = firebaseAdmin.getFirestore();
+
+            if(cache.channel && cache.channel.id != reaction.message.channelId) return;
+
+            if(!cache.started) return;
+
+            const ref = db.collection('day').doc(cache.day.toString()).collection('players').doc(user.id);
+
+            if((await ref.get()).exists) {
+                ref.update({
+                    reactions: FieldValue.arrayUnion({ timestamp: new Date().valueOf(), reaction: reaction.emoji.toString() })
+                })
+            } else {
+                ref.set({
+                    messages: 0,
+                    words: 0,
+                    reactions: FieldValue.arrayUnion({ timestamp: new Date().valueOf(), reaction: reaction.emoji.toString() })
+                })
+            }
+
+            return;
+        }
+
+        reaction.message = await reaction.message.fetch(true);
+        user = await user.fetch(true);
         
-        if(cache.channel && cache.channel.id != reaction.message.channelId) return;
+        try {
+            await command.execute({
+                name: command.name,
+                message: reaction.message,
+                type: 'reaction',
+                reply: (options: MessageReplyOptions) => { return reaction.message.reply(options); }, //for consistency with interactions
+                author: reaction.message.author,
+                user: user,
+                reaction: reaction,
+            } satisfies ReactionCommand);
+        } catch(e: any) {
+            try {
+                console.log(e);
 
-        if(!cache.started) return;
+                const dm = await client.users.cache.get(user.id)?.createDM();
 
-        const ref = db.collection('day').doc(cache.day.toString()).collection('players').doc(user.id);
-
-        if((await ref.get()).exists) {
-            ref.update({
-                reactions: FieldValue.arrayUnion({ timestamp: new Date().valueOf(), reaction: reaction.emoji.toString() })
-            })
-        } else {
-            ref.set({
-                messages: 0,
-                words: 0,
-                reactions: FieldValue.arrayUnion({ timestamp: new Date().valueOf(), reaction: reaction.emoji.toString() })
-            })
+                if(dm != undefined) {
+                    await dm.send({ content: e.message as string})
+                }
+            } catch(e) {
+                console.log(e);
+            }
         }
     } catch(e) {
         console.log(e);
