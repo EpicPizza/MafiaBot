@@ -18,11 +18,13 @@ export async function trackMessage(message: Message, cache: Cache) {
         ref.update({
             messages: FieldValue.increment(1),
             words: FieldValue.increment(message.content.split(" ").length),
+            images: FieldValue.increment(message.attachments.reduce((acc, value) => acc + (value.contentType?.startsWith("image") ? 1 : 0), 0))
         })
     } else {
         ref.set({
             messages: FieldValue.increment(1),
             words: FieldValue.increment(message.content.split(" ").length),
+            images: FieldValue.increment(message.attachments.reduce((acc, value) => acc + (value.contentType?.startsWith("image") ? 1 : 0), 0))
         })
     }
 }
