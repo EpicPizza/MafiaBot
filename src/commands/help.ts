@@ -287,7 +287,7 @@ module.exports = {
     }
 }
 
-const playerCommandsInGame = `**/players or ?players {game} {complete}** View remaining players of current mafia game (specify game name to view original signups). Complete option will also give all @.
+const playerCommandsInGame = `**/players or ?players {game} {complete} or ?players {day} {complete}** View remaining players of current mafia game (specify game name to view original signups or specify day to view players from the start of that day). Complete option will also give all @.
 
 **/votes or ?votes {day}** View current votes (and specify day to view votes from that day).
 
