@@ -62,7 +62,7 @@ export const RemoveCommand = {
             list.push(user);
         }
 
-        const user = list.find(user => user.nickname == capitalize(player));
+        const user = list.find(user => user.nickname.toLowerCase() == player.toLowerCase());
 
         if(!user) throw new Error("Player not found.");
 
