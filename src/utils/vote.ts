@@ -11,6 +11,7 @@ export interface Vote {
     timestamp: number,
 }
 
+// for vote history
 export async function addVoteLog(options: { id: string, message: string, day: number, type: string, for: string | null }) {
     const db = firebaseAdmin.getFirestore();
 
@@ -31,6 +32,7 @@ export async function addVoteLog(options: { id: string, message: string, day: nu
     }
 } 
 
+// for vote board
 export async function setVote(options: { id: string, for: string, day: number }) {
     const db = firebaseAdmin.getFirestore();
 
