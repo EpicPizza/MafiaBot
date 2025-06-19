@@ -198,7 +198,7 @@ module.exports = {
             const settings = await getSettings();
             if(settings.actual == true) throw new Error("Whispers are locked!");
 
-            const sendingTo = await getUserByName(capitalize(command.arguments[0] as string));
+            const sendingTo = await getUserByName(command.arguments[0] as string);
             if(sendingTo == undefined) throw new Error("Player not found");
 
             const fromSettings = await getPlayerSettings(player.id);
@@ -330,7 +330,7 @@ module.exports = {
             }
 
             const users = await Promise.all(nicknames.map(async (nickname) => {
-                const fetched = await getUserByName(capitalize(nickname));
+                const fetched = await getUserByName(nickname);
                 if(fetched == undefined) throw new Error("Nickname not found.");
 
                 return fetched;

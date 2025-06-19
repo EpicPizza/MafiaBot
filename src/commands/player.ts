@@ -115,7 +115,7 @@ module.exports = {
             }
             
             if(nicknameOption != null) {
-                user = await getUserByName(nicknameOption.substring(0, 1).toUpperCase() + nicknameOption.substring(1, nicknameOption.length).toLowerCase());
+                user = await getUserByName(nicknameOption);
             }
             
             if(userOption != null && user == undefined) {
@@ -148,7 +148,7 @@ module.exports = {
 
             const user = await getUser(interaction.user.id);
 
-            const fetch = (await getUserByName(interaction.fields.getTextInputValue('nickname').substring(0, 1).toUpperCase() + interaction.fields.getTextInputValue('nickname').substring(1, interaction.fields.getTextInputValue('nickname').length).toLowerCase()));
+            const fetch = await getUserByName(interaction.fields.getTextInputValue('nickname'));
 
             if(fetch != undefined && fetch.id != interaction.user.id) throw new Error("Duplicate names not allowed.");
 

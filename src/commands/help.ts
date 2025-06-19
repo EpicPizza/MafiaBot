@@ -357,6 +357,8 @@ const setupCommands = `**/setup mod** Gives mod roles in all three servers. Also
 **/setup permissions** Refreshes permissions in main channel.
 
 **/setup refresh** Refreshes signups for a game.
+
+**/setup update** Update usernames for lowercase support.
 `
 
 const extensionsCommands = `Extensions allow for added features or edited bot functionality. Mods can manage extensions before a game starts. Extensions currently only support text commands.

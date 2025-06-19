@@ -306,7 +306,7 @@ module.exports = {
                 } else if(item.name == "City Permit") {
                     const nickname = (command.arguments[2] as string);
 
-                    target = await getUserByName(nickname.substring(0, 1).toUpperCase() + nickname.substring(1).toLowerCase());
+                    target = await getUserByName(nickname);
 
                     if(target == undefined || global.players.find(player => player.id == (target as User).id) == null) return await command.reply("User not found.");
                 }

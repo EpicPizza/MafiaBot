@@ -3,7 +3,7 @@ import client, { Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { set, z } from "zod";
 import { getGlobal } from "../utils/main";
-import { User, getUser } from "../utils/user";
+import { User, getUser, updateUsers } from "../utils/user";
 import { checkSetup, getPartialSetup, getSetup } from "../utils/setup";
 import { refreshSignup } from "../utils/games";
 import { checkMod } from "../utils/mod";
@@ -93,6 +93,11 @@ module.exports = {
                     subcommand
                         .setName("permissions")
                         .setDescription("Refresh permissions.")
+                )
+                .addSubcommand(subcommand =>
+                    subcommand
+                        .setName("update")
+                        .setDescription("Update user nicknames.")
                 )
                 .addSubcommand(subcommand =>
                     subcommand
@@ -337,7 +342,13 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
 
         const subcommand = interaction.options.getSubcommand();
         
-        if(subcommand == "permissions") {
+        if(subcommand == "update") {
+            await interaction.deferReply({ ephemeral: true });
+
+            await updateUsers();
+
+            await interaction.editReply({ content: "Usernames updated." });
+        } else if(subcommand == "permissions") {
             await interaction.deferReply({ ephemeral: true });
 
             const setup = await getSetup();

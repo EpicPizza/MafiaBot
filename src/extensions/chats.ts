@@ -154,7 +154,7 @@ module.exports = {
             const chats = [] as User[];
 
             for(let i = 1; i < command.arguments.length; i++) {
-                const user = await getUserByName(capitalize(command.arguments[i] as string));
+                const user = await getUserByName(command.arguments[i] as string);
 
                 if(user == undefined) throw new Error(command.arguments[i] + " not found.");
 
@@ -228,7 +228,7 @@ module.exports = {
             const locked = data.locked;
             const channel = command.message.channel;
 
-            const user = await getUserByName(capitalize(command.arguments[0] as string));
+            const user = await getUserByName(command.arguments[0] as string);
 
             if(user == undefined) throw new Error(command.arguments[0] + "not found.");
 
