@@ -15,7 +15,7 @@ export async function getUserByName(name: string) {
 
     const ref = db.collection('users');
 
-    const docs = (await ref.where('nickname', '==', name).get()).docs;
+    const docs = (await ref.where('lName', '==', name.toLowerCase()).get()).docs;
 
     if(docs.length > 0) return docs[0].data() as User;
 
@@ -42,6 +42,7 @@ export async function createUser(id: string, nickname: string) {
     if((await ref.get()).exists) {
         await ref.update({
             nickname: nickname,
+            lName: nickname.toLowerCase(),
             id: id,
             emoji: false,
             settings: {
@@ -51,6 +52,7 @@ export async function createUser(id: string, nickname: string) {
     } else {
         await ref.set({
             nickname: nickname,
+            lName: nickname.toLowerCase(),
             id: id,
             emoji: false,
             settings: {
@@ -121,9 +123,27 @@ export async function editUser(id: string, options: { nickname?: string, emoji?:
     const ref = db.collection('users').doc(id);
 
     await ref.update({
-        ...(options.nickname ? { nickname: options.nickname } : {}),
+        ...(options.nickname ? { nickname: options.nickname, lName: options.nickname.toLowerCase() } : {}),
         ...(options.emoji ? { emoji: options.emoji } : {})
     })
+}
+
+export async function updateUsers() {
+    const db = firebaseAdmin.getFirestore();
+
+    const ref = db.collection('users');
+
+    const docs = (await ref.get()).docs;
+
+    const promises = new Array();
+
+    for(let i = 0; i < docs.length; i++) {
+        promises.push(docs[i].ref.update({
+            lName: docs[i].data().nickname.toLowerCase(),
+        }));
+    }
+
+    await Promise.allSettled(promises);
 }
 
 export async function getUser(id: string): Promise<User | undefined> {
