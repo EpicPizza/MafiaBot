@@ -212,6 +212,11 @@ module.exports = {
                                 .setDescription("Commands for enabling and disabling extensions.")
                                 .setEmoji("🔌")
                                 .setValue("6"),
+                            /*new StringSelectMenuOptionBuilder()
+                                .setLabel("Advance Commands")
+                                .setDescription("Extending Mafia Bot beyond intended behavior.")
+                                .setEmoji("")
+                                .setValue("7"),*/
                         ])
                 ])
 
@@ -325,7 +330,7 @@ const modCommandsPreGame =`**/games or ?games** See all games currently happenin
 
 **/mod kick or ?mod kick {nickname} {game}** Kicks a player from signups.
 
-**/mod spectator or ?mod spectator {@member}** Invites a spectator to dead and mafia server to spectate.
+**/mod spectator or ?mod spectator {@member} {remove}** Invites a spectator to dead and mafia server to spectate. Specify \`true\` to remove spectator. Ex: \`?mod spectator @Alex true\`
 
 **/mod archive or ?mod archive {name}** Removes the game from database and moves channels to archived category.`
 

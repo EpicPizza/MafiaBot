@@ -19,9 +19,16 @@ export const SpectatorCommand = {
                     .setName('member')
                     .setDescription('Member to add spectator.')
                     .setRequired(true)
+            )
+            .addBooleanOption(option => 
+                option 
+                    .setName('remove')
+                    .setDescription('If wanted, to remove spectator.')
+                    .setRequired(false)
             ),
         text: {
-            required: [ z.string().regex(/^<@\d+>$/) ]
+            required: [ z.string().regex(/^<@\d+>$/) ],
+            optional: [ z.coerce.boolean() ]
         } satisfies TextCommandArguments
     },
     execute: async (interaction: Command | ChatInputCommandInteraction) => {
@@ -39,9 +46,11 @@ export const SpectatorCommand = {
 
         if(spectator == undefined) throw new Error("A member must be specified");
 
+        const remove = interaction.type == 'text' ? interaction.arguments.length > 2 && interaction.arguments[2] === true : interaction.options.getBoolean('remove') === true;
+
         const global = await getGlobal();
 
-        if(global.players.filter(player => player.id == spectator).length > 0) throw new Error("Cannot give spectator to a player.");
+        if(global.players.filter(player => player.id == spectator).length > 0) throw new Error("Cannot give/remove spectator to a player.");
 
         const dm = await client.users.cache.get(spectator)?.createDM();
 
@@ -57,7 +66,7 @@ export const SpectatorCommand = {
 
         const dead = await setup.secondary.guild.members.fetch(spectator).catch(() => undefined);
 
-        if(dead == undefined) {
+        if(dead == undefined && remove == false) {
             const channel = setup.secondary.guild.channels.cache.filter(filter => filter.type == ChannelType.GuildText).at(0);
 
             if(channel == undefined || channel.type != ChannelType.GuildText) throw new Error("Unable to make invite for dead chat.");
@@ -72,13 +81,19 @@ export const SpectatorCommand = {
 
             message += "Dead Chat: https://discord.com/invite/" + invite.code + "\n";
         } else if(dead != undefined) {
-            await dead.roles.remove(setup.secondary.access);
-            await dead.roles.add(setup.secondary.spec);
+            if(remove) {
+                if(dead.kickable == false) throw new Error("Unable to kick out of dead chat.");
+
+                await dead.kick();
+            } else {
+                await dead.roles.remove(setup.secondary.access);
+                await dead.roles.add(setup.secondary.spec);
+            }
         }
 
         const mafia = await setup.tertiary.guild.members.fetch(spectator).catch(() => undefined);
     
-        if(mafia == undefined) {
+        if(mafia == undefined && remove == false) {
             const channel = setup.tertiary.guild.channels.cache.filter(filter => filter.type == ChannelType.GuildText).at(0);
 
             if(channel == undefined || channel.type != ChannelType.GuildText) throw new Error("Unable to make invite for dead chat.");
@@ -92,12 +107,20 @@ export const SpectatorCommand = {
             });
 
             message += "Mafia Chat: https://discord.com/invite/" + invite.code + "\n";
-        } else {
-            await mafia.roles.remove(setup.tertiary.access);
-            await mafia.roles.add(setup.tertiary.spec);
+        } else if(mafia != undefined) {
+            if(remove) {
+                if(mafia.kickable == false) throw new Error("Unable to kick out of dead chat.");
+
+                await mafia.kick();
+            } else {
+                await mafia.roles.remove(setup.tertiary.access);
+                await mafia.roles.add(setup.tertiary.spec);
+            }
         }
 
-        if(message == "") {
+        if(remove) { 
+            // do nothing
+        } else if(message == "") {
             dm.send("You're now a spectator, your roles have been adjusted.");
         } else {
             dm.send("You're now a spectator, here are invites to the servers you're not in:\n" + message);
@@ -105,9 +128,18 @@ export const SpectatorCommand = {
 
         if(interaction.type == 'text') {
             await removeReactions(interaction.message);
-            await interaction.reply({ content: "Spectator has been added. You may need to rerun this command after a game starts (since invites reset)." });
+           
+            if(remove) {
+                await interaction.reply("Spectator kicked.");
+            } else {
+                await interaction.reply({ content: "Spectator has been added. You may need to rerun this command after a game starts (since invites reset)." });
+            }
         } else {
-            await interaction.editReply({ content: "Spectator has been added. You may need to rerun this command after a game starts (since invites reset)." });
+            if(remove) {
+                await interaction.editReply("Spectator kicked.");
+            } else { 
+                await interaction.editReply({ content: "Spectator has been added. You may need to rerun this command after a game starts (since invites reset)." });
+            }
         }
     
     }
