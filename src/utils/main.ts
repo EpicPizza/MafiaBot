@@ -785,33 +785,26 @@ export async function endGame(interaction: ChatInputCommandInteraction | Command
 }
 
 export async function getGameID(name: string) {
-    const db = firebaseAdmin.getFirestore();
+    const game = await getGameByName(name);
 
-    const ref = db.collection('settings').doc('game').collection('games').where('name', '==', name);
+    if(game == null) return null;
 
-    const docs = (await ref.get()).docs;  
-
-    if(docs.length > 1) throw new Error("Database Error - Multiple games with the same name found.");
-
-    if(docs.length == 0) return null;
-
-    return docs[0].id;
+    return game.id;
 }
 
 export async function getGameByName(name: string) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('settings').doc('game').collection('games').where('name', '==', name);
+    const docs = (await db.collection('settings').doc('game').collection('games').get()).docs;
+    const games = docs.map(doc => doc.data());
+    
+    for(let i = 0; i < games.length; i++) {
+        if(games[i].name.toLowerCase() == name.toLowerCase()) {
+            return { ... games[i], id: docs[i].id } as Signups;
+        }
+    }
 
-    const docs = (await ref.get()).docs;
-
-    if(docs.length > 1) throw new Error("Database Error - Multiple games with the same name found.");
-
-    if(docs.length == 0) return null;
-
-    if(docs[0].data() == undefined) throw new Error("Game not found in database.");
-
-    return { ... docs[0].data(), id: docs[0].id } as Signups;
+    throw new Error("Game not found in database.");
 }
 
 export async function getGameByID(id: string) {
