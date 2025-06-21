@@ -1,4 +1,4 @@
-import { ActionRowBuilder, APIActionRowComponent, APIButtonComponent, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandSubcommandBuilder, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
+import { ActionRowBuilder, APIActionRowComponent, APIButtonComponent, APISelectMenuComponent, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, ComponentType, EmbedBuilder, Interaction, InteractionType, SlashCommandSubcommandBuilder, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { Command, TextCommandArguments } from "../../discord";
 import { getGlobal, lockGame, unlockGame } from "../../utils/main";
 import { DateTime } from "luxon";
@@ -84,8 +84,8 @@ export const GraceCommand = {
 
             select.addOptions(
                 new StringSelectMenuOptionBuilder()
-                    .setLabel(date.toFormat("h:mm a, L/d/yy"))
-                    .setDescription("Set grace to " + (grace ? "on" : "off") + " " + date.toFormat("h:mm a, L/d/yy") + ".")
+                    .setLabel(date.toFormat("h a, L/d/yy"))
+                    .setDescription("Set grace to " + (grace ? "on" : "off") + " " + date.toFormat("h a, L/d/yy") + ".")
                     .setValue(date.valueOf().toString()),
             )
         }
@@ -93,11 +93,64 @@ export const GraceCommand = {
         const row = new ActionRowBuilder<StringSelectMenuBuilder>()
             .addComponents(select)
 
+        const minuteRow = getMinuteRow();
+
         await interaction.reply({
             embeds: [embed],
             ephemeral: true,
-            components: [row]
+            components: [row, minuteRow]
         })
+    }
+}
+
+function getMinuteRow() {
+    const minuteSelect = new StringSelectMenuBuilder()
+            .setCustomId(JSON.stringify({ name: "minute" }))
+            .setPlaceholder("Change the minute of when to set grace to.");
+
+    for(let i = 0; i < 12; i++) {
+        minuteSelect.addOptions(
+            new StringSelectMenuOptionBuilder()
+                .setLabel("*:" + ( i < 2 ? "0" + "" + (i * 5) : i * 5))
+                .setValue((i * 5).toString())
+                .setDefault(i == 0),
+        )
+    }
+
+    const minuteRow = new ActionRowBuilder<StringSelectMenuBuilder>()
+            .addComponents(minuteSelect);
+
+    return minuteRow;
+}
+
+export const Minute = {
+    type: "select",
+    name: "select-minute",
+    command: z.object({
+        name: z.literal("minute"),
+    }),
+    execute: async (interaction: StringSelectMenuInteraction) => {
+        const value = interaction.values[0];
+
+        const rowComponents = (interaction.message.toJSON() as any).components as APIActionRowComponent<APIButtonComponent | APISelectMenuComponent>[]
+
+        for(let i = 0; i < rowComponents.length; i++) {
+            for(let j = 0; j < rowComponents[i].components.length; j++) {
+                const select = rowComponents[i].components[j];
+
+                if(!('style' in select && select.style == ButtonStyle.Link) && select.custom_id == interaction.customId && select.type == ComponentType.StringSelect) {
+                    select.options.forEach(option => {
+                        if(option.default) {
+                            option.default = false;
+                        } else if(option.value == value) {
+                            option.default = true;
+                        }
+                    });
+                }
+            }
+        }
+
+        await interaction.update({ components: rowComponents });
     }
 }
 
@@ -110,6 +163,32 @@ export const GraceSelect = {
         through: z.literal("text").or(z.literal("slash"))
     }),
     execute: handleLockingGrace
+}
+
+function getMinute(interaction: Interaction) {
+    if(!('message' in interaction) || interaction.message == null) return 0;
+
+    const rowComponents = (interaction.message.toJSON() as any).components as APIActionRowComponent<APIButtonComponent | APISelectMenuComponent>[];
+
+    for(let i = 0; i < rowComponents.length; i++) {
+        for(let j = 0; j < rowComponents[i].components.length; j++) {
+            const select = rowComponents[i].components[j];
+
+            if('custom_id' in select) {
+                console.log(JSON.parse(select.custom_id).name, select.type == ComponentType.StringSelect);
+            }
+
+            if('custom_id' in select && JSON.parse(select.custom_id).name == "minute" && select.type == ComponentType.StringSelect) {
+                for(let i = 0; i < select.options.length; i++) {
+                    if(select.options[i].default) {
+                        return parseInt(select.options[i].value);
+                    }
+                }
+            }
+        }
+    }
+
+    return 0;
 }
 
 export const ChangeGraceButton = {
@@ -266,14 +345,16 @@ async function handleLocking(interaction: ChatInputCommandInteraction | Command,
 
         select.addOptions(
             new StringSelectMenuOptionBuilder()
-                .setLabel(date.toFormat("h:mm a, L/d/yy"))
-                .setDescription((type ? "Lock" : "Unlock") + " the channel " + date.toFormat("h:mm a, L/d/yy") + ".")
+                .setLabel(date.toFormat("h a, L/d/yy"))
+                .setDescription((type ? "Lock" : "Unlock") + " the channel " + date.toFormat("h a, L/d/yy") + ".")
                 .setValue(date.valueOf().toString()),
         )
     }
 
     const row = new ActionRowBuilder<StringSelectMenuBuilder>()
         .addComponents(select)
+
+    const minuteRow = getMinuteRow();
 
     const grace = new ActionRowBuilder<ButtonBuilder>()
         .addComponents([
@@ -286,7 +367,7 @@ async function handleLocking(interaction: ChatInputCommandInteraction | Command,
     await interaction.reply({
         embeds: [embed],
         ephemeral: true,
-        components: [row, grace]
+        components: [row, minuteRow, grace]
     })
 }
 
@@ -299,7 +380,10 @@ async function handleLockingSelect(interaction: StringSelectMenuInteraction) {
 
     const value = interaction.values[0];
 
-    const date = value == "now" ? "now" : new Date(parseInt(value ?? new Date().valueOf()));
+    const minute = getMinute(interaction);
+    const minuteOffset = minute * 1000 * 60;
+
+    const date = value == "now" ? "now" : new Date(parseInt((value ?? new Date().valueOf())) + minuteOffset);
 
     const components = (interaction.message.toJSON() as any).components as APIActionRowComponent<APIButtonComponent>[];
 
@@ -385,9 +469,10 @@ async function handleLockingGrace(interaction: StringSelectMenuInteraction) {
 
     const value = interaction.values[0];
 
-    const date = value == "now" ? "now" : new Date(parseInt(value ?? new Date().valueOf()));
+    const minute = getMinute(interaction);
+    const minuteOffset = minute * 1000 * 60;
 
-    console.log(date == "now", id.grace);
+    const date = value == "now" ? "now" : new Date(parseInt((value ?? new Date().valueOf())) + minuteOffset);
 
     if(date == "now") {
         await db.collection('settings').doc('game').update({
