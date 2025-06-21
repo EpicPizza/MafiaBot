@@ -103,8 +103,15 @@ export const ConfirmAllignmentsButton = {
 
         await gameSetup.spec.send("Here is the invite link for mafia server: \nhttps://discord.com/invite/" + invite.code + "\nUse the **\/mod unlock** command to start the game when it's ready!");
 
-        await firebaseAdmin.getFirestore().collection('settings').doc('game').update({
+        const db = firebaseAdmin.getFirestore();
+
+        await db.collection('settings').doc('game').update({
             day: 1,
+        });
+
+        await db.collection('day').doc((1).toString()).set({
+            game: global.game,
+            players: global.players.map((player) => player.id),
         });
     }
 }
