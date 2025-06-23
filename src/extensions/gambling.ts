@@ -596,10 +596,8 @@ module.exports = {
                     toHammer = false;
                 }
             }
-            
-            return { hammer: false, message: "", hammered: target.id };
     
-            //return { hammer: toHammer, message: toHammer ? target.nickname + " has been hammered!" : null, hammered: target.id };
+            return { hammer: toHammer, message: toHammer ? target.nickname + " has been hammered!" : null, hammered: target.id };
     
             /**
              * hammer: boolean - Tells to hammer or not.
@@ -671,9 +669,7 @@ module.exports = {
         if(half % 1 == 0) half += 0.5;
         half = Math.ceil(half);
 
-        message.footer = "Autohammer is turned off.";
-
-        //message.footer = "Hammer is at " + half + " vote" + (half == 1 ? "" : "s") + "."
+        message.footer = "Hammer is at " + half + " vote" + (half == 1 ? "" : "s") + "."
         
         return message;
 
