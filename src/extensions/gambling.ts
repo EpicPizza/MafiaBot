@@ -239,7 +239,7 @@ module.exports = {
                 for(let i = 0; i < items.length; i++) {
                     const data = items[i].data();
 
-                    message += data.name + (data.activated ? " (Activated)" : "") + "\n";
+                    message += data.name + (data.activated ? " (Activated, Day " + data.day + ")" : "") + "\n";
                 }
 
                 const embed = new EmbedBuilder()
