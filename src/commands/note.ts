@@ -59,12 +59,14 @@ module.exports = {
     ] satisfies Data[],
 
     execute: async function(interaction: ContextMenuCommandInteraction | Command | CommandInteraction | ReactionCommand) {
+        const global = await getGlobal();
+        const setup = await getSetup();
+        
+        if(interaction.type == 'reaction' && interaction.message.guild?.id != setup.primary.guild.id) return;
+        
         if(interaction.type == 'reaction') await interaction.reaction.remove();
 
         if(interaction.type != "text" && interaction.type != 'reaction') await interaction.deferReply({ ephemeral: true });
-        
-        const setup = await getSetup();
-        const global = await getGlobal();
 
         const user = await getUser(interaction.user.id);
         if(user == undefined || !global.players.find(player => player.id == user.id)) throw new Error("You're not in this game!");

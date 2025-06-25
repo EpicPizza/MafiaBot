@@ -5,6 +5,7 @@ import dnt from 'date-and-time';
 import meridiem from 'date-and-time/plugin/meridiem'
 import { DateTime } from "luxon";
 import { Command } from "../discord";
+import { getSetup } from "../utils/setup";
 
 dnt.plugin(meridiem);
 
@@ -25,6 +26,10 @@ module.exports = {
     ] satisfies Data[],
 
     execute: async function(interaction: ContextMenuCommandInteraction | Command) {
+        const setup = await getSetup();
+        
+        if(interaction.type == 'text' ? interaction.message.guildId != setup.primary.guild.id : interaction.guildId != setup.primary.guild.id) throw new Error("Does not work outside of bag mafia main chat!");
+
         if(interaction.type != 'text' && !interaction.isMessageContextMenuCommand()) throw new Error("Unable to fetch message.");
 
         const db = firebaseAdmin.getFirestore();
