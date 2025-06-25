@@ -132,19 +132,6 @@ module.exports = {
          * incremented: boolean - Whether day has advanced or not.
          */
 
-        console.log("Extension Unlock", incremented);
-
-        if(incremented) {
-            const db = firebaseAdmin.getFirestore();
-            const activatedItems = await db.collection('items').where('activated', '==', true).get();
-
-            const batch = db.batch();
-            activatedItems.forEach(doc => {
-                batch.delete(doc.ref);
-            });
-            await batch.commit();
-        }
-
         return;
 
         /**
@@ -184,7 +171,7 @@ module.exports = {
                 if(data) {
                     const embed = new EmbedBuilder()
                         .setTitle("Balance")
-                        .setDescription("Your balance is " + data.balance + " nilla dollar" + (data.balance == 1 ? "" : "s") + ".")
+                        .setDescription("Your balance is " + data.balance + " nilla gold bar" + (data.balance == 1 ? "" : "s") + ".")
                         .setColor(Colors.Green);
     
                     return await command.reply({ embeds: [ embed ] });
@@ -193,7 +180,7 @@ module.exports = {
     
                     const embed = new EmbedBuilder()
                         .setTitle("Balance")
-                        .setDescription("Your balance is 0 nilla dollars.")
+                        .setDescription("Your balance is 0 gold bars.")
                         .setColor(Colors.Green);
     
                     return await command.reply({ embeds: [ embed ] });
@@ -239,7 +226,7 @@ module.exports = {
 
                 if(!result) return await command.reply("Transaction failed.");
 
-                await db.collection('items').add({ name: item.name, activated: false, id: dm.id });
+                await db.collection('items').add({ name: item.name, activated: false, id: dm.id, day: null });
 
                 await ref.update({ balance: data.balance - item.cost });
 
@@ -284,7 +271,7 @@ module.exports = {
 
                 if(item == undefined) return await command.reply("Item not found.");
 
-                await db.collection('items').add({ name: item.name, activated: false, id: dm.id });
+                await db.collection('items').add({ name: item.name, activated: false, id: dm.id, day: null });
 
                 await command.message.react("✅");
                 
@@ -324,9 +311,9 @@ module.exports = {
                         return false;
                     } else {
                        if(target == undefined) {
-                          transaction.update(doc.ref, { activated: true });
+                          transaction.update(doc.ref, { activated: true, day: global.day });
                        } else {
-                          transaction.update(doc.ref, { activated: true, target: target.id });
+                          transaction.update(doc.ref, { activated: true, target: target.id, day: global.day });
                        }
                     }
 
@@ -384,7 +371,7 @@ module.exports = {
 
                         if(!data) continue;
     
-                        message += data.name + (data.activated ? " (Activated)" : "") + ", ";
+                        message += data.name + (data.activated ? " (Activated, Day " + data.day + ")" : "") + ", ";
                     }
 
                     final += players[i].nickname + " - " + (message == "" ? "None" : message.substring(0, message.length - 2)) + "\n";
@@ -433,7 +420,7 @@ module.exports = {
 
                         if(!data) continue;
     
-                        message += data.name + (data.activated ? " (Activated)" : "") + ", ";
+                        message += data.name + (data.activated ? " (Activated, Day " + data.day + ")" : "") + ", ";
                     }
 
                     final += players[i].nickname + " - " + (message == "" ? "None" : message.substring(0, message.length - 2)) + "\n";
@@ -460,7 +447,7 @@ module.exports = {
             }
 
             if(command.name == "activated") {
-                const docs = (await db.collection('items').where('activated', '==', true).get()).docs;
+                const docs = (await db.collection('items').where('activated', '==', true).where('day', '==', global.day).get()).docs;
                 const players = await getUsersArray(global.players.map(player => player.id));
 
                 let final = "";
@@ -569,7 +556,7 @@ module.exports = {
             let docs = (await db.collection('items').get()).docs ?? [];
     
             let votesForHammer = votes.filter(v => v.for == vote.for).reduce((prev, vote) => {
-                const items = docs.filter(item => item.data().id == vote.id && item.data().name != "City Permit" && item.data().activated) ?? new Array();
+                const items = docs.filter(item => item.data().id == vote.id && item.data().name != "City Permit" && item.data().activated && item.data().day == global.day) ?? new Array();
     
                 let total = 0;
 
@@ -580,7 +567,7 @@ module.exports = {
                 return prev + total + 1;
             }, 0);
 
-            const added = docs.filter(item => item.data().name == "Common Vote" && item.data().activated).length;
+            const added = docs.filter(item => item.data().name == "Common Vote" && item.data().activated && item.data().day == global.day).length;
     
             let half = (users.length + added) / 2;
             if(half % 1 == 0) half += 0.5;
@@ -588,7 +575,7 @@ module.exports = {
             let toHammer = votesForHammer >= half;
 
             if(toHammer) {
-                const items = docs.filter(item => item.data().target == target.id && item.data().name == "City Permit" && item.data().activated) ?? new Array();
+                const items = docs.filter(item => item.data().target == target.id && item.data().name == "City Permit" && item.data().activated && item.data().day == global.day) ?? new Array();
         
                 console.log(items);
 
@@ -630,7 +617,7 @@ module.exports = {
             let count = 0;
 
             const voters = voted.reduce((previous, current) => {
-                const items = docs.filter(item => item.data().id == current.id && item.data().name != "City Permit" && item.data().activated) ?? new Array();
+                const items = docs.filter(item => item.data().id == current.id && item.data().name != "City Permit" && item.data().activated && item.data().day == day) ?? new Array();
 
                 count += 1 + items.length;
 
@@ -663,7 +650,7 @@ module.exports = {
             message.description = "No votes recorded.";
         }
 
-        const added = docs.filter(item => item.data().name == "Common Vote" && item.data().activated).length;
+        const added = docs.filter(item => item.data().name == "Common Vote" && item.data().activated && item.data().day == day).length;
     
         let half = (global.players.length + added) / 2;
         if(half % 1 == 0) half += 0.5;
