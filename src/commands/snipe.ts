@@ -62,7 +62,7 @@ module.exports = {
             .setTitle("Edits")
             .setColor(Colors.Red)
             .setDescription(edits.reduce((previous, current) => {
-                return previous += "[<t:" + Math.round(new Date(current.timestamp).valueOf() / 1000) + ":T>, <t:" + Math.round(new Date(current.timestamp).valueOf() / 1000) + ":d>] - " + current.content + "\n";
+                return previous += "[<t:" + Math.round(new Date(current.timestamp).valueOf() / 1000) + ":T>, <t:" + Math.round(new Date(current.timestamp).valueOf() / 1000) + ":d>] - `" + current.content.replaceAll("`", "'") + "`\n";
             }, ""));
 
         await interaction.reply({ embeds: [embed], components: rows });
