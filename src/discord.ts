@@ -540,9 +540,8 @@ client.on(Events.GuildMemberAdd, async (member) => {
 
         if(docs.length < 1) return;
 
-        const data = docs[0].data();
+        const data = docs.length > 0 ? docs[0].data() : undefined;
         const second = docs.length > 1 ? docs[1].data() : undefined;
-
         if(!data) return;
 
         console.log("STEP 2", data);
@@ -619,6 +618,8 @@ client.on(Events.GuildMemberAdd, async (member) => {
                 if(setup.tertiary.guild.id != member.guild.id) return;
 
                 await member.roles.add(setup.tertiary.access);
+
+                
                 break;
             case "mafia-mod":
                 if(second && second.type == "dead-mod" && setup.secondary.guild.id == member.guild.id) {

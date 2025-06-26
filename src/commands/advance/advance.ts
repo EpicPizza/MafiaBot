@@ -1,19 +1,17 @@
 import { ButtonInteraction, ChatInputCommandInteraction, InteractionType, SlashCommandBuilder, SlashCommandSubcommandBuilder, SlashCommandSubcommandGroupBuilder, StringSelectMenuInteraction } from "discord.js";
 import { Command, TextCommandArguments } from "../../discord";
-import { ChangeGraceButton, GraceCommand, GraceSelect, LockCommand, LockingSelect, Minute, UnlockButton, UnlockCommand } from "./lock";
 import { ZodObject, ZodSchema, z } from "zod";
-import { CloseCommand, OpenCommand, ReactivateButton, SignupsCommand } from "./signups";
-import { ArchiveCommand, CreateCommand } from "./game";
-import { EndCommand } from "./end";
-import { CancelButton, StartButton, StartCommand } from "./start";
-import { KickCommand, SpectatorCommand } from "./invite";
-import { RemoveCommand } from "./remove";
-import { ChangeAlignmentButton, ConfirmAllignmentsButton } from "./alignments";
 import { ExtensionCommand } from "./extension";
+import { TriggerCommand } from "./trigger";
+import { AddCommand } from "./add";
+import { MafiaCommand } from "./mafia";
+import { ClearCommand, DayCommand } from "./day";
+import { KillCommand } from "./kill";
+import { VoteCommand } from "./vote";
 
-export function ModCommand() {
-    const commands = [ LockCommand, UnlockCommand, CloseCommand, OpenCommand, CreateCommand, EndCommand, StartCommand, SignupsCommand, SpectatorCommand, KickCommand, RemoveCommand, ExtensionCommand, ArchiveCommand, GraceCommand ] as { name: string, description?: string, execute: Function, command: { slash: SlashCommandSubcommandBuilder | SlashCommandSubcommandGroupBuilder, text: TextCommandArguments } }[];
-    const interactions = [ LockingSelect, UnlockButton, ReactivateButton, ConfirmAllignmentsButton, ChangeAlignmentButton, StartButton, CancelButton, GraceSelect, ChangeGraceButton, Minute ] as { name: string, type: string, command: ZodObject<any>, execute: Function }[];
+export function AdvanceCommand() {
+    const commands = [ ExtensionCommand, TriggerCommand, AddCommand, MafiaCommand, DayCommand, ClearCommand, KillCommand, VoteCommand ] as { name: string, description?: string, execute: Function, command: { slash: SlashCommandSubcommandBuilder | SlashCommandSubcommandGroupBuilder, text: TextCommandArguments } }[];
+    const interactions = [  ] as { name: string, type: string, command: ZodObject<any>, execute: Function }[];
 
     function getBuilders() {
         return commands.map(command => command.command.slash)
@@ -26,7 +24,7 @@ export function ModCommand() {
     function getTextCommand() {
         return {
             type: "text" as "text",
-            name: "text-mod",
+            name: "text-adv",
             command: {
                 required: [ z.string().min(1).max(20) ],
                 optional: Array(200).fill(true)
@@ -39,7 +37,7 @@ export function ModCommand() {
 
         const command = commands.find(command => command.name == name);
 
-        if(command == undefined) return await interaction.reply("Mod subcommand not found.");
+        if(command == undefined) return await interaction.reply("Advance subcommand not found.");
 
         if(interaction.type == 'text') {
             const parsedValues = [] as (number | string | boolean)[];
@@ -98,7 +96,7 @@ export function ModCommand() {
 
         const command = interactions.find(interaction => interaction.name == name);
 
-        if(command == undefined) return await interaction.reply("Mod interaction not found.");
+        if(command == undefined) return await interaction.reply("Advance interaction not found.");
 
         await command.execute(interaction);
     }

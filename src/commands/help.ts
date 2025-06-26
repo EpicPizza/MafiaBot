@@ -63,7 +63,7 @@ module.exports = {
                             .setLabel("Mod Commands")
                             .setDescription("Commands for creating games, adding spectators, running games, etc.")
                             .setEmoji("📡")
-                            .setDefault(page == "3" || page == "4" || page == "6")
+                            .setDefault(page == "3" || page == "4" || page == "6" || page == "7")
                             .setValue((global.started ? 3 : 4).toString()),
                         new StringSelectMenuOptionBuilder()
                             .setLabel("Setup Commands")
@@ -177,6 +177,11 @@ module.exports = {
                                 .setDescription("Commands for enabling and disabling extensions.")
                                 .setEmoji("🔌")
                                 .setValue("6"),
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel("Advance Commands")
+                                .setDescription("Extending Mafia Bot beyond intended behavior.")
+                                .setEmoji("⌨️")
+                                .setValue("7"),
                         ])
                 ])
 
@@ -212,11 +217,11 @@ module.exports = {
                                 .setDescription("Commands for enabling and disabling extensions.")
                                 .setEmoji("🔌")
                                 .setValue("6"),
-                            /*new StringSelectMenuOptionBuilder()
+                            new StringSelectMenuOptionBuilder()
                                 .setLabel("Advance Commands")
                                 .setDescription("Extending Mafia Bot beyond intended behavior.")
-                                .setEmoji("")
-                                .setValue("7"),*/
+                                .setEmoji("⌨️")
+                                .setValue("7"),
                         ])
                 ])
 
@@ -263,6 +268,51 @@ module.exports = {
                                 .setEmoji("🔌")
                                 .setDefault()
                                 .setValue("6"),
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel("Advance Commands")
+                                .setDescription("Extending Mafia Bot beyond intended behavior.")
+                                .setEmoji("⌨️")
+                                .setValue("7"),
+                        ])
+                ])
+
+            if(interaction.type != 'text' && interaction.isStringSelectMenu()) {
+                await interaction.update({ embeds: [embed], components: [additionalSelect, select] });
+            } else {
+                await interaction.reply({ embeds: [embed], components: [additionalSelect, select] });
+            }
+        } else if(page == "7") {
+            const embed = new EmbedBuilder()
+                .setTitle("Mafia Bot Help » Mod Commands")
+                .setColor(Colors.Red)
+                .setDescription(advanceCommands);
+
+            const additionalSelect = new ActionRowBuilder<StringSelectMenuBuilder>()
+                .addComponents([
+                    new StringSelectMenuBuilder()
+                        .setCustomId(JSON.stringify({ name: "help", type: "sub", id: interaction.user.id }))
+                        .addOptions([
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel("In-Game Commands")
+                                .setDescription("Commands for running the game.")
+                                .setEmoji("👷‍♂️")
+                                .setValue("3"),
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel("Pre-Game/Post-Game Commands")
+                                .setDescription("Commands for creating games, archiving games, etc.")
+                                .setEmoji("📝")
+                                .setValue("4"),
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel("Extension Commands")
+                                .setDescription("Commands for enabling and disabling extensions.")
+                                .setEmoji("🔌")
+                                .setValue("6"),
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel("Advance Commands")
+                                .setDescription("Extending Mafia Bot beyond intended behavior.")
+                                .setEmoji("⌨️")
+                                .setDefault()
+                                .setValue("7"),
                         ])
                 ])
 
@@ -368,4 +418,28 @@ const extensionsCommands = `Extensions allow for added features or edited bot fu
 **/mod extension enable {extension} or ?mod extension enable {extension}** - Enable an extension. Some extensions cannot be enabled at the same time if they modify the same bot behavior.
 
 **/mod extension disable {extension} or ?mod extension disable {extension}** - Disable an extension.
+`
+const advanceCommands = `# ⚠️ WARNING
+## Some of these commands may cause unintended behavior or even break the bot. Use these commands carefully.
+** **
+
+**/advance add or ?adv add {player}** Add a player midgame. Only requirement is that the player must have set a nickname.
+
+**/advance mafia or ?adv mafia {player}** Convert a player to mafia. Creates an invite to send to the player and updates alignment accordingly.
+
+**/advance kill or ?adv kill {player}** Does not add spectator roles immediently after removing. Will kick player out of the mafia server if they are mafia. Use **/mod spectator or ?mod spectator** to add spectator roles to them later or ending the game will add spectator roles as well.
+
+**/advance set or ?adv set {day} {players: true|false}** Set the current day. Setting players to true will retrack the current players on the selected day.
+
+**/advance clear or ?adv clear {day}** Clear stats, votes, and tracked players from selected day. To retrack players, use **/advance set or ?adv set** on the same day with players true.
+
+**/advance trigger or ?adv trigger {player}** Trigger a hammer on a player as if they were actually hammered. Will call hammer extensions accordingly.
+
+**/advance vote or ?adv vote {player} {add|remove} {for}** Add/remove a vote as if the player was voting themselves. Will send a message in main chat notifying players about the vote. History will point to this main chat message.
+
+⚠️ WARNING: Some extensions handle being enabled/disabled midgame better than others. Some may break entirely. Run with caution.
+
+**/advance extension enable or ?adv extension enable {name} {start: true|false}** Enable an extenion midgame. Start: whether not to run the extension's start function.
+
+**/advance extension disable or ?adv extension disable {name} {end: true|false}** Enable an extenion midgame. End: whether not to run the extension's end function.
 `

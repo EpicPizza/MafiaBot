@@ -1,14 +1,15 @@
 import { ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandSubcommandBuilder, SlashCommandSubcommandGroupBuilder } from "discord.js";
 import { Command, TextCommandArguments } from "../../discord";
 import { z } from "zod";
-import { endGame, getGlobal, setAllignments, startGame } from "../../utils/main";
+import { endGame, getGameByID, getGlobal, setAllignments, startGame } from "../../utils/main";
 import { extensions } from "../../utils/extensions";
 import { firebaseAdmin } from "../../firebase";
 import { FieldValue } from "firebase-admin/firestore";
+import { getSetup } from "../../utils/setup";
 
 export const ExtensionCommand = {
     name: "extension",
-    description: "?mod extension {enabled | disable | list} *{name}*",
+    description: "?adv extension {enabled | disable} *{name}* {start/end: true|false}",
     command: {
         slash: new SlashCommandSubcommandGroupBuilder()
             .setName("extension")
@@ -24,6 +25,12 @@ export const ExtensionCommand = {
                             .setRequired(true)
                             .setAutocomplete(true)    
                     )
+                    .addBooleanOption(option =>
+                        option
+                            .setName('start')
+                            .setDescription("Whether to run start function or not.")
+                            .setRequired(true)
+                    )
             )
             .addSubcommand(subcommand =>
                 subcommand 
@@ -36,15 +43,15 @@ export const ExtensionCommand = {
                             .setRequired(true)
                             .setAutocomplete(true)    
                     )
-            )
-            .addSubcommand(subcommand =>
-                subcommand 
-                    .setName("list")
-                    .setDescription("List all enabled and disabled extension.")
+                    .addBooleanOption(option =>
+                        option
+                            .setName('end')
+                            .setDescription("Whether to run end function or not.")
+                            .setRequired(true)
+                    )
             ),
         text: {
-            required: [ z.string().min(1).max(100) ],
-            optional: [ z.string().min(1).max(100) ]
+            required: [ z.string().min(1).max(100), z.string().min(1).max(100), z.coerce.boolean() ],
         } satisfies TextCommandArguments
     },
     execute: async (interaction: Command | ChatInputCommandInteraction) => {
@@ -52,24 +59,20 @@ export const ExtensionCommand = {
 
         const extension = interaction.type == 'text' ? interaction.arguments[2] as string : interaction.options.getString("extension");
         const command = interaction.type == 'text' ? interaction.arguments[1] as string : interaction.options.getSubcommand();
+        const start = interaction.type == 'text' ? interaction.arguments[3] as boolean : interaction.options.getBoolean("start");
+        const end = interaction.type == 'text' ? interaction.arguments[3] as boolean : interaction.options.getBoolean("end");
 
-        if(command == null) throw new Error("Extension command not specified.");
-        if(command != 'list' && extension == null) throw new Error("Extension name not specified.");
+        console.log(interaction.type == 'text' ? interaction.arguments : []);
+        console.log(start, end);
+
+        if(command == null) throw new Error("Arguments not specified.");
+        if(extension == null) throw new Error("Extension name not specified.");
 
         const enabled = extensions.filter(extension => global.extensions.find(enabled => enabled == extension.name));
         const disabled = extensions.filter(extension => !global.extensions.find(enabled => enabled == extension.name));
 
-        if(command == "list" || extension == null) {
-            const embed = new EmbedBuilder()
-                .setTitle("Extensions")
-                .setColor(Colors.Purple)
-                .setDescription(
-                    extensions.reduce((previous, current) => previous + "\n\n" + (enabled.find(extension => extension.name == current.name) ? ":white_check_mark: " : "<:cross:1258228069156655259> ") + "**" + current.name + " Extension**\n" + current.description, "")
-                )
-
-            interaction.reply({ embeds: [embed], ephemeral: true });
-        } else if(command == "enable") {
-            if(global.started) throw new Error("Cannot enable or disable extensions if the game has already started.");
+        if(command == "enable") {
+            //if(global.started) throw new Error("Cannot enable or disable extensions if the game has already started."); ADVANCE?
             
             const enabling = disabled.find(disabledExtension => disabledExtension.name.toLowerCase() == extension.toLowerCase() );
 
@@ -87,7 +90,14 @@ export const ExtensionCommand = {
 
             await ref.update({
                 extensions: FieldValue.arrayUnion(extension.substring(0, 1).toUpperCase() + extension.substring(1, extension.length).toLowerCase())
-            });            
+            });          
+            
+            if(start === true) {
+                const setup = await getSetup();
+                const game = await getGameByID(global.game ?? "---");
+                
+                await enabling.onStart(global, setup, game);
+            }
 
             if(interaction.type == 'text') {
                 await interaction.message.react("✅");
@@ -95,9 +105,11 @@ export const ExtensionCommand = {
                 await interaction.reply({ content: "Extension enabled.", ephemeral: true })
             }
         } else if(command == "disable") {
-            if(global.started) throw new Error("Cannot enable or disable extensions if the game has already started.");
+            //if(global.started) throw new Error("Cannot enable or disable extensions if the game has already started."); //ADVANCE?
 
-            if(disabled.find(disabledExtension => disabledExtension.name.toLowerCase() == extension.toLowerCase() )) throw new Error("Extension already disabled.");
+            const disabling = enabled.find(enabledExtension => enabledExtension.name.toLowerCase() == extension.toLowerCase() );
+
+            if(disabling == undefined || disabled.find(disabledExtension => disabledExtension.name.toLowerCase() == extension.toLowerCase() )) throw new Error("Extension already disabled.");
 
             const db = firebaseAdmin.getFirestore();
 
@@ -106,6 +118,13 @@ export const ExtensionCommand = {
             await ref.update({
                 extensions: FieldValue.arrayRemove(extension.substring(0, 1).toUpperCase() + extension.substring(1, extension.length).toLowerCase())
             });     
+
+            if(end === true) {
+                const setup = await getSetup();
+                const game = await getGameByID(global.game ?? "---");
+                
+                await disabling.onEnd(global, setup, game);
+            }
 
             if(interaction.type == 'text') {
                 await interaction.message.react("✅");
