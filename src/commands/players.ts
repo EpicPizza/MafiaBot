@@ -1,11 +1,11 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, Colors, EmbedBuilder, AutocompleteInteraction } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, Colors, EmbedBuilder, AutocompleteInteraction, ButtonBuilder, ButtonStyle, ActionRowBuilder, ButtonInteraction } from "discord.js";
 import { Data } from "../discord";
 import { getGameByName, getGlobal } from "../utils/main";
 import { getUser, getUsers, getUsersArray } from "../utils/user";
-import { getGames } from "../utils/games";
 import { z } from "zod";
 import { Command } from "../discord";
 import { firebaseAdmin } from "../firebase";
+import { getSetup } from "../utils/setup";
 
 module.exports = {
     data: [
@@ -61,6 +61,15 @@ module.exports = {
                     z.literal('complete')
                 ]
             }
+        },
+        {
+            type: 'button',
+            name: 'button-players',
+            command: z.object({
+                name: z.literal('players'),
+                game: z.string(),
+                complete: z.boolean(),
+            })
         }
     ] satisfies Data[],
 
@@ -83,17 +92,17 @@ module.exports = {
     }
 }
 
-async function handlePlayerList(interaction: ChatInputCommandInteraction | Command) {
+async function handlePlayerList(interaction: ChatInputCommandInteraction | Command | ButtonInteraction) {
     const global = await getGlobal();
 
-    const complete = interaction.type == 'text' ? interaction.arguments[1] == "complete" || interaction.arguments[0] == "complete" : interaction.options.getBoolean('complete') ?? false;
+    const complete = 'customId' in interaction ? JSON.parse(interaction.customId).complete as boolean : interaction.type == 'text' ? interaction.arguments[1] == "complete" || interaction.arguments[0] == "complete" : interaction.options.getBoolean('complete') ?? false;
 
     let users = [] as { nickname: string, id: string }[];
 
-    const reference = interaction.type == 'text' ? interaction.arguments[0] == "complete" ? null : interaction.arguments[0] as string | number | null ?? null : interaction.options.getString("game");
-    const day = interaction.type == 'text' ? (typeof reference == "number" ? reference : null) : interaction.options.getInteger("day");
+    let reference = 'customId' in interaction ? JSON.parse(interaction.customId).game as string : interaction.type == 'text' ? interaction.arguments[0] == "complete" ? null : interaction.arguments[0] as string | number | null ?? null : interaction.options.getString("game");
+    const day = 'customId' in interaction ? null : interaction.type == 'text' ? (typeof reference == "number" ? reference : null) : interaction.options.getInteger("day");
 
-    console.log(typeof reference);
+    const games = await getGames();
 
     if(typeof reference == 'string') {
         const game = await getGameByName(reference);
@@ -102,18 +111,61 @@ async function handlePlayerList(interaction: ChatInputCommandInteraction | Comma
 
         users = await getUsersArray(game.signups);  
     } else if(day != null) {
-        if(global.started == false) throw new Error("Game has not started.");
+         const db = firebaseAdmin.getFirestore();
 
-        const db = firebaseAdmin.getFirestore();
+        if(global.started == false) throw new Error("Game has not started.");
 
         const currentPlayers = (await db.collection('day').doc(day.toString()).get()).data()?.players as string[] | undefined ?? [];
 
         if(currentPlayers.length == 0) throw new Error("No data available.");
 
         users = await getUsersArray(currentPlayers);
-    } else {
-        if(global.started == false) throw new Error("Game has not started.");
+    } else if(global.started == false && games.length == 1) {
+        const game = await getGameByName(games[0].name);
         
+        if(game == null) throw new Error("Game not found.");
+
+        reference = game.name;
+        users = await getUsersArray(game.signups);  
+    } else if(global.started == false && !('customId' in interaction)) {
+        const embed = new EmbedBuilder()
+            .setTitle("Game has not started.")
+            .setDescription("Choose a game to show its signups.")
+            .setColor(Colors.Red)
+            
+        const rows = [] as ActionRowBuilder<ButtonBuilder>[]
+
+        for(let i = 0; i < games.length; i = i + 5) {
+            const row = new ActionRowBuilder<ButtonBuilder>();
+    
+            row.addComponents(games.filter((game, index) => index >= i && index <= i + 4).map(game => {
+                return new ButtonBuilder()
+                    .setLabel(game.name)
+                    .setCustomId(JSON.stringify({ name: "players", game: game.name, complete: complete }))
+                    .setStyle(ButtonStyle.Primary);
+            }));
+    
+            rows.push(row);
+        }
+
+        if(rows.length == 0) {
+            const row = new ActionRowBuilder<ButtonBuilder>();
+
+            row.addComponents([
+                new ButtonBuilder()
+                    .setLabel("No Games")
+                    .setCustomId(JSON.stringify({ name: "never "}))
+                    .setStyle(ButtonStyle.Secondary)
+                    .setDisabled(true)
+            ]);
+
+            rows.push(row);
+        } 
+
+        return await interaction.reply({ embeds: [embed], components: rows });
+    } else if(global.started == false && 'customId' in interaction) {
+        throw new Error("Invalid button!");
+    } else {
         users = await getUsersArray(global.players.map(player => player.id));
     }
 
@@ -126,5 +178,42 @@ async function handlePlayerList(interaction: ChatInputCommandInteraction | Comma
         )
         .setFooter({ text: reference == null || reference == "" || typeof reference == 'number' ? "Showing " + users.length + " game player" + (users.length == 1 ? "" : "s") + "." : "Showing signups for " + reference + "." });
 
-    await interaction.reply({ embeds: [embed] });
+    if('customId' in interaction) {
+        await interaction.message.edit({ embeds: [embed], components: [] });
+    } else {
+        await interaction.reply({ embeds: [embed] });
+    }
+}
+
+async function getGames() {
+    const db = firebaseAdmin.getFirestore();
+
+    const setup = await getSetup();
+        
+    const ref = db.collection('settings').doc('game').collection('games');        
+    const docs = (await ref.get()).docs;
+    
+    const games = [] as { name: string, id: string, url: string | null }[];
+    
+    for(let doc = 0; doc < docs.length; doc++) {
+        const data = docs[doc].data();
+
+        if(!data) continue;
+
+        if(data.message == null) {
+            games.push({
+                name: data.name,
+                id: docs[doc].id,
+                url: null
+            })
+        } else {
+            games.push({
+                name: data.name,
+                id: docs[doc].id,
+                url: "https://discord.com/channels/" + setup.primary.guild.id + "/" + setup.primary.chat.id + "/" + data.message.id
+            })
+        }
+    };
+
+    return games;
 }
