@@ -85,7 +85,7 @@ export const StartButton = {
 
         if(id.for != interaction.user.id) throw new Error("This is not for you!");
 
-        //await startGame(interaction, id.game as string);
+        await startGame(interaction, id.game as string);
 
         await setAlignments();
     }
