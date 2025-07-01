@@ -386,6 +386,8 @@ const modCommandsPreGame =`**/games or ?games** See all games currently happenin
 
 const modCommandsInGame = `**/mod start or ?mod start {name}** Starts the game. Locks the channel. Setups player dms. Kicks everyone from mafia server. Sends message in spectator chat to setup allignments (which will invite mafia to mafia server after confirming).
 
+**/mod alignments or ?mod alignments** Shows alignments of all players, must be run in spectator chat.
+
 **/mod unlock or ?mod unlock** Unlocks the game, and asks if you want to advance day.
 
 **/mod lock or ?mod lock** Locks the game.
@@ -419,6 +421,7 @@ const extensionsCommands = `Extensions allow for added features or edited bot fu
 
 **/mod extension disable {extension} or ?mod extension disable {extension}** - Disable an extension.
 `
+
 const advanceCommands = `# ⚠️ WARNING
 ## Some of these commands may cause unintended behavior or even break the bot. Use these commands carefully.
 ** **
@@ -426,6 +429,8 @@ const advanceCommands = `# ⚠️ WARNING
 **/advance add or ?adv add {player}** Add a player midgame. Only requirement is that the player must have set a nickname.
 
 **/advance mafia or ?adv mafia {player}** Convert a player to mafia. Creates an invite to send to the player and updates alignment accordingly.
+
+**/advance alignment or ?adv alignment {nickname} {alignment}** Set the alignment of a player midgame. (This is only changes alignment in database, it does not invite to mafia server if alignment is set to mafia).
 
 **/advance kill or ?adv kill {player}** Does not add spectator roles immediently after removing. Will kick player out of the mafia server if they are mafia. Use **/mod spectator or ?mod spectator** to add spectator roles to them later or ending the game will add spectator roles as well.
 

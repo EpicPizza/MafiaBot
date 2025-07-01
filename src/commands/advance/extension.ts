@@ -1,7 +1,7 @@
 import { ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandSubcommandBuilder, SlashCommandSubcommandGroupBuilder } from "discord.js";
 import { Command, TextCommandArguments } from "../../discord";
 import { z } from "zod";
-import { endGame, getGameByID, getGlobal, setAllignments, startGame } from "../../utils/main";
+import { endGame, getGameByID, getGlobal, startGame } from "../../utils/main";
 import { extensions } from "../../utils/extensions";
 import { firebaseAdmin } from "../../firebase";
 import { FieldValue } from "firebase-admin/firestore";

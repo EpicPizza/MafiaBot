@@ -1,7 +1,7 @@
 import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
 import { Command, TextCommandArguments } from "../../discord";
 import { z } from "zod";
-import { endGame, setAllignments, startGame } from "../../utils/main";
+import { endGame, startGame } from "../../utils/main";
 
 export const EndCommand = {
     name: "end",

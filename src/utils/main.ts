@@ -2,8 +2,8 @@ import { Transaction, FieldValue, Firestore, CollectionReference, Query, Documen
 import { firebaseAdmin } from "../firebase";
 import client, { Command, removeReactions } from "../discord";
 import Discord, { ActionRow, ActionRowComponent, BaseGuildTextChannel, ButtonInteraction, ButtonStyle, ChannelType, ChatInputCommandInteraction, Collection, Colors, CommandInteraction, ComponentEmojiResolvable, FetchMembersOptions, GuildBasedChannel, GuildMember, PermissionsBitField, TextChannel } from "discord.js";
-import { ActionRowBuilder, ButtonBuilder, EmbedBuilder } from "@discordjs/builders";
-import { User, getUser } from "./user";
+import { ActionRowBuilder, ButtonBuilder, EmbedBuilder, SelectMenuBuilder, SelectMenuOptionBuilder, StringSelectMenuBuilder } from "@discordjs/builders";
+import { User, getUser, getUsers } from "./user";
 import { Setup, getSetup } from "./setup";
 import { promise, z } from "zod";
 import { GameSetup, Signups, getGameSetup, refreshSignup } from "./games";
@@ -40,7 +40,7 @@ export interface Global {
 
 interface Player {
     id: string,
-    alignment: 'mafia' | null;
+    alignment: 'mafia' | 'neutral' | string | null;
 }
 
 export function generateOverwrites(id: string) {
@@ -837,78 +837,6 @@ export async function editPlayer(options: { id: string, alignment: 'mafia' | nul
             players: global.players
         })
     })
-}
-
-export async function setAllignments() {
-    const embed = new EmbedBuilder()
-        .setTitle("Set Allignments")
-        .setColor(Colors.Orange)
-        .setDescription('Click corresponding button to toggle player\'s allignment. Once confirm is clicked, an invite for the mafia server will be created for you to send to mafia players.')
-        .setFooter({ text: 'Red for Mafia, Gray for Town/Neutral/Whatever Applicable' })
-
-    const global = await getGlobal();
-
-    if(global.game == null) throw new Error("Game not found.");
-
-    const game = await getGameByID(global.game);
-    const setup = await getSetup();
-
-    if(setup == undefined) throw new Error("Setup not complete.");
-    if(typeof setup == 'string') throw new Error("An unexpected error occurred.");
-    if(!global.started) throw new Error("Game has not started.");
-    if(game == null) throw new Error("Game not found.");
-    if(game.signups.length == 0) throw new Error("Game must have more than one player.");
-
-    const gameSetup = await getGameSetup(game, setup);
-
-    const rows = [] as ActionRowBuilder<ButtonBuilder>[]
-    
-    for(let i = 0; i < game.signups.length; i = i + 5) {
-        const users = [await getPlayer(game.signups.at(i) ?? "", global), await getPlayer(game.signups.at(i + 1) ?? "", global), await getPlayer(game.signups.at(i + 2) ?? "", global), await getPlayer(game.signups.at(i + 3) ?? "", global), await getPlayer(game.signups.at(i + 4) ?? "", global)];
-
-        const row = new ActionRowBuilder<ButtonBuilder>();
-
-        for(let j = 0; j < users.length; j++) {
-            const user = users[j];
-
-            if(user == undefined) continue;
-
-            const button = new ButtonBuilder()
-                .setLabel((await getUser(user.id))?.nickname ?? "<@" + user.id + ">")
-                .setStyle(ButtonStyle.Secondary)
-                .setCustomId(JSON.stringify({ name: 'change-alignment', id: user.id }));
-
-            row.addComponents([
-                button
-            ])
-        }
-
-        rows.push(row);
-    }
-
-    rows.push(new ActionRowBuilder<ButtonBuilder>()
-        .addComponents([
-            new ButtonBuilder()
-                .setLabel("----------------------------")
-                .setStyle(ButtonStyle.Secondary)
-                .setCustomId(JSON.stringify({ name: 'placeholder'}))
-                .setDisabled()
-        ])
-    )
-
-    rows.push(new ActionRowBuilder<ButtonBuilder>()
-        .addComponents([
-            new ButtonBuilder()
-                .setLabel("Confirm")
-                .setStyle(ButtonStyle.Primary)
-                .setCustomId(JSON.stringify({ name: 'confirm-alignments' }))
-        ])
-    )
-
-    await gameSetup.spec.send({ embeds: [embed], components: rows.filter((v, i) => i < 5) });
-    if(rows.length > 4) await gameSetup.spec.send({ components: rows.filter((v, i) => i > 4 && i < 10) });
-    if(rows.length > 9) await gameSetup.spec.send({ components: rows.filter((v, i) => i > 9 && i < 15) });
-    if(rows.length > 14) await gameSetup.spec.send({ components: rows.filter((v, i) => i > 14 && i < 20) });
 }
 
 async function getPlayer(id: string, game: Awaited<ReturnType<typeof getGlobal>>) {

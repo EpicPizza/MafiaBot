@@ -1,26 +1,27 @@
-import { ButtonInteraction, ChatInputCommandInteraction, InteractionType, SlashCommandBuilder, SlashCommandSubcommandBuilder, SlashCommandSubcommandGroupBuilder, StringSelectMenuInteraction } from "discord.js";
+import { ButtonInteraction, ChatInputCommandInteraction, InteractionType, ModalSubmitInteraction, SlashCommandBuilder, SlashCommandSubcommandBuilder, SlashCommandSubcommandGroupBuilder, StringSelectMenuInteraction } from "discord.js";
 import { Command, TextCommandArguments } from "../../discord";
 import { ChangeGraceButton, GraceCommand, GraceSelect, LockCommand, LockingSelect, Minute, UnlockButton, UnlockCommand } from "./lock";
 import { ZodObject, ZodSchema, z } from "zod";
 import { CloseCommand, OpenCommand, ReactivateButton, SignupsCommand } from "./signups";
 import { ArchiveCommand, CreateCommand } from "./game";
 import { EndCommand } from "./end";
-import { CancelButton, StartButton, StartCommand } from "./start";
+import { AlignmentSelect, CancelButton, CustomAlignment, CustomModal, DefaultAlignment, MafiaAlignment, NeutralAlignment, StartButton, StartCommand } from "./start";
 import { KickCommand, SpectatorCommand } from "./invite";
 import { RemoveCommand } from "./remove";
-import { ChangeAlignmentButton, ConfirmAllignmentsButton } from "./alignments";
+import { ConfirmAllignmentsButton, ShowAlignments } from "./alignments";
 import { ExtensionCommand } from "./extension";
+import { AlignmentCommand } from "../advance/alignment";
 
 export function ModCommand() {
-    const commands = [ LockCommand, UnlockCommand, CloseCommand, OpenCommand, CreateCommand, EndCommand, StartCommand, SignupsCommand, SpectatorCommand, KickCommand, RemoveCommand, ExtensionCommand, ArchiveCommand, GraceCommand ] as { name: string, description?: string, execute: Function, command: { slash: SlashCommandSubcommandBuilder | SlashCommandSubcommandGroupBuilder, text: TextCommandArguments } }[];
-    const interactions = [ LockingSelect, UnlockButton, ReactivateButton, ConfirmAllignmentsButton, ChangeAlignmentButton, StartButton, CancelButton, GraceSelect, ChangeGraceButton, Minute ] as { name: string, type: string, command: ZodObject<any>, execute: Function }[];
+    const commands = [ LockCommand, UnlockCommand, CloseCommand, OpenCommand, CreateCommand, EndCommand, StartCommand, SignupsCommand, SpectatorCommand, KickCommand, RemoveCommand, ExtensionCommand, ArchiveCommand, GraceCommand, ShowAlignments ] as { name: string, description?: string, execute: Function, command: { slash: SlashCommandSubcommandBuilder | SlashCommandSubcommandGroupBuilder, text: TextCommandArguments } }[];
+    const interactions = [ LockingSelect, UnlockButton, ReactivateButton, ConfirmAllignmentsButton, StartButton, CancelButton, GraceSelect, ChangeGraceButton, Minute, AlignmentSelect, DefaultAlignment, MafiaAlignment, NeutralAlignment, CustomAlignment, CustomModal ] as { name: string, type: string, command: ZodObject<any>, execute: Function }[];
 
     function getBuilders() {
         return commands.map(command => command.command.slash)
     }
 
     function getInteractions() {
-        return interactions.map(interaction => ({ name: interaction.name, type: interaction.type as "select" | "button", command: interaction.command }) )
+        return interactions.map(interaction => ({ name: interaction.name, type: interaction.type as "select" | "button" | "modal", command: interaction.command }) )
     }
 
     function getTextCommand() {
@@ -93,8 +94,8 @@ export function ModCommand() {
         await command.execute(interaction);
     }
 
-    async function handleInteraction(interaction: StringSelectMenuInteraction | ButtonInteraction) {
-        const name = (interaction.isButton() ? "button-" : "select-" ) + JSON.parse(interaction.customId).name;
+    async function handleInteraction(interaction: StringSelectMenuInteraction | ButtonInteraction | ModalSubmitInteraction) {
+        const name = (interaction.isButton() ? "button-" : interaction.isAnySelectMenu() ? "select-" : "modal-") + JSON.parse(interaction.customId).name;
 
         const command = interactions.find(interaction => interaction.name == name);
 

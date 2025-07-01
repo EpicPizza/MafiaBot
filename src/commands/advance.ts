@@ -3,7 +3,7 @@ import client, { Command, Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { z } from "zod";
 import { createUser, editUser, getUser } from "../utils/user";
-import { endGame, getGlobal, getGameByID, getGameByName, setAllignments, startGame, unlockGame, lockGame, getAllCurrentNicknames, getAllNicknames } from "../utils/main";
+import { endGame, getGlobal, getGameByID, getGameByName, startGame, unlockGame, lockGame, getAllCurrentNicknames, getAllNicknames } from "../utils/main";
 import { DateTime, SystemZone, Zone } from 'luxon';
 import { getFuture, parse, setFuture } from "../utils/timing";
 import { getSetup } from "../utils/setup";

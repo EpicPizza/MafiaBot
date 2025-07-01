@@ -1,65 +1,54 @@
-import { APIActionRowComponent, APIButtonComponent, ButtonInteraction, ButtonStyle, TextChannel } from "discord.js";
+import { APIActionRowComponent, APIButtonComponent, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandSubcommandBuilder, TextChannel } from "discord.js";
 import { z } from "zod";
 import { getGameByID, getGlobal } from "../../utils/main";
 import { firebaseAdmin } from "../../firebase";
 import { getGameSetup } from "../../utils/games";
 import { Setup, getSetup } from "../../utils/setup";
-import { getUser } from "../../utils/user";
+import { getUser, getUsers } from "../../utils/user";
 import { Global } from "../../utils/main";
+import { Command, TextCommandArguments } from "../../discord";
 
-export const ChangeAlignmentButton = {
-    type: 'button',
-    name: 'button-change-alignment',
-    command: z.object({
-        name: z.literal('change-alignment'),
-        id: z.string(),
-    }),
-    execute: async (interaction: ButtonInteraction) => {
-        const id = JSON.parse(interaction.customId);
+export const ShowAlignments = {
+    name: "alignments",
+    description: "?mod alignments",
+    command: {
+        slash: new SlashCommandSubcommandBuilder()
+            .setName("alignments")
+            .setDescription("Shows all alignments."),
+        text: {
 
+        } satisfies TextCommandArguments
+    },
+    execute: async (interaction: Command | ChatInputCommandInteraction) => {
         const global = await getGlobal();
+        if(global.started == false) throw new Error("Game has not started!");
+        const game = await getGameByID(global.game ?? "---");
+        const setup = await getSetup();
+        if(game == null) throw new Error("Game not found.");
+        const gameSetup = await getGameSetup(game, setup);
 
-        if((global.day != 0 && global.started) || !global.started) throw new Error("Command cannot be run.");
-        
-        const components = (interaction.message.toJSON() as any).components as APIActionRowComponent<APIButtonComponent>[]
-        const player = id.id as string;
-        let alignment: 'mafia' | null = null;
+        if(gameSetup.spec.id != (interaction.type == 'text' ? interaction.message.channelId : interaction.channelId)) throw new Error("Uh, this shouldn't be run outside of spectator channel.");
 
-        for(let i = 0; i < components.length; i++) {
-            for(let j = 0; j < components[i].components.length; j++) {
-                const button = components[i].components[j];
+        const users = await getUsers(game.signups);
+        const players = global.players.map(player => ({ user: users.get(player.id), alignment: player.alignment })).filter(player => player.user != undefined);
 
-                if(button.style != ButtonStyle.Link && button.custom_id == interaction.customId) {
-                    if(button.style == ButtonStyle.Secondary) {
-                        button.style = ButtonStyle.Danger;
-                        alignment = 'mafia';
-                    } else if(button.style == ButtonStyle.Danger) {
-                        button.style = ButtonStyle.Secondary;
-                        alignment = null;
-                    }
+        const embed = new EmbedBuilder()
+            .setTitle("Alignments")
+            .setColor(Colors.Red)
+            .setDescription(players.map(player => {
+                switch(player.alignment) {
+                    case 'default': 
+                        return player.user?.nickname + " - 💼 " + player.alignment;
+                    case 'neutral':
+                        return player.user?.nickname + " - 📎 " + player.alignment;
+                    case 'mafia':
+                        return player.user?.nickname + " - 🔪 " + player.alignment;
+                    default:
+                        return player.user?.nickname + " - 🎲 " + player.alignment;
                 }
-            }
-        }
+            }).reduce((prev, curr) => prev + curr + "\n", ""));
 
-        const db = firebaseAdmin.getFirestore();
-
-        const ref = db.collection('settings').doc('game');
-
-        await db.runTransaction(async t => {
-            const global = await getGlobal(t);
-
-            for(let i = 0; i < global.players.length; i++) {
-                if(global.players[i].id == player) {
-                    global.players[i].alignment = alignment;
-                }
-            }
-
-            t.update(ref, {
-                players: global.players
-            })
-        })
-
-        await interaction.update({ components: components });
+        return interaction.reply({ embeds: [embed] });
     }
 }
 
@@ -74,9 +63,9 @@ export const ConfirmAllignmentsButton = {
 
         for(let i = 0; i < components.length; i++) {
             for(let j = 0; j < components[i].components.length; j++) {
-                const button = components[i].components[j];
+                const component = components[i].components[j];
 
-                if(button.style != ButtonStyle.Link && button.label == "Confirm") {
+                if(component.style != ButtonStyle.Link) {
                     components[i].components[j].disabled = true;   
                 }
             }
