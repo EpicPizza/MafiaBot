@@ -23,7 +23,7 @@ const help = `**?kill {nickname}** Command used by player to day kill.
 
 - Mute: mutes the player, must be removed later with ?mod remove. 
 - Remove: completely removes player, giving them spectator perms. 
-- Hammer: Ends the day and doesn't automatically flip. 
+- Hammer: ends the day and doesn't automatically flip. 
 
 Note: If running during the night, the current day is the day before, so expiring after 1 day will cuase it to expire once the night ends.
 
@@ -342,6 +342,8 @@ module.exports = {
         const customId = extensionInteraction.customId;
 
         if(!('isButton' in interaction) || !interaction.isButton()) return;
+
+        await checkMod(setup, interaction.user.id, interaction.guildId ?? "---");
 
         if(extensionInteraction.name == "button-daykill-cancel-reveal") {
             if(close) close(false);
