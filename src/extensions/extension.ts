@@ -3,6 +3,7 @@ import { Vote } from "../utils/vote";
 import { Command, CommandOptions } from "../discord";
 import { getGlobal } from "../utils/main";
 import { z } from "zod";
+import { Extension, ExtensionInteraction } from "../utils/extensions";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -22,6 +23,7 @@ module.exports = {
             }
         }
     ] satisfies CommandOptions[],
+    interactions: [],
     onStart: async (global, setup, game) => {
         /**
          * Runs during game start processes.
@@ -71,6 +73,21 @@ module.exports = {
         /**
          * Nothing to return.
          */
+    },
+    onInteraction: async (extensionInteraction: ExtensionInteraction) => {
+        /**
+         * Interactions for buttons, modals, and select menus. Context menu and slash commands not implemented.
+         * 
+         *  interaction: {
+         *      customId: any,
+         *      name: string,
+         *      interaction: ButtonInteraction | ModalSubmitInteraction | AnySelectMenuInteraction
+         *  }
+         */
+
+        console.log(extensionInteraction);
+
+        return;
     },
     onMessage: async (message: Message, cache: Cache) => {
         /*
@@ -134,4 +151,4 @@ module.exports = {
     },
     onHammer: async (global, setup, game, hammered: string) => {},
     onRemove: async (global, setup, game, removed: string) => {}
-}
+} satisfies Extension;

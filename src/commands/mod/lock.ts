@@ -59,7 +59,7 @@ export const GraceCommand = {
         const embed = new EmbedBuilder()
             .setTitle('Choose a time to set grace to ' + (grace ? "on" : "off") + ".")
             .setColor(Colors.Orange)
-            .setDescription("Options are in PST." + (timing ? "\n\nThis will overwrite current grace set to " + (timing.type ? "on" : "on") + " at <t:" + Math.round(timing.when.valueOf() / 1000) + ":T>, <t:" + Math.round(timing.when.valueOf() / 1000) + ":d>." : " "))
+            .setDescription("Options are in PST." + (timing ? "\n\nThis will overwrite current grace set to " + (timing.type ? "on" : "on") + " at <t:" + Math.round(timing.when.valueOf() / 1000) + ":T>, <t:" + Math.round(timing.when.valueOf() / 1000) + ":d> if scheduling (selecting now will not)." : " "))
 
         let date = DateTime.now().setZone('US/Pacific').startOf("hour");
 
@@ -319,7 +319,7 @@ async function handleLocking(interaction: ChatInputCommandInteraction | Command,
     const embed = new EmbedBuilder()
         .setTitle('Choose a time to ' + (type ? "lock" : "unlock") + " channel.")
         .setColor(Colors.Orange)
-        .setDescription("Options are in PST." + (timing ? "\n\nThis will overwrite current " + (timing.type ? "lock" : "unlock") + " at <t:" + Math.round(timing.when.valueOf() / 1000) + ":T>, <t:" + Math.round(timing.when.valueOf() / 1000) + ":d>." : " "))
+        .setDescription("Options are in PST." + (timing ? "\n\nThis will overwrite current " + (timing.type ? "lock" : "unlock") + " at <t:" + Math.round(timing.when.valueOf() / 1000) + ":T>, <t:" + Math.round(timing.when.valueOf() / 1000) + ":d> if scheduling (selecting now will not)." : " "))
         .setFooter({ text: "Toggle grace button to change if grace will be set on or off once game is" + (type ? " locked." : " unlocked.") });
 
     let date = DateTime.now().setZone('US/Pacific').startOf("hour");

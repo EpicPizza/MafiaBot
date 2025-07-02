@@ -10,7 +10,7 @@ import { Global } from "../utils/main";
 import { Signups, addSignup, getGameSetup } from "../utils/games";
 import { FieldValue } from "firebase-admin/firestore";
 import { addMafiaPlayer } from "../commands/mod/alignments";
-import { getEnabledExtensions } from "../utils/extensions";
+import { Extension, ExtensionInteraction, getEnabledExtensions } from "../utils/extensions";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -51,6 +51,7 @@ module.exports = {
             arguments: {}
         }
     ] satisfies CommandOptions[],
+    interactions: [],
     onStart: async (global, setup, game) => {
         /**
          * Runs during game start processes.
@@ -267,6 +268,7 @@ module.exports = {
          * Nothing to return.
          */
     },
+    onInteraction: async (extensionInteraction: ExtensionInteraction) => {},
     onMessage: async (message: Message, cache: Cache) => {},
     onEnd: async (global, setup: Setup, game) => {
         const db = firebaseAdmin.getFirestore();
@@ -296,7 +298,7 @@ module.exports = {
     onVotes: async (voting: string[], votes: Map<string, Vote[]>, day: number, global, setup, game) => {},
     onHammer: async (global: Global, setup: Setup, game, hammered: string) => {},
     onRemove: async (global, setup, game, removed: string) => {}
-}
+} satisfies Extension;
 
 function messageOverwrites() {
     return {

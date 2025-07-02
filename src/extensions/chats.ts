@@ -10,6 +10,7 @@ import { Global } from "../utils/main";
 import { User, getUser, getUserByName } from "../utils/user";
 import { FieldValue } from "firebase-admin/firestore";
 import { checkMod } from "../utils/mod";
+import { Extension, ExtensionInteraction } from "../utils/extensions";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -74,6 +75,7 @@ module.exports = {
             arguments: {}
         }
     ] satisfies CommandOptions[],
+    interactions: [],
     onStart: async (global, setup, game) => {
         /**
          * Runs during game start processes.
@@ -277,6 +279,7 @@ module.exports = {
          * Nothing to return.
          */
     },
+    onInteraction: async (extensionInteraction: ExtensionInteraction) => {},
     onMessage: async (message: Message, cache: Cache) => {},
     onEnd: async (global, setup, game) => {},
     onVote: async (votes: Vote[], vote: Vote ,voted: boolean, global, setup, game) => {},
@@ -307,7 +310,7 @@ module.exports = {
             })
         }
     }
-}
+} satisfies Extension;
 
 function capitalize(input: string) {
     return input.substring(0, 1).toUpperCase() + input.substring(1, input.length).toLowerCase();

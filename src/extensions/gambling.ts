@@ -8,6 +8,7 @@ import { getSetup, Setup } from "../utils/setup";
 import { getUser, getUserByChannel, getUserByName, getUsersArray, User } from "../utils/user";
 import { checkMod } from "../utils/mod";
 import { getGameSetup, Signups } from "../utils/games";
+import { Extension, ExtensionInteraction } from "../utils/extensions";
 
 const help = `This is the game specific extension for Gambling Mafia.
 
@@ -102,6 +103,7 @@ module.exports = {
             }
         }
     ] satisfies CommandOptions[],
+    interactions: [],
     onStart: async (global, setup, game) => {
         /**
          * Runs during game start processes.
@@ -503,6 +505,7 @@ module.exports = {
          * Nothing to return.
          */
     },
+    onInteraction: async (extensionInteraction: ExtensionInteraction) => {},
     onMessage: async (message: Message, cache: Cache) => {
         /*
          * Keep fetches to a minimum, these can add up. For this reason, only cache is given, only use helper functions when necessary.
@@ -666,4 +669,4 @@ module.exports = {
     },
     onHammer: async (global, setup, game, hammered: string) => {},
     onRemove: async (global, setup, game, removed: string) => {}
-}
+} satisfies Extension;

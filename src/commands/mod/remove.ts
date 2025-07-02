@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getGameByID, getGameByName, getGlobal, setMafiaSpectator } from "../../utils/main";
 import { firebaseAdmin } from "../../firebase";
 import { Setup, getSetup } from "../../utils/setup";
-import { User, getUser } from "../../utils/user";
+import { User, getUser, getUserByName } from "../../utils/user";
 import { Signups, getGameSetup } from "../../utils/games";
 import { getEnabledExtensions } from "../../utils/extensions";
 import { Global } from '../../utils/main';
@@ -36,62 +36,14 @@ export const RemoveCommand = {
         }
 
         const global = await getGlobal();
-
         const setup  = await getSetup();
-        if(typeof setup == 'string') throw new Error("Setup Incomplete");
 
         checkMod(setup, interaction.user.id, 'message' in interaction ? interaction.message?.guild?.id ?? "" : interaction.guildId ?? "");
 
-        if(global.started == false) throw new Error("Game has not started.");
-
-        const game = await getGameByID(global.game ?? "");
-
-        const gameSetup = await getGameSetup(game, setup);
-
         const player = interaction.type == 'text' ? interaction.arguments[1] as string : interaction.options.getString('player');
-
         if(player == null) throw new Error("Choose a player.");
 
-        const list = [] as User[];
-
-        for(let i = 0; i < global.players.length; i++) {
-            const user = await getUser(global.players[i].id);
-
-            if(user == null) throw new Error("User not registered.");
-
-            list.push(user);
-        }
-
-        const user = list.find(user => user.nickname.toLowerCase() == player.toLowerCase());
-
-        if(!user) throw new Error("Player not found.");
-
-        if(typeof setup == 'string') throw new Error("Incomplete Setup");
-
-        const main = await setup.primary.guild.members.fetch(user.id).catch(() => undefined);
-        if(main == null) throw new Error("Member not found.");
-        await main.roles.remove(setup.primary.alive);
-
-        const dead = await setup.secondary.guild.members.fetch(user.id).catch(() => undefined);
-        if(dead == null) throw new Error("Member not found.");
-        await dead.roles.add(setup.secondary.spec);
-
-        const mafia = await setup.tertiary.guild.members.fetch(user.id).catch(() => undefined);
-        await setMafiaSpectator(mafia, main.id, setup, gameSetup, user);
-
-        const db = firebaseAdmin.getFirestore();
-
-        const ref = db.collection('settings').doc('game');
-
-        await db.runTransaction(async t => {
-            const global = await getGlobal(t);
-
-            t.update(ref, {
-                players: global.players.filter(player => player.id != user.id)
-            })
-        });
-
-        await onRemove(global, setup, game, user.id);
+        await removePlayer(player, global, setup);
 
         if(interaction.type != 'text') {
             await interaction.editReply({ content: "Player removed."});
@@ -101,6 +53,43 @@ export const RemoveCommand = {
             await interaction.message.react("✅");
         }
     }
+}
+
+export async function removePlayer(name: string, global: Global, setup: Setup) {
+    if(global.started == false) throw new Error("Game has not started.");
+
+    const game = await getGameByID(global.game ?? "");
+    const gameSetup = await getGameSetup(game, setup);
+
+    const user = await getUserByName(name);
+    if(!user) throw new Error("Player not found.");
+
+    if(typeof setup == 'string') throw new Error("Incomplete Setup");
+
+    const main = await setup.primary.guild.members.fetch(user.id).catch(() => undefined);
+    if(main == null) throw new Error("Member not found.");
+    await main.roles.remove(setup.primary.alive);
+
+    const dead = await setup.secondary.guild.members.fetch(user.id).catch(() => undefined);
+    if(dead == null) throw new Error("Member not found.");
+    await dead.roles.add(setup.secondary.spec);
+
+    const mafia = await setup.tertiary.guild.members.fetch(user.id).catch(() => undefined);
+    await setMafiaSpectator(mafia, main.id, setup, gameSetup, user);
+
+    const db = firebaseAdmin.getFirestore();
+
+    const ref = db.collection('settings').doc('game');
+
+    await db.runTransaction(async t => {
+        const global = await getGlobal(t);
+
+        t.update(ref, {
+            players: global.players.filter(player => player.id != user.id)
+        })
+    });
+
+    await onRemove(global, setup, game, user.id);
 }
 
 export async function onRemove(global: Global, setup: Setup, game: Signups, removed: string) {

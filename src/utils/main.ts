@@ -194,7 +194,7 @@ export async function lockGame() {
 
     if(setup == undefined) throw new Error("Setup not complete.");
     if(typeof setup == 'string') throw new Error("An unexpected error occurred.");
-    if(!global.started) return await setup.primary.chat.send("Failed to unlock channel, game has not started.");
+    if(!global.started) throw new Error("Failed to unlock channel, game has not started.");
     if(global.locked) throw new Error("Already locked.");
 
     const db = firebaseAdmin.getFirestore();

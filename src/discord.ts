@@ -12,7 +12,7 @@ import { getUser } from "./utils/user";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { isDisabled } from "./disable";
 import { trackMessage } from "./utils/tracking";
-import { getEnabledExtensions, getExtensions } from "./utils/extensions";
+import { getEnabledExtensions, getExtensions, setExtensionInteractions } from "./utils/extensions";
 import { Global } from "./utils/main";
 import { Signups } from "./utils/games";
 
@@ -65,9 +65,10 @@ const cache: Cache = {
 } satisfies Cache
 
 export type Data = ({
-    type: 'button',
+    type: 'text',
+    description?: string,
     name: string,
-    command: ZodObject<any>,
+    command: TextCommandArguments,
 } | {
     type: 'slash',
     name: string,
@@ -85,10 +86,9 @@ export type Data = ({
     name: string,
     command: ZodObject<any>,
 } | {
-    type: 'text',
-    description?: string,
+    type: 'button',
     name: string,
-    command: TextCommandArguments,
+    command: ZodObject<any>,
 } | {
     type: 'reaction',
     name: string,
@@ -144,6 +144,8 @@ for(const file of commandFiles) {
         }
     })
 }
+
+setExtensionInteractions(client.commands, client.reactionCommands);
 
 client.on(Events.ClientReady, async () => {
     console.log("Bot is ready!");

@@ -8,6 +8,7 @@ import { getUser, getUserByChannel } from "../utils/user";
 import { firebaseAdmin } from "../firebase";
 import { Global } from "../utils/main";
 import { checkMod } from "../utils/mod";
+import { ExtensionInteraction } from "../utils/extensions";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -93,6 +94,7 @@ module.exports = {
             },
         },
     ] satisfies CommandOptions[],
+    interactions: [],
     onStart: async (global, setup, game) => {
         /**
          * Runs during game start processes.
@@ -156,6 +158,7 @@ module.exports = {
          * Nothing to return.
          */
     },
+    onInteraction: async (extensionInteraction: ExtensionInteraction) => {},
     onMessage: async (message: Message, cache: Cache) => {
 
         if(message.author.id == process.env.OWNER && message.content == "freeze") {
