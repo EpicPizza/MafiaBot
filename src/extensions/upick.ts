@@ -14,7 +14,7 @@ import { FieldValue } from "firebase-admin/firestore";
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
 //                   Ongoing Chat          Archived Chats        DM Storage             Old Player DMs         Old Mafia
-const categoryIds = ["723651039693373454", "723636076811386923", "1244509911098851452", "1363452733885255812", "1363452733885255812"];
+const categoryIds = ["723651039693373454", "723636076811386923", "1244509911098851452", "1363452733885255812", "1266670814082633828"];
 //const categoryIds = ["1247776492029481081"];
 export const playersRoleId = "1390130766842695681";
 //export const playersRoleId = "1390188023529996400";
@@ -54,6 +54,10 @@ module.exports = {
         },
         {
             name: "setup",
+            arguments: {},
+        },
+        {
+            name: "respec",
             arguments: {},
         }
     ] satisfies CommandOptions[],
@@ -143,7 +147,21 @@ module.exports = {
 
         await checkMod(setup, command.user.id, command.message.guildId ?? "---");
         
-        if(command.name == "setup") {
+        if(command.name == "respec") {
+            const categories = (await Promise.all(categoryIds.map(id => setup.secondary.guild.channels.fetch(id)))).filter(category => category != null).filter(category => category.type == ChannelType.GuildCategory);
+            if(categories.length != categoryIds.length) throw new Error("Failed to fetch all categories.");
+
+            const playersRole = await setup.secondary.guild.roles.fetch(playersRoleId);
+            if(playersRole == null) throw new Error("Players role not found!");
+
+            await Promise.all(categories.map(category => {
+                if(category.permissionOverwrites.cache.get(playersRole.id)) {
+                    return category.permissionOverwrites.edit(playersRole.id, messageOverwrites());
+                } else {
+                    return category.permissionOverwrites.create(playersRole.id, messageOverwrites());
+                }
+            }));
+        } else if(command.name == "setup") {
             const categories = (await Promise.all(categoryIds.map(id => setup.secondary.guild.channels.fetch(id)))).filter(category => category != null).filter(category => category.type == ChannelType.GuildCategory);
             if(categories.length != categoryIds.length) throw new Error("Failed to fetch all categories.");
 
