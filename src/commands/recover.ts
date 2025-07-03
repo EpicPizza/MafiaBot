@@ -79,7 +79,7 @@ async function getMessages(channel: TextChannel, messageId: string | null, callb
 
         await callback(messageArray.length);
 
-        if(messageArray.length < last + 100 || last == messageArray.length) {
+        if (messages.size < 100) {
             break;
         }
 
