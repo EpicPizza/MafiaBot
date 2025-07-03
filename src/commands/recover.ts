@@ -67,7 +67,7 @@ async function getMessages(channel: TextChannel, messageId: string | null, callb
         var options = { limit: 100, before: message == null ? undefined : message, cache: false }; //cache only stores 200 messages max, so pointless in this case
 
         var messages = await channel.messages.fetch(options);
-        Promise.all(messages.map(async (announcement: Message) => {
+        await Promise.allSettled(messages.map(async (announcement: Message) => {
             let pinning: string | undefined = undefined;
 
             if(announcement.type == MessageType.ChannelPinnedMessage) {
