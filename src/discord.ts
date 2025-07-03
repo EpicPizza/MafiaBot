@@ -15,6 +15,7 @@ import { trackMessage } from "./utils/tracking";
 import { getEnabledExtensions, getExtensions, setExtensionInteractions } from "./utils/extensions";
 import { Global } from "./utils/main";
 import { Signups } from "./utils/games";
+import { playersRoleId } from "./extensions/upick";
 
 dotenv.config();
 
@@ -532,66 +533,36 @@ client.on(Events.MessageDelete, async (message) => {
 
 client.on(Events.GuildMemberAdd, async (member) => {
     try {
-        console.log("STEP 1", member.user.username);
-
+        const setup = await getSetup();
+        const global = await getGlobal();
         const db = firebaseAdmin.getFirestore();
 
         const ref = db.collection('invites').orderBy('timestamp', 'desc').where('id', '==', member.id);
-
         const docs = (await ref.get()).docs;
-
         if(docs.length < 1) return;
-
         const data = docs.length > 0 ? docs[0].data() : undefined;
         const second = docs.length > 1 ? docs[1].data() : undefined;
         if(!data) return;
 
-        console.log("STEP 2", data);
-
-        const setup = await getSetup();
-
-        if(typeof setup == 'string') return;
-
         const user = await getUser(member.id);
-
         if(!user) return;
 
-        console.log("STEP 3", user.nickname);
-
         switch(data.type) {
-            case 'joining':
-                console.log("STEP 4", data.type);
-
-                const global = await getGlobal();
-
-                if(!global.started) return;
-
+            case 'extension-upick-pregame':
                 if(setup.secondary.guild.id != member.guild.id) return;
 
-                console.log("STEP 5", user.channel);
+                const ref = db.collection('upick').doc('settings');
+                if((await ref.get()).data()?.game == undefined) throw new Error("Already started pregame!");
+
+                const playersRole = await setup.secondary.guild.roles.fetch(playersRoleId);
+                if(playersRole == null) throw new Error("Players role not found!");
+
+                const pregameChannel = user.channel == null ? null : (await setup.secondary.guild.channels.fetch(user.channel).catch(() => null));
                 
-                if(user.channel != null) {
-                    const channel = await setup.secondary.guild.channels.fetch(user.channel).catch(() => null);
+                if(pregameChannel != null) {
+                    await (pregameChannel as TextChannel).permissionOverwrites.create(user.id, editOverwrites());
 
-                    if(channel == null) {
-                        const channel = await setup.secondary.guild.channels.create({ 
-                            name: user.nickname.toLowerCase(),
-                        });
-                
-                        await channel.setParent(setup.secondary.dms.id);
-
-                        await channel.permissionOverwrites.create(user.id, editOverwrites());
-        
-                        await db.collection('users').doc(user.id).update({
-                            channel: channel.id,
-                        });
-
-                        await channel.send("Welcome <@" + user.id + ">! Check out the pins in the main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod.");
-                    } else {
-                        await (channel as TextChannel).permissionOverwrites.create(user.id, editOverwrites());
-
-                        await (channel as TextChannel).send("Welcome <@" + user.id + ">! Check out the pins in the main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod.");
-                    }
+                    await (pregameChannel as TextChannel).send("Welcome <@" + user.id + ">! Check out the pins in the main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod.");
                 } else {
                     const channel = await setup.secondary.guild.channels.create({ 
                         parent: setup.secondary.dms, 
@@ -605,6 +576,37 @@ client.on(Events.GuildMemberAdd, async (member) => {
 
                     await channel.send("Welcome <@" + user.id + ">! Check out the pins in the main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod.");
                 }
+
+                const deadPlayer = await setup.secondary.guild.members.fetch(user.id);
+
+                await deadPlayer.roles.add(playersRole);
+
+                break;
+            case 'joining':
+                
+                if(!global.started) return;
+                if(setup.secondary.guild.id != member.guild.id) return;
+
+                const existingChannel = user.channel == null ? null : (await setup.secondary.guild.channels.fetch(user.channel).catch(() => null));
+                
+                if(existingChannel != null) {
+                    await (existingChannel as TextChannel).permissionOverwrites.create(user.id, editOverwrites());
+
+                    await (existingChannel as TextChannel).send("Welcome <@" + user.id + ">! Check out the pins in the main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod.");
+                } else {
+                    const channel = await setup.secondary.guild.channels.create({ 
+                        parent: setup.secondary.dms, 
+                        name: user.nickname.toLowerCase(),
+                        permissionOverwrites: generateOverwrites(user.id)
+                    });
+
+                    await db.collection('users').doc(user.id).update({
+                        channel: channel.id,
+                    });
+
+                    await channel.send("Welcome <@" + user.id + ">! Check out the pins in the main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod.");
+                }
+                
                 break;
             case "spectate":
                 if(second && second.type == "dead-spectate" && setup.secondary.guild.id == member.guild.id) {

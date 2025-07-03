@@ -410,7 +410,7 @@ export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup
     await setupDeadPlayer(deadPlayer, setup)
     await setupMafiaPlayer(mafiaPlayer, setup, gameSetup);
 
-    let channel = await setup.secondary.guild.channels.fetch(userProfile.channel ?? "");
+    let channel = await setup.secondary.guild.channels.fetch(userProfile.channel ?? "").catch(() => null);
     let newPlayer = channel == null;
 
     if(channel == null || channel.type != ChannelType.GuildText) {
