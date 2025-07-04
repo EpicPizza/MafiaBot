@@ -60,6 +60,8 @@ module.exports = {
             list
         });
 
+        if((min != undefined && min > 10000) || (max != undefined && max > 10000) || (count != undefined && count > 250)) throw new Error("Number too big!");
+
         if(subcommand == 'number') {
             if(count == undefined) {
                 interaction.reply(getRandom(min, max).toString())
