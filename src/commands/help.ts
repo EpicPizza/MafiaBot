@@ -63,7 +63,7 @@ module.exports = {
                             .setLabel("Mod Commands")
                             .setDescription("Commands for creating games, adding spectators, running games, etc.")
                             .setEmoji("📡")
-                            .setDefault(page == "3" || page == "4" || page == "6" || page == "7")
+                            .setDefault(page == "3" || page == "4" || page == "6" || page == "7" || page == "8")
                             .setValue((global.started ? 3 : 4).toString()),
                         new StringSelectMenuOptionBuilder()
                             .setLabel("Setup Commands")
@@ -173,6 +173,11 @@ module.exports = {
                                 .setEmoji("📝")
                                 .setValue("4"),
                             new StringSelectMenuOptionBuilder()
+                                .setLabel("Randomize Commands")
+                                .setDescription("Commands for randomizing players and numbers.")
+                                .setEmoji("🧮")
+                                .setValue("8"),
+                            new StringSelectMenuOptionBuilder()
                                 .setLabel("Extension Commands")
                                 .setDescription("Commands for enabling and disabling extensions.")
                                 .setEmoji("🔌")
@@ -212,6 +217,11 @@ module.exports = {
                                 .setEmoji("📝")
                                 .setDefault()
                                 .setValue("4"),
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel("Randomize Commands")
+                                .setDescription("Commands for randomizing players and numbers.")
+                                .setEmoji("🧮")
+                                .setValue("8"),
                             new StringSelectMenuOptionBuilder()
                                 .setLabel("Extension Commands")
                                 .setDescription("Commands for enabling and disabling extensions.")
@@ -263,6 +273,11 @@ module.exports = {
                                 .setEmoji("📝")
                                 .setValue("4"),
                             new StringSelectMenuOptionBuilder()
+                                .setLabel("Randomize Commands")
+                                .setDescription("Commands for randomizing players and numbers.")
+                                .setEmoji("🧮")
+                                .setValue("8"),
+                            new StringSelectMenuOptionBuilder()
                                 .setLabel("Extension Commands")
                                 .setDescription("Commands for enabling and disabling extensions.")
                                 .setEmoji("🔌")
@@ -303,6 +318,11 @@ module.exports = {
                                 .setEmoji("📝")
                                 .setValue("4"),
                             new StringSelectMenuOptionBuilder()
+                                .setLabel("Randomize Commands")
+                                .setDescription("Commands for randomizing players and numbers.")
+                                .setEmoji("🧮")
+                                .setValue("8"),
+                            new StringSelectMenuOptionBuilder()
                                 .setLabel("Extension Commands")
                                 .setDescription("Commands for enabling and disabling extensions.")
                                 .setEmoji("🔌")
@@ -312,6 +332,51 @@ module.exports = {
                                 .setDescription("Extending Mafia Bot beyond intended behavior.")
                                 .setEmoji("⌨️")
                                 .setDefault()
+                                .setValue("7"),
+                        ])
+                ])
+
+            if(interaction.type != 'text' && interaction.isStringSelectMenu()) {
+                await interaction.update({ embeds: [embed], components: [additionalSelect, select] });
+            } else {
+                await interaction.reply({ embeds: [embed], components: [additionalSelect, select] });
+            }
+        } else if(page == "8") {
+            const embed = new EmbedBuilder()
+                .setTitle("Mafia Bot Help » Mod Commands")
+                .setColor(Colors.Red)
+                .setDescription(randomCommands);
+
+            const additionalSelect = new ActionRowBuilder<StringSelectMenuBuilder>()
+                .addComponents([
+                    new StringSelectMenuBuilder()
+                        .setCustomId(JSON.stringify({ name: "help", type: "sub", id: interaction.user.id }))
+                        .addOptions([
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel("In-Game Commands")
+                                .setDescription("Commands for running the game.")
+                                .setEmoji("👷‍♂️")
+                                .setValue("3"),
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel("Pre-Game/Post-Game Commands")
+                                .setDescription("Commands for creating games, archiving games, etc.")
+                                .setEmoji("📝")
+                                .setValue("4"),
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel("Randomize Commands")
+                                .setDescription("Commands for randomizing players and numbers.")
+                                .setEmoji("🧮")
+                                .setDefault(true)
+                                .setValue("8"),
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel("Extension Commands")
+                                .setDescription("Commands for enabling and disabling extensions.")
+                                .setEmoji("🔌")
+                                .setValue("6"),
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel("Advance Commands")
+                                .setDescription("Extending Mafia Bot beyond intended behavior.")
+                                .setEmoji("⌨️")
                                 .setValue("7"),
                         ])
                 ])
@@ -411,6 +476,25 @@ const setupCommands = `**/setup mod** Gives mod roles in all three servers. Also
 **/setup refresh** Refreshes signups for a game.
 
 **/setup update** Update usernames for lowercase support.
+`
+
+const randomCommands = `**Range:** {min}-{max} - All inclusive. 
+
+**?random pl list** - Randomize the player list;
+
+**?random pl list {nickname} {...nicknames}** Randomize a specified list of players.
+
+**?random pl list {count}** Pick a randomized set of players of size count from the player list.
+
+**?random pl list {count} {nickname} {...nicknames}** Pick a randomized set of players of size count from a specified list of players.
+
+**?random pl number {range}** Assign a random number to each player.
+
+**?random pl number {range} {nickname} {...nicknames}** Assign a random number to each specified player.
+
+**?random number {range}** A singular random number.
+
+**?random number {range} {count}** A list of random numbers of specified count.
 `
 
 const extensionsCommands = `Extensions allow for added features or edited bot functionality. Mods can manage extensions before a game starts. Extensions currently only support text commands.

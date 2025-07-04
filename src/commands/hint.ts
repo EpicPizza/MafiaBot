@@ -4,6 +4,7 @@ import { getGlobal } from "../utils/main";
 import { getUser, User } from "../utils/user";
 import { Command } from "../discord";
 import { firebaseAdmin } from "../firebase";
+import { randomInt } from "crypto";
 
 module.exports = {
     data: [
@@ -70,5 +71,5 @@ module.exports = {
 }
 
 function getRandom(min: number, max: number) {
-    return Math.floor((Math.random() * (max - min) + min));
+    return randomInt(min, max);
 }
