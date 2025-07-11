@@ -566,7 +566,7 @@ export async function startGame(interaction: ChatInputCommandInteraction | Comma
 
     promises.push(deleteCollection(db, db.collection("day"), 20));
     promises.push(deleteCollection(db, db.collection("edits"), 20));
-    promises.push(deleteCollection(db, db.collection("invites"), 20));
+    promises.push(deleteCollection(db, db.collection("roles"), 20));
     promises.push(deleteInvites(setup));
     promises.push(finishSignups(game));
     promises.push(prepareGame(game));

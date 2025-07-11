@@ -17,9 +17,11 @@ const help = `This extension can support mayor in three different ways: hidden, 
 - hidden - The mayor is always kept hidden with their extra votes always counted. 
 - secret - Works similarly to hidden, except the mayor has the ability to reveal that they are mayor. 
 - classic - Their extra votes are not counted until they reveal that they are mayor.
-- public - Their extra votes are immediently counted without have to reveal.
+- public - Their extra votes are immediently counted without having to reveal.
 
 **?mayor set {type} {weight}** Type indicates the mayor behavior: hidden, secret or classic. Weight is how many votes the mayor will count for, minimum 1 and whole numbers only. Must be run by the mod, inside the dm that is mayor.
+
+**?mayor clear** Clear the current set mayor of a player. Must be run by the mod, inside the corresponding dm.
 
 **?mayor check** List out all the mayors set. Must be run in dead chat channel.
 
@@ -46,6 +48,9 @@ module.exports = {
             arguments: {
                 required: [ z.literal("hidden").or(z.literal("secret")).or(z.literal("classic")).or(z.literal('public')), z.coerce.number().int().min(1) ],
             }
+        }, {
+            name: "clear",
+            arguments: {},
         }, {
             name: "check",
             arguments: {},
@@ -102,6 +107,22 @@ module.exports = {
                 weight: command.arguments[1] as string,
                 reveal: command.arguments[0] == 'public' ? true : false,
             });
+
+            await command.message.react("✅");
+        } else if(command.name == "clear") {
+            checkMod(setup, command.user.id, command.message.guildId ?? "");
+
+            if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
+
+            const user = await getUserByChannel(command.message.channel.id);
+
+            if(!user) throw new Error("This dm channel is not linked to a user.");
+
+            const db = firebaseAdmin.getFirestore();
+
+            const ref = db.collection('mayor').doc(user.id);
+            
+            await ref.delete();
 
             await command.message.react("✅");
         } else if(command.name == "check") {
@@ -213,7 +234,7 @@ module.exports = {
             let count = 0;
 
             const voters = voted.reduce((previous, current) => {
-                const mayor = mayors.find(mayor => mayor.id == current.id);
+                const mayor = day != global.day ? undefined :  mayors.find(mayor => mayor.id == current.id);
 
                 if(mayor && (((mayor.type == "classic" || mayor.type == "secret") && mayor.reveal == true) || (deadChat && (mayor.type != "classic" || (mayor.type == "classic" && mayor.reveal == true))))) {
                     count += mayor.weight;
