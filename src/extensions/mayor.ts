@@ -17,6 +17,7 @@ const help = `This extension can support mayor in three different ways: hidden, 
 - hidden - The mayor is always kept hidden with their extra votes always counted. 
 - secret - Works similarly to hidden, except the mayor has the ability to reveal that they are mayor. 
 - classic - Their extra votes are not counted until they reveal that they are mayor.
+- public - Their extra votes are immediently counted without have to reveal.
 
 **?mayor set {type} {weight}** Type indicates the mayor behavior: hidden, secret or classic. Weight is how many votes the mayor will count for, minimum 1 and whole numbers only. Must be run by the mod, inside the dm that is mayor.
 
@@ -43,7 +44,7 @@ module.exports = {
         {
             name: "set",
             arguments: {
-                required: [ z.literal("hidden").or(z.literal("secret")).or(z.literal("classic")), z.coerce.number().int().min(1) ],
+                required: [ z.literal("hidden").or(z.literal("secret")).or(z.literal("classic")).or(z.literal('public')), z.coerce.number().int().min(1) ],
             }
         }, {
             name: "check",
@@ -97,9 +98,9 @@ module.exports = {
             const ref = db.collection('mayor').doc(user.id);
             
             await ref.set({
-                type: command.arguments[0] as string,
+                type: command.arguments[0] == 'public' ? 'classic' : command.arguments[0] as string,
                 weight: command.arguments[1] as string,
-                reveal: false,
+                reveal: command.arguments[0] == 'public' ? true : false,
             });
 
             await command.message.react("✅");
