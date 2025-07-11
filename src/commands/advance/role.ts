@@ -86,7 +86,7 @@ export const RoleCommand = {
         }
 
         if(interaction.type != 'text') {
-            await interaction.editReply({ content: "Player added."});
+            await interaction.editReply({ content: "Roles adjusted."});
         } else {
             await removeReactions(interaction.message);
 
@@ -168,7 +168,7 @@ export const InviteCommand = {
         dm.send("You've been sent an invite: \nhttps://discord.com/invite/" + invite.code);
 
         if(interaction.type != 'text') {
-            await interaction.editReply({ content: "Player added."});
+            await interaction.editReply({ content: "Player invited."});
         } else {
             await removeReactions(interaction.message);
 
