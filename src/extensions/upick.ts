@@ -1,6 +1,6 @@
 import { ChannelType, Message, Role } from "discord.js";
 import { Vote } from "../utils/vote";
-import client, { Command, CommandOptions, removeReactions } from "../discord";
+import client, { Command, CommandOptions, onjoin, removeReactions } from "../discord";
 import { getGameByName, getGlobal, type Global, getPlayerObjects, setupDeadPlayer, getGameByID, archiveChannels } from "../utils/main";
 import { z } from "zod";
 import { Extension, ExtensionInteraction } from "../utils/extensions";
@@ -14,10 +14,10 @@ import { FieldValue } from "firebase-admin/firestore";
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
 //                   Ongoing Chat          Archived Chats        DM Storage             Old Player DMs         Old Mafia
-const categoryIds = ["723651039693373454", "723636076811386923", "1244509911098851452", "1363452733885255812", "1266670814082633828"];
-//const categoryIds = ["1247776492029481081"];
-export const playersRoleId = "1390130766842695681";
-//export const playersRoleId = "1390188023529996400";
+//const categoryIds = ["723651039693373454", "723636076811386923", "1244509911098851452", "1363452733885255812", "1266670814082633828"]; //prod
+const categoryIds = ["1247776492029481081"];
+//export const playersRoleId = "1390130766842695681"; //prod
+export const playersRoleId = "1390188023529996400";
 
 const help = `Upick Extension assumes that all players have signed up. While players may be added afterwards, there are no checks in place to see if they had already saw other channels.
 
@@ -147,7 +147,21 @@ module.exports = {
 
         await checkMod(setup, command.user.id, command.message.guildId ?? "---");
         
-        if(command.name == "setup") {
+        if(command.name == "respec") {
+            const categories = (await Promise.all(categoryIds.map(id => setup.secondary.guild.channels.fetch(id)))).filter(category => category != null).filter(category => category.type == ChannelType.GuildCategory);
+            if(categories.length != categoryIds.length) throw new Error("Failed to fetch all categories.");
+
+            const playersRole = await setup.secondary.guild.roles.fetch(playersRoleId);
+            if(playersRole == null) throw new Error("Players role not found!");
+
+            await Promise.all(categories.map(category => {
+                if(category.permissionOverwrites.cache.get(playersRole.id)) {
+                    return category.permissionOverwrites.edit(playersRole.id, messageOverwrites());
+                } else {
+                    return category.permissionOverwrites.create(playersRole.id, messageOverwrites());
+                }
+            }));
+        } else if(command.name == "setup") {
             const categories = (await Promise.all(categoryIds.map(id => setup.secondary.guild.channels.fetch(id)))).filter(category => category != null).filter(category => category.type == ChannelType.GuildCategory);
             if(categories.length != categoryIds.length) throw new Error("Failed to fetch all categories.");
 
@@ -349,6 +363,7 @@ export function blockOverwrites() {
         UseExternalEmojis: false,
         SendTTSMessages: false,
         UseApplicationCommands: false,
+        ReadMessageHistory: false,
     }
 }
 
@@ -364,6 +379,7 @@ export function messageOverwrites() {
         UseExternalEmojis: true,
         SendTTSMessages: false,
         UseApplicationCommands: true,
+        ReadMessageHistory: true
     }
 }
 
@@ -379,6 +395,7 @@ export function readOverwrites() {
         UseExternalEmojis: false,
         SendTTSMessages: false,
         UseApplicationCommands: false,
+        ReadMessageHistory: true
     }
 }
 
@@ -408,10 +425,19 @@ async function pregameSetupPlayer(player: Awaited<ReturnType<typeof getPlayerObj
     if(!player.deadPlayer) {
         const invite = await setup.secondary.guild.invites.create(channel, { unique: true });
 
-        await db.collection('invites').add({
+        await onjoin({
             id: player.userProfile.id,
-            type: 'extension-upick-pregame',
-            timestamp: new Date().valueOf(),
+            server: "secondary",
+            roles: {
+                add: ["players"]
+            },
+            permissions: {
+                channel: channel.id,
+            },
+            message: {
+                channel: channel.id,
+                content: "Welcome <@" + player.userProfile.id + ">! Check out the pins in the main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod."
+            }
         });
 
         const dm = await client.users.cache.get(player.userProfile.id)?.createDM();

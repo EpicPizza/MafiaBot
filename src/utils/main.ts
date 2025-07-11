@@ -1,6 +1,6 @@
 import { Transaction, FieldValue, Firestore, CollectionReference, Query, DocumentReference, DocumentSnapshot } from "firebase-admin/firestore";
 import { firebaseAdmin } from "../firebase";
-import client, { Command, removeReactions } from "../discord";
+import client, { Command, removeReactions, onjoin } from "../discord";
 import Discord, { ActionRow, ActionRowComponent, BaseGuildTextChannel, ButtonInteraction, ButtonStyle, ChannelType, ChatInputCommandInteraction, Collection, Colors, CommandInteraction, ComponentEmojiResolvable, FetchMembersOptions, GuildBasedChannel, GuildMember, PermissionsBitField, TextChannel } from "discord.js";
 import { ActionRowBuilder, ButtonBuilder, EmbedBuilder, SelectMenuBuilder, SelectMenuOptionBuilder, StringSelectMenuBuilder } from "@discordjs/builders";
 import { User, getUser, getUsers } from "./user";
@@ -431,10 +431,17 @@ export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup
     if(!deadPlayer) {
         const invite = await setup.secondary.guild.invites.create(channel, { unique: true });
 
-        await db.collection('invites').add({
+        await onjoin({
             id: userProfile.id,
-            type: 'joining',
-            timestamp: new Date().valueOf(),
+            server: "secondary",
+            roles: {},
+            permissions: {
+                channel: channel.id,
+            },
+            message: {
+                channel: channel.id,
+                content: "Welcome <@" + userProfile.id + ">! Check out the pins in the main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod."
+            }
         });
 
         const dm = await client.users.cache.get(id)?.createDM();
@@ -657,10 +664,13 @@ export async function setMafiaSpectator(mafiaPlayer: GuildMember | undefined, id
     } else if(dm) {
         const invite = await setup.tertiary.guild.invites.create(gameSetup.mafia.id, { unique: true });
 
-        await db.collection('invites').add({
+        await onjoin({
             id: userProfile.id,
-            type: 'spectate',
-            timestamp: new Date().valueOf(),
+            server: "tertiary",
+            roles: {
+                add: ["spectator"],
+                remove: ["access"],
+            }
         });
             
         const dm = await client.users.cache.get(id)?.createDM();

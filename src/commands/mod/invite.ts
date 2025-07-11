@@ -1,5 +1,5 @@
 import { ChannelType, ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
-import client, { Command, TextCommandArguments, removeReactions } from "../../discord";
+import client, { Command, TextCommandArguments, onjoin, removeReactions } from "../../discord";
 import { z } from "zod";
 import { endGame, getGameByName, getGlobal, startGame } from "../../utils/main";
 import { firebaseAdmin } from "../../firebase";
@@ -73,10 +73,13 @@ export const SpectatorCommand = {
 
             const invite = await setup.secondary.guild.invites.create(channel, { unique: true });
 
-            await db.collection('invites').add({
+            await onjoin({
                 id: spectator,
-                type: 'dead-spectate',
-                timestamp: new Date().valueOf(),
+                server: "secondary",
+                roles: {
+                    add: ["spectator"],
+                    remove: ["access"]
+                }
             });
 
             message += "Dead Chat: https://discord.com/invite/" + invite.code + "\n";
@@ -100,10 +103,13 @@ export const SpectatorCommand = {
 
             const invite = await setup.tertiary.guild.invites.create(channel, { unique: true });
 
-            await db.collection('invites').add({
+            await onjoin({
                 id: spectator,
-                type: 'spectate',
-                timestamp: new Date().valueOf(),
+                server: "tertiary",
+                roles: {
+                    add: ["spectator"],
+                    remove: ["access"]
+                }
             });
 
             message += "Mafia Chat: https://discord.com/invite/" + invite.code + "\n";

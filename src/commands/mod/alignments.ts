@@ -6,7 +6,7 @@ import { getGameSetup } from "../../utils/games";
 import { Setup, getSetup } from "../../utils/setup";
 import { getUser, getUsers } from "../../utils/user";
 import { Global } from "../../utils/main";
-import { Command, TextCommandArguments } from "../../discord";
+import { Command, onjoin, TextCommandArguments } from "../../discord";
 
 export const ShowAlignments = {
     name: "alignments",
@@ -122,10 +122,13 @@ export async function addMafiaPlayer(player: Global["players"][0], setup: Setup)
     } else {
         const db = firebaseAdmin.getFirestore();
 
-        await db.collection('invites').add({
+        await onjoin({
             id: user.id,
-            type: 'mafia',
-            timestamp: new Date().valueOf(),
+            server: "tertiary",
+            roles: {
+                add: ["access"],
+            }
         });
+        
     }
 }

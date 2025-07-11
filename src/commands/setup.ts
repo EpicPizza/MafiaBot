@@ -1,5 +1,5 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChannelType, ChatInputCommandInteraction, Collection, Colors, CommandInteraction, EmbedBuilder, PermissionFlagsBits, PermissionOverwriteManager, PermissionOverwriteOptions, PermissionOverwriteResolvable, PermissionOverwrites, PermissionsBitField, SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
-import client, { Data } from "../discord";
+import client, { Data, onjoin } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { set, z } from "zod";
 import { getGlobal } from "../utils/main";
@@ -461,10 +461,13 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
 
                 const invite = await setup.secondary.guild.invites.create(channel, { unique: true });
 
-                await db.collection('invites').add({
+                await onjoin({
                     id: mod.id,
-                    type: 'dead-mod',
-                    timestamp: new Date().valueOf(),
+                    server: "secondary",
+                    roles: {
+                        add: ["admin", "spectator"],
+                        remove: ["access"]
+                    }
                 });
 
                 message += "Dead Chat: https://discord.com/invite/" + invite.code + "\n";
@@ -487,10 +490,13 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
 
                 const invite = await setup.tertiary.guild.invites.create(channel, { unique: true });
 
-                await db.collection('invites').add({
+                await onjoin({
                     id: mod.id,
-                    type: 'mafia-mod',
-                    timestamp: new Date().valueOf(),
+                    server: "tertiary",
+                    roles: {
+                        add: ["admin", "spectator"],
+                        remove: ["access"]
+                    }
                 });
 
                 message += "Mafia Chat: https://discord.com/invite/" + invite.code + "\n";

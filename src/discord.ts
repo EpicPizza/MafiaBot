@@ -531,132 +531,66 @@ client.on(Events.MessageDelete, async (message) => {
     }
 })
 
+export interface RoleQueue {
+    server: 'primary' | 'secondary' | 'tertiary',
+    roles: {
+        add?: string[],
+        remove?: string[],
+    }
+    message?: {
+        channel: string,
+        content: string,
+    },
+    permissions?: {
+        channel: string,
+    },
+    id: string,
+}
+
+export async function onjoin(queue: RoleQueue) {
+    const db = firebaseAdmin.getFirestore();
+
+    const ref = db.collection('roles');
+
+    await ref.add(queue);
+}
+
 client.on(Events.GuildMemberAdd, async (member) => {
     try {
         const setup = await getSetup();
-        const global = await getGlobal();
         const db = firebaseAdmin.getFirestore();
 
-        const ref = db.collection('invites').orderBy('timestamp', 'desc').where('id', '==', member.id);
-        const docs = (await ref.get()).docs;
-        if(docs.length < 1) return;
-        const data = docs.length > 0 ? docs[0].data() : undefined;
-        const second = docs.length > 1 ? docs[1].data() : undefined;
-        if(!data) return;
+        const name = Object.entries(setup).find(entry => entry[1].guild.id == member.guild.id)?.[0];
+        if(name == undefined) return;
 
-        const user = await getUser(member.id);
-        if(!user) return;
+        const ref = db.collection('roles').where('id', '==', member.id).where('server', '==', name);
+        const docs = (await ref.get()).docs
+        const roles = docs.map(doc => doc.data()) as RoleQueue[];
 
-        switch(data.type) {
-            case 'extension-upick-pregame':
-                if(setup.secondary.guild.id != member.guild.id) return;
+        for(let i = 0; i < roles.length; i++) {
+            const queue: RoleQueue = roles[i];
+            const guild = setup[queue.server].guild;
 
-                const ref = db.collection('upick').doc('settings');
-                if((await ref.get()).data()?.game == undefined) throw new Error("Already started pregame!");
+            const addRoles = queue.roles.add?.map(role => guild.roles.cache.find(cachedRole => cachedRole.name == role)).filter(role => role != undefined) ?? [];
+            const removeRoles = queue.roles.remove?.map(role => guild.roles.cache.find(cachedRole => cachedRole.name == role)).filter(role => role != undefined) ?? [];
 
-                const playersRole = await setup.secondary.guild.roles.fetch(playersRoleId);
-                if(playersRole == null) throw new Error("Players role not found!");
+            await Promise.allSettled(addRoles.map(role => member.roles.add(role)));
+            await Promise.allSettled(removeRoles.map(role => member.roles.remove(role)));
 
-                const pregameChannel = user.channel == null ? null : (await setup.secondary.guild.channels.fetch(user.channel).catch(() => null));
-                
-                if(pregameChannel != null) {
-                    await (pregameChannel as TextChannel).permissionOverwrites.create(user.id, editOverwrites());
+            if(queue.permissions) {
+                const permissionsChannel = guild.channels.cache.get(queue.permissions.channel);
+                if(permissionsChannel && permissionsChannel.type == ChannelType.GuildText) await permissionsChannel.permissionOverwrites.create(member.id, editOverwrites());
+            }
 
-                    await (pregameChannel as TextChannel).send("Welcome <@" + user.id + ">! Check out the pins in the main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod.");
-                } else {
-                    const channel = await setup.secondary.guild.channels.create({ 
-                        parent: setup.secondary.dms, 
-                        name: user.nickname.toLowerCase(),
-                        permissionOverwrites: generateOverwrites(user.id)
-                    });
-
-                    await db.collection('users').doc(user.id).update({
-                        channel: channel.id,
-                    });
-
-                    await channel.send("Welcome <@" + user.id + ">! Check out the pins in the main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod.");
-                }
-
-                const deadPlayer = await setup.secondary.guild.members.fetch(user.id);
-
-                await deadPlayer.roles.add(playersRole);
-
-                break;
-            case 'joining':
-                
-                if(!global.started) return;
-                if(setup.secondary.guild.id != member.guild.id) return;
-
-                const existingChannel = user.channel == null ? null : (await setup.secondary.guild.channels.fetch(user.channel).catch(() => null));
-                
-                if(existingChannel != null) {
-                    await (existingChannel as TextChannel).permissionOverwrites.create(user.id, editOverwrites());
-
-                    await (existingChannel as TextChannel).send("Welcome <@" + user.id + ">! Check out the pins in the main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod.");
-                } else {
-                    const channel = await setup.secondary.guild.channels.create({ 
-                        parent: setup.secondary.dms, 
-                        name: user.nickname.toLowerCase(),
-                        permissionOverwrites: generateOverwrites(user.id)
-                    });
-
-                    await db.collection('users').doc(user.id).update({
-                        channel: channel.id,
-                    });
-
-                    await channel.send("Welcome <@" + user.id + ">! Check out the pins in the main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod.");
-                }
-                
-                break;
-            case "spectate":
-                if(second && second.type == "dead-spectate" && setup.secondary.guild.id == member.guild.id) {
-                    await member.roles.add(setup.secondary.spec);
-                    await member.roles.remove(setup.secondary.access);
-                }
-
-                if(setup.tertiary.guild.id != member.guild.id) return;
-
-                await member.roles.add(setup.tertiary.spec);
-                break;
-            case "mafia":
-                if(setup.tertiary.guild.id != member.guild.id) return;
-
-                await member.roles.add(setup.tertiary.access);
-
-                
-                break;
-            case "mafia-mod":
-                if(second && second.type == "dead-mod" && setup.secondary.guild.id == member.guild.id) {
-                    await member.roles.add(setup.secondary.mod);
-                    await member.roles.add(setup.secondary.spec);
-                    await member.roles.remove(setup.secondary.access);
-                }
-
-                if(setup.tertiary.guild.id != member.guild.id) return;
-
-                await member.roles.add(setup.tertiary.mod);
-                await member.roles.add(setup.tertiary.spec);
-                break;
-            case "dead-mod":
-                if(setup.secondary.guild.id != member.guild.id) return;
-
-                await member.roles.add(setup.secondary.mod);
-                await member.roles.add(setup.secondary.spec);
-                await member.roles.remove(setup.secondary.access);
-                break;
-            case "dead-spectate":
-                if(setup.secondary.guild.id != member.guild.id) return;
-
-                await member.roles.add(setup.secondary.spec);
-                await member.roles.remove(setup.secondary.access);
-                break;
-            default:
-                if(setup.secondary.guild.id == member.guild.id || setup.tertiary.guild.id == member.guild.id) {
-                    if(member.kickable && cache.started) {
-                        await member.kick();
-                    }
-                }
+            if(queue.message) {
+                const messageChannel = guild.channels.cache.get(queue.message.channel);
+                if(messageChannel && messageChannel.isTextBased()) await messageChannel.send(queue.message.content);
+            }
         }
+
+        if(roles.length == 0 && (setup.secondary.guild.id == member.guild.id || setup.tertiary.guild.id == member.guild.id) && member.kickable && cache.started) await member.kick();
+
+        await Promise.allSettled(docs.map(doc => doc.ref.delete()));
     } catch(e) {
         console.log(e);
     }
