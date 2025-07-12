@@ -18,7 +18,7 @@ module.exports = {
                 .addNumberOption(option =>
                     option
                         .setName('day')
-                        .setDescription('Which day to show votes from.')
+                        .setDescription('Which day to show stats from.')
                 )
         },
         {
@@ -63,8 +63,9 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
 
     const docs = (await ref.get()).docs;
 
-    let list = [] as { name: string, id: string, messages: number, words: number, show: boolean, images: number, reactions: { reaction: string, timestamp: number }[] }[];
-
+    let list = [] as { name: string, id: string, messages: number, words: number, show: boolean, alive: boolean, images: number, reactions: { reaction: string, timestamp: number }[] }[];
+    let aliveList = [] as { name: string, id: string, messages: number, words: number, show: boolean, alive: boolean, images: number, reactions: { reaction: string, timestamp: number }[] }[];
+    
     for(let i = 0; i < docs.length; i++) {
         const data = docs[i].data();
 
@@ -77,6 +78,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
                 messages: data.messages,
                 words: data.words,
                 show: true,
+                alive: false,
                 reactions: data.reactions ?? [],
                 images: data.images ?? 0,
             });
@@ -84,10 +86,8 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
     }
 
     if(currentPlayers.length == 0) {
-        list = list.filter(stat => game.signups.includes(stat.id));
+        aliveList = list.filter(stat => game.signups.includes(stat.id));
     } else {
-        list = list.filter(stat => currentPlayers.includes(stat.id));
-
         currentPlayers.forEach(player => {
             if(list.find(stat => stat.id == player) != undefined) return;
 
@@ -99,18 +99,22 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
                 messages: 0,
                 words: 0,
                 show: true,
+                alive: true,
                 reactions: [],
                 images: 0,
             });
         })
+
+        aliveList = list.filter(stat => currentPlayers.includes(stat.id));
     }
+    aliveList.forEach(stat => stat.alive = true);
     
     const id = (await db.collection('graphs').add({ stats: list, day: day, name: game.name, timestamp: interaction.type == 'text' ? interaction.message.createdAt.valueOf() : interaction.createdAt.valueOf() })).id;
 
     const message = (() => {
-        list = list.sort((a, b) => b.messages - a.messages);
+        aliveList = aliveList.sort((a, b) => b.messages - a.messages);
 
-        return list.reduce((previous, current) => previous += current.name + " » " + current.messages + " message" + (current.messages== 1 ? "" : "s") + " containing " + current.words + " word" + (current.words== 1 ? "" : "s") + "\n", "");
+        return aliveList.reduce((previous, current) => previous += current.name + " » " + current.messages + " message" + (current.messages== 1 ? "" : "s") + " containing " + current.words + " word" + (current.words== 1 ? "" : "s") + "\n", "");
     })();
 
     const embed = new EmbedBuilder()
