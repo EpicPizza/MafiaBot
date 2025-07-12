@@ -27,6 +27,25 @@ module.exports = {
             command: {
                 optional: [ z.coerce.number().min(1).max(100) ]
             }
+        },
+        { 
+            type: 'slash',
+            name: 'slash-reactions',
+            command: new SlashCommandBuilder()
+                .setName("reactions")
+                .setDescription("Show reaction stats.")
+                .addNumberOption(option =>
+                    option
+                        .setName('day')
+                        .setDescription('Which day to show reaction stats from.')
+                )
+        },
+        {
+            type: 'text',
+            name: 'text-reactions',
+            command: {
+                optional: [ z.coerce.number().min(1).max(100) ]
+            }
         }
     ] satisfies Data[],
 
@@ -63,8 +82,8 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
 
     const docs = (await ref.get()).docs;
 
-    let list = [] as { name: string, id: string, messages: number, words: number, show: boolean, alive: boolean, images: number, reactions: { reaction: string, timestamp: number }[] }[];
-    let aliveList = [] as { name: string, id: string, messages: number, words: number, show: boolean, alive: boolean, images: number, reactions: { reaction: string, timestamp: number }[] }[];
+    let list = [] as { name: string, id: string, messages: number, words: number, show: boolean, alive: boolean, images: number, reactions: { reaction: string, timestamp: number, message: string }[] }[];
+    let aliveList = [] as { name: string, id: string, messages: number, words: number, show: boolean, alive: boolean, images: number, reactions: { reaction: string, timestamp: number, message: string }[] }[];
     
     for(let i = 0; i < docs.length; i++) {
         const data = docs[i].data();
@@ -112,13 +131,20 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
     const id = (await db.collection('graphs').add({ stats: list, day: day, name: game.name, timestamp: interaction.type == 'text' ? interaction.message.createdAt.valueOf() : interaction.createdAt.valueOf() })).id;
 
     const message = (() => {
-        aliveList = aliveList.sort((a, b) => b.messages - a.messages);
-
-        return aliveList.reduce((previous, current) => previous += current.name + " » " + current.messages + " message" + (current.messages== 1 ? "" : "s") + " containing " + current.words + " word" + (current.words== 1 ? "" : "s") + "\n", "");
+        if(("arguments" in interaction) ? interaction.name == "stats" : interaction.commandName == "stats") {
+            aliveList = aliveList.sort((a, b) => b.messages - a.messages);
+            return aliveList.reduce((previous, current) => previous += current.name + " » " + current.messages + " message" + (current.messages== 1 ? "" : "s") + " containing " + current.words + " word" + (current.words== 1 ? "" : "s") + "\n", "");
+        } else if(("arguments" in interaction) ? interaction.name == "reactions" : interaction.commandName == "reactions") {
+            list = list.sort((a, b) => b.reactions.length - a.reactions.length);
+            const messageCounter = (current) => (new Set(current.reactions.map(reaction => reaction.message).filter(message => message != undefined))).size;
+            return list.reduce((previous, current) => previous += current.name + " » " + current.reactions.length + " reaction" + (current.reactions.length== 1 ? "" : "s") + " across " + messageCounter(current) + " message" + (messageCounter(current)== 1 ? "" : "s") + "\n", "");
+        } else {
+            return "";
+        }
     })();
 
     const embed = new EmbedBuilder()
-        .setTitle("Stats » " + (global.day == day ? "Today (Day " + global.day + ")" : "Day " + day))
+        .setTitle(((("arguments" in interaction) ? interaction.name == "reactions" : interaction.commandName == "reactions") ? "Reaction " : "") + "Stats » " + (global.day == day ? "Today (Day " + global.day + ")" : "Day " + day))
         .setColor(Colors.Gold)
         .setDescription(message == '' ? "No Stats" : message)
 
