@@ -52,7 +52,7 @@ export const ShowAlignments = {
     }
 }
 
-export const ConfirmAllignmentsButton = {
+export const ConfirmAlignmentsButton = {
     type: 'button',
     name: 'button-confirm-alignments',
     command: z.object({

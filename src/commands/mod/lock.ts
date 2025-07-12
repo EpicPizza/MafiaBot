@@ -237,7 +237,7 @@ export const UnlockCommand = {
         const global = await getGlobal();
 
         if(!global.started) throw new Error("Game not started.");
-        if(global.day == 0) throw new Error("Setup allignments first.");
+        if(global.day == 0) throw new Error("Setup alignments first.");
         if(!global.locked) throw new Error("Game is already unlocked.");
 
         await handleLocking(interaction, false);

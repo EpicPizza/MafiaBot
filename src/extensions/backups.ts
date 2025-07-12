@@ -115,7 +115,7 @@ module.exports = {
         } else if(command.name == "replace") {
             const ingame = !global.locked;
 
-            if(global.day == 0) throw new Error("Setup allignments first.");
+            if(global.day == 0) throw new Error("Setup alignments first.");
 
             const replacing = await getUserByName(command.arguments[0] as string);
             const to = await getUserByName(command.arguments[2] as string);

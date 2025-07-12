@@ -413,6 +413,8 @@ const playerCommandsInGame = `**/players or ?players {game} {complete} or ?playe
 
 **/stats or ?stats {day}** View message and word count for each player (and specify day to view stats from that day).
 
+**/reactions or ?reactions {day}** View reaction and message count for each player (and specify day to view stats from that day).
+
 **/vote or ?vote {name}** Vote for a player. Specify the same player to remove your vote, or a new player to change your vote.
 
 **/unvote or ?unvote** Remove your vote.
@@ -449,7 +451,7 @@ const modCommandsPreGame =`**/games or ?games** See all games currently happenin
 
 **/mod archive or ?mod archive {name}** Removes the game from database and moves channels to archived category.`
 
-const modCommandsInGame = `**/mod start or ?mod start {name}** Starts the game. Locks the channel. Setups player dms. Kicks everyone from mafia server. Sends message in spectator chat to setup allignments (which will invite mafia to mafia server after confirming).
+const modCommandsInGame = `**/mod start or ?mod start {name}** Starts the game. Locks the channel. Setups player dms. Kicks everyone from mafia server. Sends message in spectator chat to setup alignments (which will invite mafia to mafia server after confirming).
 
 **/mod alignments or ?mod alignments** Shows alignments of all players, must be run in spectator chat.
 
