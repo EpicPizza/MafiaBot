@@ -25,10 +25,16 @@ export const SpectatorCommand = {
                     .setName('remove')
                     .setDescription('If wanted, to remove spectator.')
                     .setRequired(false)
+            )
+            .addBooleanOption(option => 
+                option 
+                    .setName('invite')
+                    .setDescription('Set true to send invite back to you instead of dm.')
+                    .setRequired(false)
             ),
         text: {
             required: [ z.string().regex(/^<@\d+>$/) ],
-            optional: [ z.coerce.boolean() ]
+            optional: [ z.union([z.literal('false'), z.literal('true')]), z.union([z.literal('false'), z.literal('true')]) ]
         } satisfies TextCommandArguments
     },
     execute: async (interaction: Command | ChatInputCommandInteraction) => {
@@ -46,15 +52,19 @@ export const SpectatorCommand = {
 
         if(spectator == undefined) throw new Error("A member must be specified");
 
-        const remove = interaction.type == 'text' ? interaction.arguments.length > 2 && interaction.arguments[2] === true : interaction.options.getBoolean('remove') === true;
+        const remove = interaction.type == 'text' ? interaction.arguments.length > 2 && interaction.arguments[2] === 'true' : interaction.options.getBoolean('remove') === true;
+
+        console.log(interaction.type == 'text' ? interaction.arguments : "");
 
         const global = await getGlobal();
 
         if(global.players.filter(player => player.id == spectator).length > 0) throw new Error("Cannot give/remove spectator to a player.");
 
+        const sendDM = interaction.type == 'text' ? interaction.arguments.length > 3 && interaction.arguments[3] === 'true' : interaction.options.getBoolean('invite') === true;
+
         const dm = await client.users.cache.get(spectator)?.createDM();
 
-        if(!dm) throw new Error("Unable to send dms to <@" + spectator + ">.");
+        if(sendDM && !dm) throw new Error("Unable to send dms to <@" + spectator + ">.");
 
         const main = await setup.primary.guild.members.fetch(spectator).catch(() => undefined);
 
@@ -124,12 +134,22 @@ export const SpectatorCommand = {
             }
         }
 
-        if(remove) { 
+        if(sendDM && dm) {
+            if(remove) { 
             // do nothing
-        } else if(message == "") {
-            dm.send("You're now a spectator, your roles have been adjusted.");
+            } else if(message == "") {
+                await dm.send("You're now a spectator, your roles have been adjusted.");
+            } else {
+                await dm.send("You're now a spectator, here are invites to the servers you're not in:\n" + message);
+            }
         } else {
-            dm.send("You're now a spectator, here are invites to the servers you're not in:\n" + message);
+            if(remove) { 
+            // do nothing
+            } else if(message == "") {
+                await interaction.reply("No invites needed, their roles have been adjusted.");
+            } else {
+                await interaction.reply(message);
+            }
         }
 
         if(interaction.type == 'text') {
