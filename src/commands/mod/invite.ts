@@ -60,7 +60,7 @@ export const SpectatorCommand = {
 
         if(global.players.filter(player => player.id == spectator).length > 0) throw new Error("Cannot give/remove spectator to a player.");
 
-        const sendDM = interaction.type == 'text' ? interaction.arguments.length > 3 && interaction.arguments[3] === 'true' : interaction.options.getBoolean('invite') === true;
+        const sendDM = interaction.type == 'text' ? interaction.arguments.length > 3 && interaction.arguments[3] === 'false' ? false : true : interaction.options.getBoolean('invite') == null ? true : interaction.options.getBoolean('invite');
 
         const dm = await client.users.cache.get(spectator)?.createDM();
 
@@ -142,14 +142,6 @@ export const SpectatorCommand = {
             } else {
                 await dm.send("You're now a spectator, here are invites to the servers you're not in:\n" + message);
             }
-        } else {
-            if(remove) { 
-            // do nothing
-            } else if(message == "") {
-                await interaction.reply("No invites needed, their roles have been adjusted.");
-            } else {
-                await interaction.reply(message);
-            }
         }
 
         if(interaction.type == 'text') {
@@ -157,13 +149,17 @@ export const SpectatorCommand = {
            
             if(remove) {
                 await interaction.reply("Spectator kicked.");
+            } else if(!(sendDM && dm)) {
+                await interaction.reply({ content: message + "\n\nSpectator has been added. You may need to rerun this command after a game starts (since invites reset)." });
             } else {
                 await interaction.reply({ content: "Spectator has been added. You may need to rerun this command after a game starts (since invites reset)." });
             }
         } else {
             if(remove) {
                 await interaction.editReply("Spectator kicked.");
-            } else { 
+            } else if(!(sendDM && dm)) {
+                await interaction.editReply({ content: message + "\n\nSpectator has been added. You may need to rerun this command after a game starts (since invites reset)." });
+            } else {
                 await interaction.editReply({ content: "Spectator has been added. You may need to rerun this command after a game starts (since invites reset)." });
             }
         }
