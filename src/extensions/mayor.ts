@@ -184,7 +184,7 @@ module.exports = {
 
         if(!voted || vote == undefined) return { hammer: false, message: null };
 
-        const user = users.find(user => user.id == vote.id);
+        const user = users.find(user => user.id == vote.for);
 
         if(!user) throw new Error("User not found.");
 
