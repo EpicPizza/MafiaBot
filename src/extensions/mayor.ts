@@ -190,7 +190,7 @@ module.exports = {
 
         const mayors = await getMayors(users);
 
-        let votesForHammer = votes.reduce((prev, vote) => {
+        let votesForHammer = votes.filter(v => v.for == vote.for).reduce((prev, vote) => {
             const mayor = mayors.find(mayor => mayor.id == vote.id);
 
             if(mayor && (mayor.type != "classic" || (mayor.type == "classic" && mayor.reveal == true))) {
