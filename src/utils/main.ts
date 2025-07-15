@@ -108,6 +108,33 @@ export async function unlockGame(increment: boolean = false, ping: boolean = tru
     if(!global.started) return await setup.primary.chat.send("Failed to unlock channel, game has not started.");
     if(!global.locked) throw new Error("Already unlocked.");
 
+    await setup.primary.chat.permissionOverwrites.create(setup.primary.alive.id, {
+        SendMessages: true,
+        AddReactions: true, 
+        AttachFiles: true, 
+        EmbedLinks: true, 
+        //SendPolls: true, 
+        SendVoiceMessages: true,
+        UseExternalEmojis: true,
+        SendTTSMessages: false,
+        UseApplicationCommands: true,
+    });
+
+    await setup.primary.chat.permissionOverwrites.create(setup.primary.gang.id, {
+        ViewChannel: true,
+        SendMessages: false,
+        AddReactions: true,
+        AttachFiles: false,
+        EmbedLinks: false,
+        //SendPolls: false,
+        SendVoiceMessages: false,
+        UseExternalEmojis: true,
+        UseApplicationCommands: false,
+        CreatePublicThreads: false,
+        CreatePrivateThreads: false, 
+        SendMessagesInThreads: false
+    });
+
     const db = firebaseAdmin.getFirestore();
 
     const ref = db.collection('settings').doc('game');
@@ -138,33 +165,6 @@ export async function unlockGame(increment: boolean = false, ping: boolean = tru
     } else {
         await setup.primary.chat.send("Game has unlocked!");
     }
-
-    await setup.primary.chat.permissionOverwrites.create(setup.primary.alive.id, {
-        SendMessages: true,
-        AddReactions: true, 
-        AttachFiles: true, 
-        EmbedLinks: true, 
-        //SendPolls: true, 
-        SendVoiceMessages: true,
-        UseExternalEmojis: true,
-        SendTTSMessages: false,
-        UseApplicationCommands: true,
-    });
-
-    await setup.primary.chat.permissionOverwrites.create(setup.primary.gang.id, {
-        ViewChannel: true,
-        SendMessages: false,
-        AddReactions: true,
-        AttachFiles: false,
-        EmbedLinks: false,
-        //SendPolls: false,
-        SendVoiceMessages: false,
-        UseExternalEmojis: true,
-        UseApplicationCommands: false,
-        CreatePublicThreads: false,
-        CreatePrivateThreads: false, 
-        SendMessagesInThreads: false
-    });
 
     await unlockExtensions(global, setup, game, increment);
 }
@@ -197,17 +197,6 @@ export async function lockGame() {
     if(!global.started) throw new Error("Failed to unlock channel, game has not started.");
     if(global.locked) throw new Error("Already locked.");
 
-    const db = firebaseAdmin.getFirestore();
-
-    const ref = db.collection('settings').doc('game');
-
-    await ref.update({
-        started: true,
-        locked: true,
-    });
-
-    await setup.primary.chat.send("Game has locked!");
-
     await setup.primary.chat.permissionOverwrites.create(setup.primary.alive.id, {});
 
     await setup.primary.chat.permissionOverwrites.create(setup.primary.gang.id, {
@@ -224,6 +213,17 @@ export async function lockGame() {
         CreatePrivateThreads: false, 
         SendMessagesInThreads: false
     });
+
+    const db = firebaseAdmin.getFirestore();
+
+    const ref = db.collection('settings').doc('game');
+
+    await ref.update({
+        started: true,
+        locked: true,
+    });
+
+    await setup.primary.chat.send("Game has locked!");
 
     await lockExtensions(global, setup, game);
 }
