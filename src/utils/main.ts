@@ -460,26 +460,6 @@ export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup
     }
 }
 
-export async function getAllUsers(game: Signups) {
-    const db = firebaseAdmin.getFirestore();
-
-    const ref = db.collection('users');
-
-    const docs = (await ref.get()).docs;
-    
-    const nicknames = [] as User[];
-
-    for(let i = 0; i < game.signups.length; i++) {
-        for(let j = 0; j < docs.length; j++) {
-            if(game.signups[i] == docs[j].id) {
-                nicknames.push(docs[j].data() as User);
-            }
-        }
-    }
-
-    return nicknames;
-}
-
 export async function getAllNicknames() {
     const db = firebaseAdmin.getFirestore();
 
@@ -492,26 +472,6 @@ export async function getAllNicknames() {
     for(let j = 0; j < docs.length; j++) {
         if(docs[j].data().nickname != null) {
             nicknames.push(docs[j].data().nickname);
-        }
-    }
-
-    return nicknames;
-}
-
-export async function getAllCurrentNicknames(global: Global) {
-    const db = firebaseAdmin.getFirestore();
-
-    const ref = db.collection('users');
-
-    const docs = (await ref.get()).docs;
-    
-    const nicknames = [] as string[];
-
-    for(let i = 0; i < global.players.length; i++) {
-        for(let j = 0; j < docs.length; j++) {
-            if(global.players[i].id == docs[j].id) {
-                nicknames.push(docs[j].data().nickname);
-            }
         }
     }
 
