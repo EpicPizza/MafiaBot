@@ -94,7 +94,7 @@ module.exports = {
             })
         }
     ],
-    onStart: async (global: Global, setup: Setup, game: Signups) => {
+    onStart: async (global, setup, game) => {
         /**
          * Runs during game start processes.
          */
@@ -119,7 +119,7 @@ module.exports = {
 
         console.log("Extension Lock");
     },
-    onUnlock: async (global, setup, game, incremented: boolean) => {
+    onUnlock: async (global, setup, game, incremented) => {
         /**
          * Runa after game has unlocked.
          * 
@@ -375,7 +375,7 @@ module.exports = {
 
         return;
     },
-    onMessage: async (message: Message, cache: Cache) => {},
+    onMessage: async (message, cache) => {},
     onEnd: async (global, setup, game) => {
         /**
          * Runs during game end processes.

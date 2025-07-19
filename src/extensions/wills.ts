@@ -65,7 +65,7 @@ module.exports = {
          */
     },
     onLock: async (global, setup, game) => {},
-    onUnlock: async (global, setup, game, incremented: boolean) => {},
+    onUnlock: async (global, setup, game, incremented) => {},
     onCommand: async (command: Command) => {
         /**
          * Text commands only for the forseeable future.
@@ -137,11 +137,11 @@ module.exports = {
          */
     },
     onInteraction: async (extensionInteraction: ExtensionInteraction) => {},
-    onMessage: async (message: Message, cache: Cache) => {},
+    onMessage: async (message, cache) => {},
     onEnd: async (global, setup, game) => {},
     onVote: async (global, setup, game, voter, voting, type, users, transaction) => {},
-    onVotes: async (global: Global, setup: Setup, game: Signups, board: string ) => { return ""; },
-    onHammer: async (global: Global, setup: Setup, game, hammered: string) => {
+    onVotes: async (global, setup, game, board ) => { return ""; },
+    onHammer: async (global, setup, game, hammered) => {
         const user = await getUser(hammered);
 
         if(!user) return;

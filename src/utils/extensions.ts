@@ -1,14 +1,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { CommandOptions, ReactionCommand } from '../discord';
+import { Command, CommandOptions, ReactionCommand } from '../discord';
 import { ZodObject } from 'zod';
-import { AnySelectMenuInteraction, ButtonInteraction, Collection, ModalSubmitInteraction } from 'discord.js';
+import { AnySelectMenuInteraction, ButtonInteraction, Collection, Message, ModalSubmitInteraction } from 'discord.js';
 import { Setup } from './setup';
 import { Signups } from './games';
 import { Global } from './main';
 import { TransactionResult, Vote } from './vote';
 import { User } from './user';
 import { Transaction } from 'firebase-admin/firestore';
+import { Cache } from '../discord';
 
 const extensionsPath = path.join(__dirname, '../extensions');
 const extensionFiles = fs.readdirSync(extensionsPath).filter(file => file.endsWith('.js') || file.endsWith('.ts'));
@@ -51,17 +52,17 @@ export interface Extension {
     help: string,
     commands: CommandOptions[],
     interactions: ExtensionInteractions[],
-    onInteraction: (extensionInteraction: ExtensionInteraction) => Promise<void>,
-    onStart: Function,
-    onLock: Function,
-    onUnlock: Function,
-    onCommand: Function,
-    onMessage: Function,
-    onEnd: Function,
+    onInteraction: (extensionInteraction: ExtensionInteraction) => Promise<unknown>,
+    onStart: { (global: Global, setup: Setup, game: Signups): Promise<unknown> },
+    onLock: { (global: Global, setup: Setup, game: Signups): Promise<unknown> },
+    onUnlock: { (global: Global, setup: Setup, game: Signups, incremented: boolean): Promise<unknown> },
+    onCommand: { (command: Command): Promise<unknown> },
+    onMessage: { (message: Message, cache: Cache): Promise<unknown> },
+    onEnd: { (global: Global, setup: Setup, game: Signups): Promise<unknown> },
     onVote: { (global: Global, setup: Setup, game: Signups, voter: User, voting: User | undefined, type: 'vote' | 'unvote', users: User[], transaction: Transaction): Promise<TransactionResult> | Promise<void> },
     onVotes: { (global: Global, setup: Setup, game: Signups, board: string ): string | Promise<string> },
-    onHammer: Function,
-    onRemove: Function,
+    onHammer: { (global: Global, setup: Setup, game: Signups, hammered: string): Promise<unknown> },
+    onRemove: { (global: Global, setup: Setup, game: Signups, removed: string): Promise<unknown> },
 }
 
 for(const file of extensionFiles) {

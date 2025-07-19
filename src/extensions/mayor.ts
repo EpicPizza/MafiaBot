@@ -84,7 +84,7 @@ module.exports = {
          */
     },
     onLock: async (global, setup, game) => {},
-    onUnlock: async (global, setup, game, incremented: boolean) => {},
+    onUnlock: async (global, setup, game, incremented) => {},
     onCommand: async (command: Command) => {
         /**
          * Text commands only for the forseeable future.
@@ -224,7 +224,7 @@ module.exports = {
          */
     },
     onInteraction: async (extensionInteraction: ExtensionInteraction) => {},
-    onMessage: async (message: Message, cache: Cache) => {},
+    onMessage: async (message, cache) => {},
     onEnd: async (global, setup, game) => {
         /**
          * Runs during game end processes.
@@ -256,8 +256,8 @@ module.exports = {
         }
     },
     onVotes: async (global, setup, game, board ) => { return ""; }, // no need to change from default behavior
-    onHammer: async (global, setup, game, hammered: string) => {},
-    onRemove: async (global, setup, game, removed: string) => {}
+    onHammer: async (global, setup, game, hammered) => {},
+    onRemove: async (global, setup, game, removed) => {}
 } satisfies Extension;
 
 function capitalize(input: string) {

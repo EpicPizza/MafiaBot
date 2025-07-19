@@ -159,7 +159,7 @@ module.exports = {
          */
     },
     onInteraction: async (extensionInteraction: ExtensionInteraction) => {},
-    onMessage: async (message: Message, cache: Cache) => {
+    onMessage: async (message, cache) => {
 
         if(message.author.id == process.env.OWNER && message.content == "freeze") {
             freeze = !freeze;

@@ -91,7 +91,7 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onLock: async (global: Global, setup: Setup, game: Signups) => {
+    onLock: async (global, setup, game) => {
         const db = firebaseAdmin.getFirestore();
 
         const docs = (await db.collection('chats').where('match', '==', true).get()).docs;
@@ -112,7 +112,7 @@ module.exports = {
             }
         }
     },
-    onUnlock: async (global: Global, setup: Setup, game: Signups, incremented: boolean) => {
+    onUnlock: async (global, setup, game, incremented) => {
         const db = firebaseAdmin.getFirestore();
 
         const docs = (await db.collection('chats').where('match', '==', true).get()).docs;
@@ -280,12 +280,12 @@ module.exports = {
          */
     },
     onInteraction: async (extensionInteraction: ExtensionInteraction) => {},
-    onMessage: async (message: Message, cache: Cache) => {},
+    onMessage: async (message, cache) => {},
     onEnd: async (global, setup, game) => {},
     onVote: async (global, setup, game, voter, voting, type, users, transaction) => {},
     onVotes: async (global, setup, game, board ) => { return ""; },
-    onHammer: async (global, setup, game, hammered: string) => {},
-    onRemove: async (global: Global, setup: Setup, game: Signups, removed: string) => {
+    onHammer: async (global, setup, game, hammered) => {},
+    onRemove: async (global, setup, game, removed) => {
         const db = firebaseAdmin.getFirestore();
 
         const ref = db.collection('chats').where('chats', 'array-contains', removed);

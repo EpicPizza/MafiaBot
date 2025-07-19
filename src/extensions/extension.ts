@@ -44,7 +44,7 @@ module.exports = {
 
         console.log("Extension Lock");
     },
-    onUnlock: async (global, setup, game, incremented: boolean) => {
+    onUnlock: async (global, setup, game, incremented) => {
         /**
          * Runa after game has unlocked.
          * 
@@ -59,7 +59,7 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onCommand: async (command: Command) => {
+    onCommand: async (command) => {
         /**
          * Text commands only for the forseeable future.
          * 
@@ -74,7 +74,7 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onInteraction: async (extensionInteraction: ExtensionInteraction) => {
+    onInteraction: async (extensionInteraction) => {
         /**
          * Interactions for buttons, modals, and select menus. Context menu and slash commands not implemented.
          * 
@@ -89,7 +89,7 @@ module.exports = {
 
         return;
     },
-    onMessage: async (message: Message, cache: Cache) => {
+    onMessage: async (message, cache) => {
         /*
          * Keep fetches to a minimum, these can add up. For this reason, only cache is given, only use helper functions when necessary.
          * 
@@ -151,6 +151,6 @@ module.exports = {
          * Return what is show in the footer in ?votes.
          */
     },
-    onHammer: async (global, setup, game, hammered: string) => {},
-    onRemove: async (global, setup, game, removed: string) => {}
+    onHammer: async (global, setup, game, hammered) => {},
+    onRemove: async (global, setup, game, removed) => {}
 } satisfies Extension;

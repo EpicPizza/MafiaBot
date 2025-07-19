@@ -11,6 +11,7 @@ import { Signups, addSignup, getGameSetup } from "../utils/games";
 import { FieldValue } from "firebase-admin/firestore";
 import { addMafiaPlayer } from "../commands/mod/alignments";
 import { Extension, ExtensionInteraction, getEnabledExtensions } from "../utils/extensions";
+import { Cache } from "../discord";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
