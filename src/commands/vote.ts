@@ -4,7 +4,7 @@ import { firebaseAdmin } from "../firebase";
 import { set, z } from "zod";
 import { getGlobal, getGameByName, lockGame, getGameByID, getAllNicknames } from "../utils/main";
 import { User, getUser, getUsers, getUsersArray } from "../utils/user";
-import { Log, Vote, getVotes, flow, TransactionResult, defaultVote } from "../utils/vote";
+import { Log, Vote, getVotes, flow, TransactionResult, defaultVote, handleHammer } from "../utils/vote";
 import { Setup, getSetup } from "../utils/setup";
 import { Command } from "../discord";
 import { getEnabledExtensions } from "../utils/extensions";
@@ -149,36 +149,7 @@ module.exports = {
             if(result.setMessage) await result.setMessage(message.id);
         }
 
-        if(result.hammer?.hammered) {
-            await lockGame();
-            await hammerExtensions(global, setup, game, result.hammer.id);
-
-            await new Promise(resolve => {
-                setTimeout(() => {
-                    resolve(null);
-                }, 2000);
-            });
-
-            await setup.primary.chat.send(result.hammer.message);
-        }
-    }
-}
-
-async function hammerExtensions(global: Global, setup: Setup, game: Signups, hammered: string) {
-    const extensions = await getEnabledExtensions(global);
-
-    const promises = [] as Promise<any>[];
-
-    extensions.forEach(extension => { promises.push(extension.onHammer(global, setup, game, hammered)) });
-
-    const results = await Promise.allSettled(promises);
-
-    const fails = results.filter(result => result.status == "rejected");
-
-    if(fails.length > 0) {
-        console.log(fails);
-
-        throw new Error(fails.reduce<string>((accum, current) => accum + (current as unknown as PromiseRejectedResult).reason + "\n", ""));
+        await handleHammer(result.hammer, global,setup, game);
     }
 }
 

@@ -8,7 +8,8 @@ import { Transaction } from "firebase-admin/firestore";
 import { User } from "./user";
 import { Signups } from "./games";
 import { Setup } from "./setup";
-import { Global } from "./main";
+import { Global, lockGame } from "./main";
+import { getEnabledExtensions } from "./extensions";
 
 export interface Vote {
     id: string,
@@ -26,14 +27,12 @@ export interface Log {
 }
 
 export interface CustomLog {
-    search: {
-        for: string,
+    search: { //for vote history search, add nicknames
+        for?: string,
         name: string,
     },
-    vote: {
-        timestamp: number,
-        message: string,
-    }
+    message: string,
+    prefix: boolean, //prefix nickname to the beginning of the name
     board: string,
     messageId: string | null,
     type: 'custom'
@@ -51,7 +50,7 @@ export async function getVotes(day: number, transaction: Transaction | undefined
 
     const ref = db.collection('day').doc(day.toString()).collection('votes');
     const docs = transaction ? (await transaction.get(ref)).docs : (await ref.get()).docs;
-    const logs = docs.map(doc => doc.data()) as Log[]; 
+    const logs = (docs.map(doc => doc.data()) as Log[]).filter(l => l.type == 'standard');; 
 
     logs.sort((a, b) => a.vote.timestamp.valueOf() - b.vote.timestamp.valueOf());
 
@@ -145,7 +144,7 @@ export const flow = {
                 for: "unvote",
                 id: voter.id,
                 timestamp: new Date().valueOf(),
-                ...(removed ? { replace: removed.for } : {})
+                replace: removed.for
             };
             
             reply = {
@@ -239,6 +238,40 @@ export async function defaultVote(global: Global, setup: Setup, game: Signups, v
         setMessage,
     }
 }
+
+export async function handleHammer(hammer: TransactionResult["hammer"], global: Global, setup: Setup, game: Signups) {
+    if(hammer?.hammered) {
+        await lockGame();
+        await hammerExtensions(global, setup, game, hammer.id);
+
+        await new Promise(resolve => {
+            setTimeout(() => {
+                resolve(null);
+            }, 2000);
+        });
+
+        await setup.primary.chat.send(hammer.message);
+    }
+}
+
+async function hammerExtensions(global: Global, setup: Setup, game: Signups, hammered: string) {
+    const extensions = await getEnabledExtensions(global);
+
+    const promises = [] as Promise<any>[];
+
+    extensions.forEach(extension => { promises.push(extension.onHammer(global, setup, game, hammered)) });
+
+    const results = await Promise.allSettled(promises);
+
+    const fails = results.filter(result => result.status == "rejected");
+
+    if(fails.length > 0) {
+        console.log(fails);
+
+        throw new Error(fails.reduce<string>((accum, current) => accum + (current as unknown as PromiseRejectedResult).reason + "\n", ""));
+    }
+}
+
 
 function getNickname(id: string, users: User[]) {
     return users.find(user => user.id == id)?.nickname ?? "<@" + id + ">";

@@ -9,7 +9,7 @@ import { getEnabledExtensions } from "../../utils/extensions";
 import { Global } from "../../utils/main";
 import { firebaseAdmin } from "../../firebase";
 import { FieldValue } from "firebase-admin/firestore";
-import { defaultVote, flow, getVotes, TransactionResult } from "../../utils/vote";
+import { defaultVote, flow, getVotes, handleHammer, TransactionResult } from "../../utils/vote";
 
 export const VoteCommand = {
     name: "vote",
@@ -99,19 +99,8 @@ export const VoteCommand = {
 
         if(result.setMessage) await result.setMessage(message.id);
 
-        if(result.hammer?.hammered) {
-            await lockGame();
-            await hammerExtensions(global, setup, game, result.hammer.id);
-
-            await new Promise(resolve => {
-                setTimeout(() => {
-                    resolve(null);
-                }, 2000);
-            });
-
-            await setup.primary.chat.send(result.hammer.message);
-        }
-
+        await handleHammer(result.hammer, global,setup, game);
+        
         if('arguments' in interaction) {
             await removeReactions(interaction.message);
 
@@ -119,23 +108,5 @@ export const VoteCommand = {
         } else {
             await interaction.editReply("Vote counted.");
         }
-    }
-}
-
-async function hammerExtensions(global: Global, setup: Setup, game: Signups, hammered: string) {
-    const extensions = await getEnabledExtensions(global);
-
-    const promises = [] as Promise<any>[];
-
-    extensions.forEach(extension => { promises.push(extension.onHammer(global, setup, game, hammered)) });
-
-    const results = await Promise.allSettled(promises);
-
-    const fails = results.filter(result => result.status == "rejected");
-
-    if(fails.length > 0) {
-        console.log(fails);
-
-        throw new Error(fails.reduce<string>((accum, current) => accum + (current as unknown as PromiseRejectedResult).reason + "\n", ""));
     }
 }
