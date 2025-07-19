@@ -8,7 +8,7 @@ import { getUser, getUserByChannel } from "../utils/user";
 import { firebaseAdmin } from "../firebase";
 import { Global } from "../utils/main";
 import { checkMod } from "../utils/mod";
-import { ExtensionInteraction } from "../utils/extensions";
+import { Extension, ExtensionInteraction } from "../utils/extensions";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -203,6 +203,7 @@ module.exports = {
                     return;
                 }
 
+                //@ts-ignore
                 await message.channel.send("BOOM 💥");
             }
         }
@@ -235,6 +236,7 @@ module.exports = {
                     return;
                 }
 
+                //@ts-ignore
                 await message.channel.send("CHOMP");
             }
         }
@@ -267,6 +269,7 @@ module.exports = {
                     return;
                 }
 
+                //@ts-ignore
                 await message.channel.send("NO MEOW");
             }
         }
@@ -279,10 +282,10 @@ module.exports = {
     },
     onEnd: async (global, setup, game) => {},
     onVote: async (votes: Vote[], vote: Vote ,voted: boolean, global, setup, game) => {},
-    onVotes: async (voting: string[], votes: Map<string, Vote[]>, day: number, global, setup, game) => {},
+    onVotes: async (global, setup, game, board ) => { return ""; },
     onHammer: async (global: Global, setup: Setup, game, hammered: string) => {},
     onRemove: async (global, setup, game, removed: string) => {}
-}
+} satisfies Extension;
 
 async function wait(milliseconds: number) {
     return new Promise((resolve) => {

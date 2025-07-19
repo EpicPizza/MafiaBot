@@ -1,28 +1,47 @@
 import { firebaseAdmin } from "../firebase";
-import { REST, Routes, SlashCommandBuilder, SlashCommandSubcommandsOnlyBuilder } from 'discord.js';
+import { ApplicationEmoji, REST, Routes, SlashCommandBuilder, SlashCommandSubcommandsOnlyBuilder } from 'discord.js';
 import fs from 'node:fs';
 import dotenv from 'dotenv';
 import path from 'node:path';
 import { Data } from "../discord";
 import { Transaction } from "firebase-admin/firestore";
+import { User } from "./user";
 
 export interface Vote {
     id: string,
     for: string | 'unvote',
+    replace?: string,
     timestamp: number,
 }
 
 export interface Log {
     vote: Vote,
     board: string,
-    messageId: string, 
+    messageId: string | null, 
+    type: 'standard',
+    timestamp: number,
 }
 
-export async function getVotes(transaction: Transaction, options: { day: number }) {
+export interface CustomLog {
+    search: {
+        for: string,
+        name: string,
+    },
+    vote: {
+        timestamp: number,
+        message: string,
+    }
+    board: string,
+    messageId: string | null,
+    type: 'custom'
+    timestamp: number,
+}
+
+export async function getVotes(day: number, transaction: Transaction | undefined = undefined) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('day').doc(options.day.toString()).collection('votes');
-    const docs = (await transaction.get(ref)).docs;
+    const ref = db.collection('day').doc(day.toString()).collection('votes');
+    const docs = transaction ? (await transaction.get(ref)).docs : (await ref.get()).docs;
     const logs = docs.map(doc => doc.data()) as Log[]; 
 
     logs.sort((a, b) => a.vote.timestamp.valueOf() - b.vote.timestamp.valueOf());
@@ -66,4 +85,136 @@ export async function resetVotes(options: { day: number | string } | undefined =
             await resetVotes({ day: days[i].id });
         }
     }
+}
+
+
+export const flow = {
+    placeVote: async (t: Transaction, voter: User, voting: User | undefined, type: 'unvote' | 'vote', users: User[], day: number) => {
+        const votes = await getVotes(day, t);
+
+        if(type != 'unvote' && voting == undefined) throw new Error("Voter must be specified!");
+ 
+        const existing = votes.findIndex(vote => vote.id == voter.id);
+        let removed: undefined | Vote = undefined;
+
+        if(existing > -1) {
+            removed = votes[existing];
+            votes.splice(existing, 1);
+        } 
+        
+        let vote: Vote | undefined = undefined;
+        let reply: { typed: string, emoji: string | ApplicationEmoji };
+
+        if(type != 'unvote' && voting) {
+            vote = {
+                for: voting.id,
+                id: voter.id,
+                timestamp: new Date().valueOf(),
+                ...(removed ? { replace: removed.for } : {})
+            };
+
+            votes.push(vote);
+
+            if(removed?.for == vote.for) {
+                reply = {
+                    typed: "Your vote is unchanged!",
+                    emoji: process.env.NO_CHANGE ?? "✅"
+                }
+            } else if(removed) {
+                reply = {
+                    typed: getNickname(voter.id, users) + " has changed their vote from " + getNickname(removed.for, users) + " to " + getNickname(voting.id, users),
+                    emoji: process.env.VOTE_SWAPPED ?? "✅"
+                }
+            } else {
+                reply = {
+                    typed: getNickname(voter.id, users) + " has voted " + getNickname(voting.id, users),
+                    emoji: '✅'
+                }
+            }
+        } else if(type == "unvote" && removed) {
+            vote = {
+                for: "unvote",
+                id: voter.id,
+                timestamp: new Date().valueOf(),
+                ...(removed ? { replace: removed.for } : {})
+            };
+            
+            reply = {
+                typed: getNickname(voter.id, users) + " has unvoted!",
+                emoji: "✅",
+            }
+        } else {
+            reply = {
+                typed: "You have not voted!",
+                emoji: process.env.FALSE ?? "⛔",
+            }
+        }
+
+        return {
+            reply,
+            vote,
+            votes,
+        }
+    },
+    board: (votes: Vote[], users: User[]) => {
+        const counting = [] as { voting: string, voters: string[]}[];
+
+        const all = [...new Set(votes.map(vote => vote.for))];
+
+        all.forEach(votingId => {
+            const voting = users.find(user => user.id == votingId)?.nickname ?? "<@" + votingId + ">";
+
+            counting.push({
+                voting,
+                voters: votes.filter(vote => vote.for == votingId).sort((a, b) => a.timestamp.valueOf() - b.timestamp.valueOf()).map(voter => users.find(user => user.id == voter.id)?.nickname ?? "<@" + votingId + ">"),
+            });
+        });
+
+        counting.sort((a, b) => b.voters.length - a.voters.length);
+
+        const board = counting.reduce((prev, curr) => prev += (curr.voters.length + " - " + curr.voting + " « " + curr.voters.join(", ")) + "\n", "");
+
+        return board;
+    },
+    finish: (t: Transaction, vote: Vote, board: string, day: number) => {
+        const db = firebaseAdmin.getFirestore();
+
+        const ref = db.collection('day').doc(day.toString()).collection('votes').doc();
+
+        t.create(ref, {
+            board,
+            vote,
+            messageId: null,
+            type: 'standard',
+            timestamp: vote.timestamp,
+        } satisfies Log);
+
+        return async (id: string) => {
+            await ref.update({
+                messageId: id,
+            });
+        }
+    },
+    determineHammer: (vote: Vote, votes: Vote[], users: User[]) => {
+        let votesForHammer = votes.filter(v => v.for == vote.for);
+        let half = Math.floor(users.length / 2);
+
+        if(votesForHammer.length > half) {
+            return {
+                message: (users.find(user => vote.for == user.id)?.nickname ?? "<@" + vote.for + ">") + " has been hammered!",
+                hammered: true as true,
+                id: vote.for
+            }
+        } else {
+            return {
+                message: null,
+                hammered: false as false,
+                id: null
+            }
+        }
+    }
+}
+
+function getNickname(id: string, users: User[]) {
+    return users.find(user => user.id == id)?.nickname ?? "<@" + id + ">";
 }

@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, SlashCommandStringOption, SlashCommandSubcommandBuilder } from "discord.js";
+/*import { ChatInputCommandInteraction, SlashCommandStringOption, SlashCommandSubcommandBuilder } from "discord.js";
 import { Command, removeReactions, TextCommandArguments } from "../../discord";
 import { z } from "zod";
 import { getAllUsers, getGameByID, getGlobal, lockGame, setupPlayer } from "../../utils/main";
@@ -267,4 +267,4 @@ async function hammerExtensions(global: Global, setup: Setup, game: Signups, ham
 
         throw new Error(fails.reduce<string>((accum, current) => accum + (current as unknown as PromiseRejectedResult).reason + "\n", ""));
     }
-}
+}*/

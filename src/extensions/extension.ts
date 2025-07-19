@@ -133,20 +133,11 @@ module.exports = {
          * message: string | null - Message to append to vote/hammer, null will return default.
          */
     },
-    onVotes: async (voting: string[], votes: Map<string, Vote[]>, day: number, global, setup, game) => {
-        /**
-         * Runs while processing votes command.
-         * 
-         * voting: string[] - array of each voted person's id
-         * votes: Map<string, Vote[]> - array of votes for each voted person, key is person's id
-         */
-
-        console.log(voting, votes);
-        
-        return { description: "This votes counter has been overtaken by extension.", message: "" }
+    onVotes: async (global, setup, game, board ) => { 
+        return "Example footer.";
 
         /**
-         * A string that will replace the votes list in votes command.
+         * Return what is show in the footer in ?votes.
          */
     },
     onHammer: async (global, setup, game, hammered: string) => {},

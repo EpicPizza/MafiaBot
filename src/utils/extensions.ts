@@ -1,9 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { Global } from './main';
 import { CommandOptions, ReactionCommand } from '../discord';
 import { ZodObject } from 'zod';
 import { AnySelectMenuInteraction, ButtonInteraction, Collection, ModalSubmitInteraction } from 'discord.js';
+import { Setup } from './setup';
+import { Signups } from './games';
+import { Global } from './main';
 
 const extensionsPath = path.join(__dirname, '../extensions');
 const extensionFiles = fs.readdirSync(extensionsPath).filter(file => file.endsWith('.js') || file.endsWith('.ts'));
@@ -54,7 +56,7 @@ export interface Extension {
     onMessage: Function,
     onEnd: Function,
     onVote: Function,
-    onVotes: Function,
+    onVotes: { (global: Global, setup: Setup, game: Signups, board: string ): string | Promise<string> },
     onHammer: Function,
     onRemove: Function,
 }

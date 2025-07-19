@@ -9,6 +9,7 @@ import { firebaseAdmin } from "../firebase";
 import { Global } from "../utils/main";
 import { checkMod } from "../utils/mod";
 import { Extension, ExtensionInteraction } from "../utils/extensions";
+import { Signups } from "../utils/games";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -139,7 +140,7 @@ module.exports = {
     onMessage: async (message: Message, cache: Cache) => {},
     onEnd: async (global, setup, game) => {},
     onVote: async (votes: Vote[], vote: Vote ,voted: boolean, global, setup, game) => {},
-    onVotes: async (voting: string[], votes: Map<string, Vote[]>, day: number, global, setup, game) => {},
+    onVotes: async (global: Global, setup: Setup, game: Signups, board: string ) => { return ""; },
     onHammer: async (global: Global, setup: Setup, game, hammered: string) => {
         const user = await getUser(hammered);
 

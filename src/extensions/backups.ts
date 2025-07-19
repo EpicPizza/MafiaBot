@@ -295,7 +295,7 @@ module.exports = {
         }
     },
     onVote: async (votes: Vote[], vote: Vote ,voted: boolean, global, setup, game) => {},
-    onVotes: async (voting: string[], votes: Map<string, Vote[]>, day: number, global, setup, game) => {},
+    onVotes: async (global, setup, game, board ) => { return ""; },
     onHammer: async (global: Global, setup: Setup, game, hammered: string) => {},
     onRemove: async (global, setup, game, removed: string) => {}
 } satisfies Extension;

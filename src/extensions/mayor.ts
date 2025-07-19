@@ -1,7 +1,7 @@
 import { ChannelType, ChatInputCommandInteraction, EmbedBuilder, Message } from "discord.js";
 import { Vote } from "../utils/vote";
 import { Command, CommandOptions } from "../discord";
-import { deleteCollection, getAllUsers, getGameByID, getGlobal } from "../utils/main";
+import { deleteCollection, getGameByID, getGlobal } from "../utils/main";
 import { z } from "zod";
 import { firebaseAdmin } from "../firebase";
 import { Setup, getSetup } from "../utils/setup";
@@ -130,7 +130,7 @@ module.exports = {
 
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != gameSetup.spec.guildId || command.message.channel.id != gameSetup.spec.id) throw new Error("This command must be run in dead chat.");
 
-            const mayors = await getMayors(await getAllUsers(game));
+            const mayors = await getMayors(await getUsersArray(game.signups));
 
             let message = mayors.reduce((prev, mayor) => prev + (mayor.nickname ?? "<@" + mayor.id + ">") + " - " + capitalize(mayor.type) + " (" + mayor.weight + ")\n", "");
 
@@ -210,13 +210,14 @@ module.exports = {
          * message: string | null - Message to append to vote/hammer, null will return default.
          */
     },
-    onVotes: async (voting: string[], votes: Map<string, Vote[]>, day: number, users: Map<string, User>, global: Global, setup: Setup, game: Signups, command: ChatInputCommandInteraction | Command) => {
+    onVotes: async (global, setup, game, board ) => { return ""; },
+    /*onVotes: async (voting: string[], votes: Map<string, Vote[]>, day: number, users: Map<string, User>, global: Global, setup: Setup, game: Signups, command: ChatInputCommandInteraction | Command) => {
         /**
          * Runs while processing votes command.
          * 
          * voting: string[] - array of each voted person's id
          * votes: Map<string, Vote[]> - array of votes for each voted person, key is person's id
-         */
+         *//*
 
         const mayors = await getMayors(); //blah blah blah extra setps blah blah idc
 
@@ -281,8 +282,8 @@ module.exports = {
 
         /**
          * A string that will replace the votes list in votes command.
-         */
-    },
+         *//*
+    },*/
     onHammer: async (global, setup, game, hammered: string) => {},
     onRemove: async (global, setup, game, removed: string) => {}
 } satisfies Extension;

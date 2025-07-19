@@ -1,12 +1,14 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandBuilder } from "discord.js";
+import { ActionRowBuilder, ApplicationEmoji, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandBuilder } from "discord.js";
 import { Data } from "../discord";
-import { getGlobal, getGameByID, getAllUsers } from "../utils/main";
+import { getGlobal, getGameByID } from "../utils/main";
 import { getSetup } from "../utils/setup";
 import { getUser, getUsers, User } from "../utils/user";
-import { Vote, getVotes } from "../utils/vote";
+import { Log, Vote, getVotes } from "../utils/vote";
 import { z } from "zod";
 import { Command } from "../discord";
 import { getEnabledExtensions } from "../utils/extensions";
+import { firebaseAdmin } from "../firebase";
+import { Transaction } from "firebase-admin/firestore";
 
 module.exports = {
     data: [
@@ -38,84 +40,36 @@ module.exports = {
 
 async function handleVoteList(interaction: ChatInputCommandInteraction | Command) {
     const global = await getGlobal();
-
     if(global.started == false) throw new Error("Game has not started.");
-
     const game = await getGameByID(global.game != null ? global.game : "bruh");
-
     if(game == null) throw new Error("Game not found.");
-
     const setup = await getSetup();
-
-    if(typeof setup == 'string') throw new Error("Setup Incomplete");
     
     const day = interaction.type == 'text' ? interaction.arguments[0] as number ?? global.day : Math.round(interaction.options.getNumber("day") ?? global.day);
 
     if(day > global.day) throw new Error("Not on day " + day + " yet!");
     if(day < 1) throw new Error("Must be at least day 1.");
 
-    const users = await getUsers(game.signups);
+    const half = Math.floor(global.players.length / 2) + 1;
 
-    let list = await getVotes({ day: day });
+    const db = firebaseAdmin.getFirestore();
+    const docs = (await db.collection('day').doc(day.toString()).collection('votes').orderBy('timestamp', 'desc').limit(1).get()).docs;
 
-    let half = global.players.length / 2;
-    if(half % 1 == 0) half += 0.5;
-    half = Math.ceil(half);
-
-    const votes = new Map() as Map<string, Vote[]>;
-
-    for(let i = 0; i < list.length; i++) {
-        const counted = votes.get(list[i].for);
-
-        if(counted == undefined) {
-            votes.set(list[i].for, [list[i]]);
-        } else {
-            votes.set(list[i].for, [...counted, list[i]].sort((a, b) => a.timestamp - b.timestamp));
-        }
-    }
-
-    let voting = Array.from(votes.keys());
-
-    voting = voting.sort((a, b) => (votes.get(b)?.length ?? -1) - (votes.get(a)?.length ?? -1));
-
-    const extensions = await getEnabledExtensions(global);
-
-    const extension = extensions.find(extension => extension.priority.includes("onVotes"));
-
-    let message = { description: "", footer: "" };
-
-    if(extension == undefined) {
-        for(let i = 0; i < voting.length; i++) {
-            const voted = votes.get(voting[i]) ?? [];
-
-            message.description += voted.length + " - " + (users.get(voting[i])?.nickname ?? "<@" + voting[i] + ">") + " « " + voted.reduce((previous, current) => previous += (users.get(current.id)?.nickname ?? "<@" + current + ">") + ", ", "");
-
-            console.log(message);
-
-            message.description = message.description.substring(0, message.description.length - 2);
-
-            message.description += "\n";
-        }
-
-        if(message.description == "") {
-            message.description = "No votes recorded.";
-        }
-
-        message.footer = half + " vote" + (half == 1 ? "": "s") + " to hammer";
-    } else {
-        message = await extension.onVotes(voting, votes, day, users, global, setup, game, interaction);
-    }
+    let board = "";
+    if(docs.length == 1) board = (docs[0].data() as Log).board;
+    if(board == "") board = "No votes recorded.";
 
     const embed = new EmbedBuilder()
         .setTitle("Votes » " + (global.day == day ? "Today (Day " + day + ")" : "Day " + day))
         .setColor(Colors.Gold)
-        .setDescription(message.description)
+        .setDescription(board);
+
+    const extensions = await getEnabledExtensions(global);
+    const extension = extensions.find(extension => extension.priority.includes("onVotes"));
     
     if(global.day == day) {
-        embed.setFooter({ text: message.footer });
+        embed.setFooter({ text: extension ? await extension.onVotes(global, setup, game, board) : "Hammer is at " + half + " votes." });
     }
-
-    //
 
     const row = new ActionRowBuilder<ButtonBuilder>()
         .setComponents([

@@ -1,4 +1,4 @@
-import { ChannelType, Colors, EmbedBuilder, Message, TextBasedChannel } from "discord.js";
+import { ChannelType, Colors, EmbedBuilder, GuildTextBasedChannel, Message, TextBasedChannel } from "discord.js";
 import { Vote } from "../utils/vote";
 import client, { Command, CommandOptions } from "../discord";
 import { deleteCollection, getGameByID, getGlobal } from "../utils/main";
@@ -225,7 +225,7 @@ module.exports = {
                 .setAuthor({ name: player.nickname + " whispered to you...", iconURL: member.avatarURL() ?? member.displayAvatarURL() ?? client.user?.displayAvatarURL() ?? "https://cdn.discordapp.com/avatars/1248187665548054588/cc206768cd2ecf8dfe96c1b047caa60f.webp?size=160" })
                 .setDescription(command.arguments.length < 2 ? "*I don't what they whispered to you, but ig they whispered something?*" : command.arguments[1] as string);
 
-            const channel = await setup.secondary.guild.channels.fetch(sendingTo.channel ?? "") as TextBasedChannel | null;
+            const channel = await setup.secondary.guild.channels.fetch(sendingTo.channel ?? "") as GuildTextBasedChannel | null;
             if(channel == null) throw new Error("Channel not found.");
 
             await channel.send({
@@ -509,7 +509,7 @@ module.exports = {
     onMessage: async (message: Message, cache: Cache) => {},
     onEnd: async (global, setup, game) => {},
     onVote: async (votes: Vote[], vote: Vote ,voted: boolean, global, setup, game) => {},
-    onVotes: async (voting: string[], votes: Map<string, Vote[]>, day: number, global, setup, game) => {},
+     onVotes: async (global: Global, setup: Setup, game: Signups, board: string ) => { return ""; },
     onHammer: async (global, setup, game, hammered: string) => {},
     onRemove: async (global: Global, setup: Setup, game: Signups, removed: string) => {
         const db = firebaseAdmin.getFirestore();

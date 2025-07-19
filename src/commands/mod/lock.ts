@@ -138,7 +138,7 @@ export const Minute = {
             for(let j = 0; j < rowComponents[i].components.length; j++) {
                 const select = rowComponents[i].components[j];
 
-                if(!('style' in select && select.style == ButtonStyle.Link) && select.custom_id == interaction.customId && select.type == ComponentType.StringSelect) {
+                if(!('style' in select && !('custom_id' in select)) && select.custom_id == interaction.customId && select.type == ComponentType.StringSelect) {
                     select.options.forEach(option => {
                         if(option.default) {
                             option.default = false;
@@ -206,7 +206,7 @@ export const ChangeGraceButton = {
             for(let j = 0; j < components[i].components.length; j++) {
                 const button = components[i].components[j];
 
-                if(button.style != ButtonStyle.Link && button.custom_id == interaction.customId) {
+                if('custom_id' in button && button.custom_id == interaction.customId) {
                     if(button.style == ButtonStyle.Success) {
                         button.style = ButtonStyle.Danger;
                         button.label = "Grace Off";
