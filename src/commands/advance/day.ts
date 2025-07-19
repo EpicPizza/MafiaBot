@@ -48,7 +48,6 @@ export const WipeCommand = {
 
         const dayDoc = db.collection('day').doc((day).toString());
 
-        await deleteCollection(db, dayDoc.collection('votes').doc('history').collection('logs'), 20);
         await deleteCollection(db, dayDoc.collection('votes'), 20);
 
         if(interaction.type != 'text') {
@@ -99,10 +98,8 @@ export const ClearCommand = {
 
         const dayDoc = db.collection('day').doc((day).toString());
 
-        await deleteCollection(db, dayDoc.collection('votes').doc('history').collection('logs'), 20);
         await deleteCollection(db, dayDoc.collection('votes'), 20);
         await deleteCollection(db, dayDoc.collection('players'), 20);
-        await dayDoc.collection('votes').doc('history').delete();
         await dayDoc.delete();
         
         if(interaction.type != 'text') {

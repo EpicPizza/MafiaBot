@@ -175,12 +175,13 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onVote: async (votes: Vote[], vote: Vote | undefined, voted: boolean, users: User[], global, setup, game) => {
+    onVote: async (global, setup, game, voter, voting, type, users, transaction) => {},
+    /*onVote: async (votes: Vote[], vote: Vote | undefined, voted: boolean, users: User[], global, setup, game) => {
         /**
          * Runs after vote is counted, before vote/hammer is annouced.
          * 
          * vote: { id: string, for: string, timestamp: number }[]
-         */
+         *//*
 
         if(!voted || vote == undefined) return { hammer: false, message: null };
 
@@ -208,8 +209,8 @@ module.exports = {
         /**
          * hammer: boolean - Tells to hammer or not.
          * message: string | null - Message to append to vote/hammer, null will return default.
-         */
-    },
+         *//*
+    },*/
     onVotes: async (global, setup, game, board ) => { return ""; },
     /*onVotes: async (voting: string[], votes: Map<string, Vote[]>, day: number, users: Map<string, User>, global: Global, setup: Setup, game: Signups, command: ChatInputCommandInteraction | Command) => {
         /**

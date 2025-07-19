@@ -389,22 +389,7 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onVote: async (votes: Vote[], vote: Vote ,voted: boolean, global, setup, game) => {
-        /**
-         * Runs after vote is counted, before vote/hammer is annouced.
-         * 
-         * vote: { id: string, for: string, timestamp: number }[]
-         */
-
-        console.log(vote, voted, votes);
-
-        return { hammer: true, message: "hiiiiiii", hammered: "put an id here" };
-
-        /**
-         * hammer: boolean - Tells to hammer or not.
-         * message: string | null - Message to append to vote/hammer, null will return default.
-         */
-    },
+    onVote: async (global, setup, game, voter, voting, type, users, transaction) => {},
     onVotes: async (global, setup, game, board ) => { return ""; },
     onHammer: async (global, setup, game, hammered: string) => {},
     onRemove: async (global, setup, game, removed: string) => {}

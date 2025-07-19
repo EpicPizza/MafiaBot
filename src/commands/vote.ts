@@ -4,7 +4,7 @@ import { firebaseAdmin } from "../firebase";
 import { set, z } from "zod";
 import { getGlobal, getGameByName, lockGame, getGameByID, getAllNicknames } from "../utils/main";
 import { User, getUser, getUsers, getUsersArray } from "../utils/user";
-import { Log, Vote, getVotes, flow } from "../utils/vote";
+import { Log, Vote, getVotes, flow, TransactionResult, defaultVote } from "../utils/vote";
 import { Setup, getSetup } from "../utils/setup";
 import { Command } from "../discord";
 import { getEnabledExtensions } from "../utils/extensions";
@@ -102,7 +102,7 @@ module.exports = {
         if(global.locked == true) throw new Error("Game is locked!");
         if(global.grace == true) throw new Error("Game is in grace period.");
 
-        if(interaction.type != 'text') await interaction.deferReply({ ephemeral: true });
+        if(interaction.type != 'text') await interaction.deferReply();
         
         const setup = await getSetup();
         const game = await getGameByID(global.game ?? "");
@@ -127,23 +127,17 @@ module.exports = {
         if(type == 'vote' && voting == undefined) throw new Error("Player not found!");
         if(voter == undefined) throw new Error("Must specify voter?");
 
-        
         const db = firebaseAdmin.getFirestore();
+
         const result = await db.runTransaction(async t => {
-            const { reply, vote, votes } = await flow.placeVote(t, voter, voting, type, users, global.day); // doesn't save vote yet since board needs to be created
+            let result: undefined | TransactionResult = undefined;
 
-            if(vote == undefined) return { reply };
+            if(extension) result = await extension.onVote(global, setup, game, voter, voting, type, users, t) ?? undefined;
 
-            const board = flow.board(votes, users);
+            if(result == undefined) result = await defaultVote(global, setup, game, voter, voting, type, users, t);
 
-            const setMessage = flow.finish(t, vote, board, global.day); // locks in vote
-
-            return {
-                reply,
-                hammer: flow.determineHammer(vote, votes, users),
-                setMessage,
-            }
-        });
+            return result;
+        }) satisfies TransactionResult;
 
         if(interaction.type == 'text') {
             await interaction.message.react(result.reply.emoji);

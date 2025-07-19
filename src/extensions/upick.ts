@@ -109,28 +109,8 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onLock: async (global, setup, game) => {
-        /**
-         * Runs after game has locked.
-         */
-
-        console.log("Extension Lock");
-    },
-    onUnlock: async (global, setup, game, incremented: boolean) => {
-        /**
-         * Runa after game has unlocked.
-         * 
-         * incremented: boolean - Whether day has advanced or not.
-         */
-
-        console.log("Extension Unlock", incremented);
-
-        return;
-
-        /**
-         * Nothing to return.
-         */
-    },
+    onLock: async (global, setup, game) => {},
+    onUnlock: async (global, setup, game, incremented: boolean) => {},
     onCommand: async (command: Command) => {
         /**
          * Text commands only for the forseeable future.
@@ -272,65 +252,10 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onInteraction: async (extensionInteraction: ExtensionInteraction) => {
-        /**
-         * Interactions for buttons, modals, and select menus. Context menu and slash commands not implemented.
-         * 
-         *  interaction: {
-         *      customId: any,
-         *      name: string,
-         *      interaction: ButtonInteraction | ModalSubmitInteraction | AnySelectMenuInteraction
-         *  }
-         */
-
-        console.log(extensionInteraction);
-
-        return;
-    },
-    onMessage: async (message: Message, cache: Cache) => {
-        /*
-         * Keep fetches to a minimum, these can add up. For this reason, only cache is given, only use helper functions when necessary.
-         * 
-         * cache: { day: number, started: boolean, channel: null | TextChannel } - TextChannel may or may not be fetched depending if bot has fully intialized
-         */
-
-        //console.log("Extension", message);
-
-        return;
-
-        /**
-         * Nothing to return.
-         */
-    },
-    onEnd: async (global, setup, game) => {
-        /**
-         * Runs during game end processes.
-         */
-
-        console.log("Extension End");
-
-        return;
-
-        /**
-         * Nothing to return.
-         */
-    },
-    onVote: async (votes: Vote[], vote: Vote ,voted: boolean, global, setup, game) => {
-        /**
-         * Runs after vote is counted, before vote/hammer is annouced.
-         * 
-         * vote: { id: string, for: string, timestamp: number }[]
-         */
-
-        console.log(vote, voted, votes);
-
-        return { hammer: true, message: "hiiiiiii", hammered: "put an id here" };
-
-        /**
-         * hammer: boolean - Tells to hammer or not.
-         * message: string | null - Message to append to vote/hammer, null will return default.
-         */
-    },
+    onInteraction: async (extensionInteraction: ExtensionInteraction) => {},
+    onMessage: async (message: Message, cache: Cache) => {},
+    onEnd: async (global, setup, game) => {},
+    onVote: async (global, setup, game, voter, voting, type, users, transaction) => {},
     onVotes: async (global, setup, game, board ) => { return ""; },
     onHammer: async (global, setup, game, hammered: string) => {},
     onRemove: async (global, setup, game, removed: string) => {}

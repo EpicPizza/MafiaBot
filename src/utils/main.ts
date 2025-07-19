@@ -149,10 +149,6 @@ export async function unlockGame(increment: boolean = false, ping: boolean = tru
         game: global.game,
     }, { merge: true });
 
-    await db.collection('day').doc((increment ? global.day + 1 : global.day).toString()).collection('votes').doc('history').set({
-        game: global.game,
-    });
-
     if(increment == true) {
         await db.collection('day').doc((global.day + 1).toString()).set({
             game: global.game,

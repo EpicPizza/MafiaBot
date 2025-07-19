@@ -6,6 +6,9 @@ import { AnySelectMenuInteraction, ButtonInteraction, Collection, ModalSubmitInt
 import { Setup } from './setup';
 import { Signups } from './games';
 import { Global } from './main';
+import { TransactionResult, Vote } from './vote';
+import { User } from './user';
+import { Transaction } from 'firebase-admin/firestore';
 
 const extensionsPath = path.join(__dirname, '../extensions');
 const extensionFiles = fs.readdirSync(extensionsPath).filter(file => file.endsWith('.js') || file.endsWith('.ts'));
@@ -55,7 +58,7 @@ export interface Extension {
     onCommand: Function,
     onMessage: Function,
     onEnd: Function,
-    onVote: Function,
+    onVote: { (global: Global, setup: Setup, game: Signups, voter: User, voting: User | undefined, type: 'vote' | 'unvote', users: User[], transaction: Transaction): Promise<TransactionResult> | Promise<void> },
     onVotes: { (global: Global, setup: Setup, game: Signups, board: string ): string | Promise<string> },
     onHammer: Function,
     onRemove: Function,

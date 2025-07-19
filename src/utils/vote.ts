@@ -6,6 +6,9 @@ import path from 'node:path';
 import { Data } from "../discord";
 import { Transaction } from "firebase-admin/firestore";
 import { User } from "./user";
+import { Signups } from "./games";
+import { Setup } from "./setup";
+import { Global } from "./main";
 
 export interface Vote {
     id: string,
@@ -35,6 +38,12 @@ export interface CustomLog {
     messageId: string | null,
     type: 'custom'
     timestamp: number,
+}
+
+export interface TransactionResult {
+    reply: Awaited<ReturnType<(typeof flow)["placeVote"]>>["reply"],
+    hammer?: ReturnType<(typeof flow)["determineHammer"]>
+    setMessage?: ReturnType<(typeof flow)["finish"]>,
 }
 
 export async function getVotes(day: number, transaction: Transaction | undefined = undefined) {
@@ -117,17 +126,17 @@ export const flow = {
 
             if(removed?.for == vote.for) {
                 reply = {
-                    typed: "Your vote is unchanged!",
+                    typed: getNickname(voter.id, users) + "'s vote is unchanged!",
                     emoji: process.env.NO_CHANGE ?? "✅"
                 }
             } else if(removed) {
                 reply = {
-                    typed: getNickname(voter.id, users) + " has changed their vote from " + getNickname(removed.for, users) + " to " + getNickname(voting.id, users),
+                    typed: getNickname(voter.id, users) + " has changed their vote from " + getNickname(removed.for, users) + " to " + getNickname(voting.id, users) + "!",
                     emoji: process.env.VOTE_SWAPPED ?? "✅"
                 }
             } else {
                 reply = {
-                    typed: getNickname(voter.id, users) + " has voted " + getNickname(voting.id, users),
+                    typed: getNickname(voter.id, users) + " has voted " + getNickname(voting.id, users) + "!",
                     emoji: '✅'
                 }
             }
@@ -145,7 +154,7 @@ export const flow = {
             }
         } else {
             reply = {
-                typed: "You have not voted!",
+                typed: getNickname(voter.id, users) + " has not voted!",
                 emoji: process.env.FALSE ?? "⛔",
             }
         }
@@ -212,6 +221,22 @@ export const flow = {
                 id: null
             }
         }
+    }
+}
+
+export async function defaultVote(global: Global, setup: Setup, game: Signups, voter: User, voting: User | undefined, type: 'vote' | 'unvote', users: User[], transaction: Transaction): Promise<TransactionResult> {
+    const { reply, vote, votes } = await flow.placeVote(transaction, voter, voting, type, users, global.day); // doesn't save vote yet since board needs to be created
+    
+    if(vote == undefined) return { reply };
+
+    const board = flow.board(votes, users);
+
+    const setMessage = flow.finish(transaction, vote, board, global.day); // locks in vote
+
+    return {
+        reply,
+        hammer: flow.determineHammer(vote, votes, users),
+        setMessage,
     }
 }
 

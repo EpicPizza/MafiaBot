@@ -7,12 +7,12 @@ import { AddCommand } from "./add";
 import { MafiaCommand } from "./mafia";
 import { ClearCommand, DayCommand, WipeCommand } from "./day";
 import { KillCommand } from "./kill";
-//import { VoteCommand } from "./vote";
+import { VoteCommand } from "./vote";
 import { AlignmentCommand } from "./alignment";
 import { InviteCommand, RoleCommand } from "./role";
 
 export function AdvanceCommand() {
-    const commands = [ ExtensionCommand, TriggerCommand, AddCommand, MafiaCommand, DayCommand, ClearCommand, KillCommand, AlignmentCommand, RoleCommand, InviteCommand, WipeCommand ] as { name: string, description?: string, execute: Function, command: { slash: SlashCommandSubcommandBuilder | SlashCommandSubcommandGroupBuilder, text: TextCommandArguments } }[];
+    const commands = [ ExtensionCommand, TriggerCommand, AddCommand, MafiaCommand, DayCommand, ClearCommand, KillCommand, AlignmentCommand, RoleCommand, InviteCommand, WipeCommand, VoteCommand ] as { name: string, description?: string, execute: Function, command: { slash: SlashCommandSubcommandBuilder | SlashCommandSubcommandGroupBuilder, text: TextCommandArguments } }[];
     const interactions = [  ] as { name: string, type: string, command: ZodObject<any>, execute: Function }[];
 
     function getBuilders() {

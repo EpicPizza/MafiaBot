@@ -1,5 +1,5 @@
 import { Message } from "discord.js";
-import { Vote } from "../utils/vote";
+import { flow, Vote } from "../utils/vote";
 import { Command, CommandOptions } from "../discord";
 import { getGlobal } from "../utils/main";
 import { z } from "zod";
@@ -117,20 +117,31 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onVote: async (votes: Vote[], vote: Vote ,voted: boolean, global, setup, game) => {
+    onVote: async (global, setup, game, voter, voting, type, users, transaction) => {
         /**
-         * Runs after vote is counted, before vote/hammer is annouced.
+         * Control the entire voting logic. This example shows the default voting behavior.
          * 
-         * vote: { id: string, for: string, timestamp: number }[]
+         * This runs within a database transaction, reading with the transaction blocks other writes, only read with transaction as necessary. Use users or fallback to normal reads.
          */
 
-        console.log(vote, voted, votes);
+        const { reply, vote, votes } = await flow.placeVote(transaction, voter, voting, type, users, global.day); // doesn't save vote yet since board needs to be created
+        
+        if(vote == undefined) return { reply };
 
-        return { hammer: true, message: "hiiiiiii", hammered: "put an id here" };
+        const board = flow.board(votes, users);
+
+        const setMessage = flow.finish(transaction, vote, board, global.day); // locks in vote
+
+        return {
+            reply,
+            hammer: flow.determineHammer(vote, votes, users),
+            setMessage,
+        }
 
         /**
-         * hammer: boolean - Tells to hammer or not.
-         * message: string | null - Message to append to vote/hammer, null will return default.
+         * reply: { typed: string, emoji: string } - What gets replied to the user. Typed for slash/context/etc commands, emoji for text commands.
+         * hammer?: { message: string, hammered: boolean, id: string } 
+         * setMessage?: (id: string) => Promise<void> - Setting the id of the message to keep in logs.
          */
     },
     onVotes: async (global, setup, game, board ) => { 

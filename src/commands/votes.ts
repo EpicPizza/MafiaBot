@@ -48,10 +48,10 @@ async function handleVoteList(interaction: ChatInputCommandInteraction | Command
     const day = interaction.type == 'text' ? interaction.arguments[0] as number ?? global.day : Math.round(interaction.options.getNumber("day") ?? global.day);
 
     if(day > global.day) throw new Error("Not on day " + day + " yet!");
+
     if(day < 1) throw new Error("Must be at least day 1.");
 
-    const half = Math.floor(global.players.length / 2) + 1;
-
+    const half = Math.floor(global.players.length / 2);
     const db = firebaseAdmin.getFirestore();
     const docs = (await db.collection('day').doc(day.toString()).collection('votes').orderBy('timestamp', 'desc').limit(1).get()).docs;
 
@@ -68,7 +68,10 @@ async function handleVoteList(interaction: ChatInputCommandInteraction | Command
     const extension = extensions.find(extension => extension.priority.includes("onVotes"));
     
     if(global.day == day) {
-        embed.setFooter({ text: extension ? await extension.onVotes(global, setup, game, board) : "Hammer is at " + half + " votes." });
+        const standard = "Hammer is at " + (half + 1) + " votes.";
+        const footer = extension ? await extension.onVotes(global, setup, game, board) : standard;
+
+        embed.setFooter({ text: footer == "" ? standard : footer });
     }
 
     const row = new ActionRowBuilder<ButtonBuilder>()

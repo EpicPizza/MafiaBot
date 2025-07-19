@@ -281,7 +281,7 @@ module.exports = {
 
     },
     onEnd: async (global, setup, game) => {},
-    onVote: async (votes: Vote[], vote: Vote ,voted: boolean, global, setup, game) => {},
+    onVote: async (global, setup, game, voter, voting, type, users, transaction) => {},
     onVotes: async (global, setup, game, board ) => { return ""; },
     onHammer: async (global: Global, setup: Setup, game, hammered: string) => {},
     onRemove: async (global, setup, game, removed: string) => {}
