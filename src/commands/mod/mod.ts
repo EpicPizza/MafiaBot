@@ -11,9 +11,10 @@ import { RemoveCommand } from "./remove";
 import { ConfirmAlignmentsButton, ShowAlignments } from "./alignments";
 import { ExtensionCommand } from "./extension";
 import { AlignmentCommand } from "../advance/alignment";
+import { WipeCommand } from "./wipe";
 
 export function ModCommand() {
-    const commands = [ LockCommand, UnlockCommand, CloseCommand, OpenCommand, CreateCommand, EndCommand, StartCommand, SignupsCommand, SpectatorCommand, KickCommand, RemoveCommand, ExtensionCommand, ArchiveCommand, GraceCommand, ShowAlignments ] as { name: string, description?: string, execute: Function, command: { slash: SlashCommandSubcommandBuilder | SlashCommandSubcommandGroupBuilder, text: TextCommandArguments } }[];
+    const commands = [ LockCommand, UnlockCommand, CloseCommand, OpenCommand, CreateCommand, EndCommand, StartCommand, SignupsCommand, SpectatorCommand, KickCommand, RemoveCommand, ExtensionCommand, ArchiveCommand, GraceCommand, ShowAlignments, WipeCommand ] as { name: string, description?: string, execute: Function, command: { slash: SlashCommandSubcommandBuilder | SlashCommandSubcommandGroupBuilder, text: TextCommandArguments } }[];
     const interactions = [ LockingSelect, UnlockButton, ReactivateButton, ConfirmAlignmentsButton, StartButton, CancelButton, GraceSelect, ChangeGraceButton, Minute, AlignmentSelect, DefaultAlignment, MafiaAlignment, NeutralAlignment, CustomAlignment, CustomModal ] as { name: string, type: string, command: ZodObject<any>, execute: Function }[];
 
     function getBuilders() {
@@ -61,9 +62,8 @@ export function ModCommand() {
                         try {
                             if(i >= requiredLength && command.command.text.optional) {
                                 const part = command.command.text.optional[i - requiredLength];
-                                
 
-                                if(!limited && part != "*") {
+                                if(limited && part != "*") {
                                     parsedValues.push(part === true ? values[i] : part.parse(values[i]));
                                     continue;
                                 }
@@ -81,6 +81,7 @@ export function ModCommand() {
                             }
                         } catch(e) {
                             console.log(e);
+                            
                 
                             throw new Error(`Invalid argument for text command, ` + (command.description != undefined ? `**${command.description}**` : `${name}.`));
                         }

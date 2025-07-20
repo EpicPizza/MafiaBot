@@ -39,6 +39,14 @@ export interface CustomLog {
     timestamp: number,
 }
 
+export interface ResetLog {
+    message: string,
+    board: string,
+    messageId: string | null,
+    type: 'reset',
+    timestamp: number,
+}
+
 export interface TransactionResult {
     reply: Awaited<ReturnType<(typeof flow)["placeVote"]>>["reply"],
     hammer?: ReturnType<(typeof flow)["determineHammer"]>
@@ -50,13 +58,19 @@ export async function getVotes(day: number, transaction: Transaction | undefined
 
     const ref = db.collection('day').doc(day.toString()).collection('votes');
     const docs = transaction ? (await transaction.get(ref)).docs : (await ref.get()).docs;
-    const logs = (docs.map(doc => doc.data()) as Log[]).filter(l => l.type == 'standard');; 
+    const logs = (docs.map(doc => doc.data()) as (Log | ResetLog | CustomLog)[]).filter(l => l.type != 'custom'); 
 
-    logs.sort((a, b) => a.vote.timestamp.valueOf() - b.vote.timestamp.valueOf());
+    logs.sort((a, b) => a.timestamp.valueOf() - b.timestamp.valueOf());
 
-    const votes = [] as Vote[];
+    let votes = [] as Vote[];
 
     logs.forEach(log => {
+        if(log.type == 'reset') {
+            votes = [];
+            
+            return;
+        }
+
         const existing = votes.findIndex(vote => log.vote.id == vote.id);
 
         if(existing > -1) {

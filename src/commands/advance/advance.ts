@@ -5,14 +5,14 @@ import { ExtensionCommand } from "./extension";
 import { TriggerCommand } from "./trigger";
 import { AddCommand } from "./add";
 import { MafiaCommand } from "./mafia";
-import { ClearCommand, DayCommand, WipeCommand } from "./day";
+import { ClearCommand, DayCommand } from "./day";
 import { KillCommand } from "./kill";
 import { VoteCommand } from "./vote";
 import { AlignmentCommand } from "./alignment";
 import { InviteCommand, RoleCommand } from "./role";
 
 export function AdvanceCommand() {
-    const commands = [ ExtensionCommand, TriggerCommand, AddCommand, MafiaCommand, DayCommand, ClearCommand, KillCommand, AlignmentCommand, RoleCommand, InviteCommand, WipeCommand, VoteCommand ] as { name: string, description?: string, execute: Function, command: { slash: SlashCommandSubcommandBuilder | SlashCommandSubcommandGroupBuilder, text: TextCommandArguments } }[];
+    const commands = [ ExtensionCommand, TriggerCommand, AddCommand, MafiaCommand, DayCommand, ClearCommand, KillCommand, AlignmentCommand, RoleCommand, InviteCommand, VoteCommand ] as { name: string, description?: string, execute: Function, command: { slash: SlashCommandSubcommandBuilder | SlashCommandSubcommandGroupBuilder, text: TextCommandArguments } }[];
     const interactions = [  ] as { name: string, type: string, command: ZodObject<any>, execute: Function }[];
 
     function getBuilders() {
@@ -62,7 +62,7 @@ export function AdvanceCommand() {
                                 const part = command.command.text.optional[i - requiredLength];
                                 
 
-                                if(!limited && part != "*") {
+                                if(limited && part != "*") {
                                     parsedValues.push(part === true ? values[i] : part.parse(values[i]));
                                     continue;
                                 }

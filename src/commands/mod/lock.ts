@@ -9,13 +9,13 @@ import { firebaseAdmin } from "../../firebase";
 
 export const LockCommand = {
     name: "lock",
-    description: "?mod lock",
+    description: "?mod lock now // use slash command to schedule",
     command: {
         slash: new SlashCommandSubcommandBuilder()
             .setName("lock")
             .setDescription("Locks the mafia game."),
         text: {
-
+            required: [ z.literal('now') ]
         } satisfies TextCommandArguments
     },
     execute: async (interaction: Command | ChatInputCommandInteraction) => {
@@ -224,13 +224,13 @@ export const ChangeGraceButton = {
 
 export const UnlockCommand = {
     name: "unlock",
-    description: "?mod unlock",
+    description: "?mod unlock now {stay|advance} // use slash command to schedule",
     command: {
         slash: new SlashCommandSubcommandBuilder()
             .setName("unlock")
             .setDescription("Unlocks the mafia game."),
         text: {
-
+            required: [ z.literal('now'), z.union([z.literal('stay'), z.literal('advance')]) ]
         } satisfies TextCommandArguments
     },
     execute: async (interaction: Command | ChatInputCommandInteraction) => {
@@ -314,6 +314,18 @@ async function handleUnlockButton(interaction: ButtonInteraction) {
 }
 
 async function handleLocking(interaction: ChatInputCommandInteraction | Command, type: boolean) {
+    if(interaction.type == 'text') {
+        if(interaction.arguments[0] == "unlock") {
+            await unlockGame((interaction.arguments[2] as string) == 'stay' ? false : true);
+        } else {
+            await lockGame();
+        }
+
+        await interaction.message.react('✅');
+
+        return;
+    }
+
     const timing = await getFuture();
 
     const embed = new EmbedBuilder()
@@ -327,7 +339,7 @@ async function handleLocking(interaction: ChatInputCommandInteraction | Command,
     //dnt.format(date, "h:mm A, M/DD/YY")
 
     const select = new StringSelectMenuBuilder()
-        .setCustomId(JSON.stringify({ name: "future", type: type, through: interaction.type == 'text' ? 'text' : 'slash' }))
+        .setCustomId(JSON.stringify({ name: "future", type: type, through: 'slash' }))
         .setPlaceholder('When to ' + (type ? "lock" : "unlock") + " channel?")
         .setOptions(
             new StringSelectMenuOptionBuilder()

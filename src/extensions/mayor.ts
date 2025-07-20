@@ -30,9 +30,7 @@ const help = `This extension can support mayor in three different ways: hidden, 
 
 **?mayor votes** Show votes with hidden mayors. Must be run in dead chat channel.
 
-**?reveal** Command used by player to reveal they are mayor.
-
-⚠️ WARNING: Mayors are not meant to be updated mid-day, so ?votes may be out-of-date until someone revotes.`
+**?reveal** Command used by player to reveal they are mayor.`
 
 module.exports = {
     name: "Mayors",
@@ -103,19 +101,28 @@ module.exports = {
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
 
             const user = await getUserByChannel(command.message.channel.id);
-
             if(!user) throw new Error("This dm channel is not linked to a user.");
 
             const db = firebaseAdmin.getFirestore();
-
             const ref = db.collection('mayor').doc(user.id);
-            
-            await ref.set({
-                type: command.arguments[0] == 'public' ? 'classic' : command.arguments[0] as string,
-                weight: command.arguments[1] as string,
+
+            const previous = (await ref.get()).data() as MayorEntry | undefined;
+            const newEntry = {
+                type: command.arguments[0] as 'public' | 'classic' | 'secret' | 'hidden',
+                weight: command.arguments[1] as number,
                 reveal: command.arguments[0] == 'public' ? true : false,
                 day: command.arguments[2] as number,
-            });
+            } satisfies MayorEntry;
+            
+            await ref.set(newEntry);
+
+            if(newEntry.type == "public") {
+                await updateVotes(newEntry.day, game, "is now a mayor!", user.id); //update if new entry has votes that count immediently.
+            } else if(previous && previous.reveal == true) {
+                await updateVotes(newEntry.day, game, "is no longer a mayor!", user.id); //update if new entry doesn't have votes that count immediently.
+            }
+
+            //no need to do anything if nothing changes visibly with mayor
 
             await command.message.react("✅");
         } else if(command.name == "clear") {
@@ -124,14 +131,17 @@ module.exports = {
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
 
             const user = await getUserByChannel(command.message.channel.id);
-
             if(!user) throw new Error("This dm channel is not linked to a user.");
 
             const db = firebaseAdmin.getFirestore();
 
             const ref = db.collection('mayor').doc(user.id);
-            
+            const previous = (await ref.get()).data() as MayorEntry | undefined;
             await ref.delete();
+
+            if(previous?.reveal == true) {
+                await updateVotes(previous.day, game, "is no longer a mayor!", user.id);
+            }
 
             await command.message.react("✅");
         } else if(command.name == "check") {
@@ -150,55 +160,18 @@ module.exports = {
 
             await command.message.reply({ embeds: [embed] });
         } else if(command.name == "reveal") {
-            const db = firebaseAdmin.getFirestore();
+            if(command.message.channelId != setup.primary.chat.id) throw new Error("Must be in main chat!");
+            if(global.locked == true) throw new Error("Game is locked!");
 
-            const ref = db.collection('mayor').doc(command.user.id);
+            const result = await reveal(command.user.id, global, game);
 
-            const users = await getUsersArray(game.signups);
+            if(result == undefined) return;
 
-            const hammer = await db.runTransaction(async t => {
-                const votes = await getVotes(global.day, t); // no need to actually put a vote, just retrieve votes
-
-                const data = (await t.get(ref)).data();
-                if(!data || !(data.type == 'secret' || data.type == 'classic') || data.reveal == true) return; //check they are a mayor
-
-                const mayors = await getMayors(users, t);
-
-                t.update(ref, {
-                    reveal: true,
-                });
-
-                const index = mayors.findIndex(mayor => mayor.id == command.user.id);
-                if(index > -1) mayors[index].reveal = true; //update the mayor to revealed so we don't need to refetch (we can't refetch)
-
-                const board = getBoard(votes, users, mayors, global.day);
-                
-                t.create(db.collection('day').doc(global.day.toString()).collection('votes').doc(), {
-                    board,
-                    search: {
-                        name: users.find(user => user.id == command.user.id)?.nickname ?? "<@" + command.user.id + ">"
-                    },
-                    prefix: true,
-                    message: "has revealed they are a mayor!",
-                    messageId: command.message.id,
-                    type: 'custom',
-                    timestamp: new Date().valueOf(),
-                } satisfies CustomLog); // use a custom log since not a real vote
-
-                const exisitng = votes.find(v => v.id == command.user.id);
-
-                if(exisitng) {
-                    return determineHammer(exisitng, votes, users, mayors); //spoof hammer check with existing vote
-                } else {
-                    return { hammered: false, message: null, id: null }; //or otherwise just send no hammer
-                }
-            }) satisfies NonNullable<TransactionResult["hammer"]> | undefined;
-
-            if(hammer == undefined) return;
+            await result.setMessage(command.message.id);
 
             await command.message.react("✅");
 
-            await handleHammer(hammer, global, setup, game);
+            await handleHammer(result.hammer, global, setup, game);
         } else if(command.name == "votes") {
             await checkMod(setup, command.user.id, command.message.guildId ?? "");
 
@@ -206,7 +179,7 @@ module.exports = {
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != gameSetup.spec.guildId || command.message.channel.id != gameSetup.spec.id) throw new Error("This command must be run in dead chat.");
 
             const votes = await getVotes(global.day);
-            const users = await getUsersArray(game.signups);
+            const users = await getUsersArray(global.players.map(player => player.id));
             const mayors = await getMayors();
 
             const board = getBoard(votes, users, mayors, global.day, true);
@@ -251,7 +224,7 @@ module.exports = {
 
         return {
             reply,
-            hammer: determineHammer(vote, votes, users, mayors),
+            hammer: determineHammer(vote, votes, users, mayors, global.day),
             setMessage,
         }
     },
@@ -264,12 +237,24 @@ function capitalize(input: string) {
     return input.substring(0, 1).toUpperCase() + input.substring(1, input.length).toLowerCase();
 }
 
+interface MayorEntry {
+    type: 'public' | 'classic' | 'secret' | 'hidden',
+    weight: number,
+    reveal: boolean,
+    day: number,
+}
+
+interface Mayor extends MayorEntry {
+    id: string,
+    nickname?: string,
+}
+
 async function getMayors(users: User[] | undefined = undefined, transaction: Transaction | undefined = undefined) {
     const db = firebaseAdmin.getFirestore();
 
     const docs = transaction ? (await transaction.get(db.collection('mayor'))).docs : (await db.collection('mayor').get()).docs;
 
-    const mayors = new Array<{ id: string, nickname: string | undefined, reveal: boolean, type: 'classic' | 'secret' | 'hidden', weight: number, day: number, }>();
+    const mayors = new Array<Mayor>();
 
     for(let i = 0; i < docs.length; i++) {
         const user = users ? users.find(user => user.id == docs[i].id) : undefined;
@@ -300,7 +285,7 @@ function getBoard(votes: Vote[], users: User[], mayors: Awaited<ReturnType<typeo
         const voters = votes.filter(vote => vote.for == votingId).sort((a, b) => a.timestamp.valueOf() - b.timestamp.valueOf()).map(vote => {
             const mayor = mayors.find(mayor => mayor.id == vote.id && mayor.day == day);
 
-            if(mayor && (((mayor.type == "classic" || mayor.type == "secret") && mayor.reveal == true) || (deadChat && (mayor.type != "classic" || (mayor.type == "classic" && mayor.reveal == true))))) {
+            if(mayor && (((mayor.type != 'hidden') && mayor.reveal == true) || (deadChat && ((mayor.type != "classic" && mayor.type != "public") || ((mayor.type == "classic" || mayor.type == "public") && mayor.reveal == true))))) {
                 count += mayor.weight;
             } else {
                 count++;
@@ -309,7 +294,7 @@ function getBoard(votes: Vote[], users: User[], mayors: Awaited<ReturnType<typeo
             const indicator = (() => {
                 if(!mayor) {
                     return ""
-                } else if((mayor.type == "classic" || mayor.type == "secret") && mayor.reveal == true) {
+                } else if((mayor.type == "classic" || mayor.type == "public" || mayor.type == "secret") && mayor.reveal == true) {
                     return " (" + mayor.weight + ")"
                 } else if(deadChat && (mayor.type == "hidden" || (mayor.type == "secret" && mayor.reveal == false))) {
                     return " ~~(" + mayor.weight + ")~~"
@@ -339,11 +324,14 @@ function getBoard(votes: Vote[], users: User[], mayors: Awaited<ReturnType<typeo
     return board;
 }
 
-function determineHammer(vote: Vote, votes: Vote[], users: User[], mayors: Awaited<ReturnType<typeof getMayors>>): NonNullable<TransactionResult["hammer"]> {
+function determineHammer(vote: Vote, votes: Vote[], users: User[], mayors: Awaited<ReturnType<typeof getMayors>>, day: number): TransactionResult["hammer"] {
     if(vote.for == 'unvote') return { hammered: false, message: null, id: null };
 
+    console.log(votes);
+    console.log(mayors);
+
     let votesForHammer = votes.filter(v => v.for == vote.for).reduce((prev, vote) => {
-        const mayor = mayors.find(mayor => mayor.id == vote.id);
+        const mayor = mayors.find(mayor => mayor.id == vote.id && mayor.day == day);
 
         if(mayor && (mayor.type != "classic" || (mayor.type == "classic" && mayor.reveal == true))) {
             return prev + mayor.weight;
@@ -354,9 +342,95 @@ function determineHammer(vote: Vote, votes: Vote[], users: User[], mayors: Await
 
     const half = Math.floor(users.length / 2);
 
+    console.log("HALF", half);
+    console.log("VOTES", votesForHammer);
+
     if(votesForHammer > half) {
         return { hammered: true, message: (users.find(user => user.id == vote.for)?.nickname ?? "<@" + vote.for + ">") + " has been hammered!", id: vote.for };
     } else {
         return { hammered: false, message: null, id: null };
     }
+}
+
+async function updateVotes(day: number, game: Signups, message: string, id: string) {
+    const db = firebaseAdmin.getFirestore();
+
+    const users = await getUsersArray(game.signups);
+
+    await db.runTransaction(async t => {
+        const votes = await getVotes(day, t);
+
+        const mayors = await getMayors(users, t);
+
+        const board = getBoard(votes, users, mayors, day);
+
+        const ref = db.collection('day').doc(day.toString()).collection('votes').doc();
+
+        t.create(ref, {
+            board,
+            search: {
+                name: users.find(user => user.id == id)?.nickname ?? "<@" + id + ">",
+            },
+            prefix: true,
+            message: message,
+            messageId: null,
+            type: 'custom',
+            timestamp: new Date().valueOf(),
+        } satisfies CustomLog);
+    })
+}
+
+async function reveal(id: string, global: Global, game: Signups) {
+    const db = firebaseAdmin.getFirestore();
+
+    const ref = db.collection('mayor').doc(id);
+
+    const users = await getUsersArray(global.players.map(player => player.id));
+
+    const result = await db.runTransaction(async t => {
+        const votes = await getVotes(global.day, t); // no need to actually put a vote, just retrieve votes
+
+        const data = (await t.get(ref)).data();
+        if(!data || !(data.type == 'secret' || data.type == 'classic') || data.reveal == true) return; //check they are a mayor
+
+        const mayors = await getMayors(users, t);
+
+        t.update(ref, {
+            reveal: true,
+        });
+
+        const index = mayors.findIndex(mayor => mayor.id == id);
+        if(index > -1) mayors[index].reveal = true; //update the mayor to revealed so we don't need to refetch (we can't refetch)
+
+        const board = getBoard(votes, users, mayors, global.day);
+        
+        const logRef = db.collection('day').doc(global.day.toString()).collection('votes').doc();
+        
+        t.create(logRef, {
+            board,
+            search: {
+                name: users.find(user => user.id == id)?.nickname ?? "<@" + id + ">"
+            },
+            prefix: true,
+            message: "has revealed they are a mayor!",
+            messageId: null,
+            type: 'custom',
+            timestamp: new Date().valueOf(),
+        } satisfies CustomLog); // use a custom log since not a real vote
+
+        const setMessage = async (id: string) => {
+            await logRef.update({
+                messageId: id,
+            });
+        };
+
+        const existing = votes.find(v => v.id == id);
+
+        return {
+            hammer: existing ? determineHammer(existing, votes, users, mayors, global.day) : { hammered: false as false, message: null, id: null },
+            setMessage
+        }
+    });
+
+    return result;
 }

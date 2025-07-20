@@ -12,6 +12,7 @@ import { getUser, getUserByChannel, getUserByName } from "../utils/user";
 import { getFuture } from "../utils/timing";
 import { killPlayer } from "../commands/advance/kill";
 import { removePlayer } from "../commands/mod/remove";
+import { wipe } from "../commands/mod/wipe";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -25,7 +26,7 @@ const help = `**?kill {nickname}** Command used by player to day kill.
 - Remove: completely removes player, giving them spectator perms. 
 - Hammer: ends the day and doesn't automatically flip. 
 
-Note: If running during the night, the current day is the day before, so expiring after 1 day will cuase it to expire once the night ends.
+Note: Setting expire to \`0\` will expire the current day, during night, set \`1\` to expire the day after.
 
 **?daykill list** List all set day kills. Must be run in spectator chat.
 
@@ -226,7 +227,7 @@ module.exports = {
                     components: [],
                 });
 
-                await message.reply({
+                const final = await message.reply({
                     content: "<@&" + setup.primary.alive.id + ">\n# " + killing.nickname + " was **" + (killingPlayer.alignment == null || killingPlayer.alignment == "default" ? "town" : killingPlayer.alignment)  + "**!"
                 });
 
@@ -235,6 +236,10 @@ module.exports = {
                 } else {
                     await removePlayer(killing.nickname, global, setup);
                 }
+
+                const setMessage = await wipe(global, killing.nickname + " was " + killingPlayer.alignment + "!");
+
+                await setMessage(final.id);
 
                 await unlockGame(false);
             }  
@@ -276,7 +281,7 @@ module.exports = {
 
                 return {
                     type: data.type as string,
-                    expire: data.expire as number,
+                    expire: data.expire as number + 1,
                     lock: data.lock as string,
                     day: data.day as number,
                     user: user,
@@ -359,7 +364,7 @@ module.exports = {
 
             const type = customId.type ?? "mute";
 
-            await interaction.message.reply({
+            const message = await interaction.message.reply({
                 content: "<@&" + setup.primary.alive.id + ">\n# " + killing.nickname + " was **" + killingPlayer.alignment + "**!",
                 components: [],
             });
@@ -369,6 +374,10 @@ module.exports = {
             } else {
                 await removePlayer(killing.nickname, global, setup);
             }
+
+            const setMessage = await wipe(global, killing.nickname + " was " + killingPlayer.alignment + "!");
+
+            await setMessage(message.id);
 
             await unlockGame(false);
         }
