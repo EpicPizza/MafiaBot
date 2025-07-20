@@ -125,7 +125,7 @@ module.exports = {
         const type = (!('arguments' in interaction) ? interaction.commandName == "unvote" : (interaction.name == "unvote" || interaction.arguments.length == 0)) ? "unvote" : "vote";
     
         if(type == 'vote' && voting == undefined) throw new Error("Player not found!");
-        if(voter == undefined) throw new Error("Must specify voter?");
+        if(voter == undefined) throw new Error("You're not in this game?");
 
         const db = firebaseAdmin.getFirestore();
 

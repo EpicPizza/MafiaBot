@@ -397,6 +397,17 @@ export async function setupMafiaPlayer(mafiaPlayer: GuildMember | undefined, set
     }
 }
 
+async function setTag(userProfile: User, player: GuildMember) {
+    const db = firebaseAdmin.getFirestore();
+
+    await db.collection('tags').doc(player.id).set({
+        id: player.id,
+        color: player.displayHexColor,
+        nickname: userProfile.nickname,
+        pfp: player.avatarURL() ?? player.displayAvatarURL() ?? client.user?.displayAvatarURL() ?? "https://cdn.discordapp.com/avatars/1248187665548054588/cc206768cd2ecf8dfe96c1b047caa60f.webp?size=160"
+    });
+}
+
 export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup) {
     const db = firebaseAdmin.getFirestore();
 
@@ -405,6 +416,7 @@ export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup
     await setupMainPlayer(player, setup);
     await setupDeadPlayer(deadPlayer, setup)
     await setupMafiaPlayer(mafiaPlayer, setup, gameSetup);
+    await setTag(userProfile, player);
 
     let channel = await setup.secondary.guild.channels.fetch(userProfile.channel ?? "").catch(() => null);
     let newPlayer = channel == null;

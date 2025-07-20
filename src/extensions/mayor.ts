@@ -405,11 +405,16 @@ async function reveal(id: string, global: Global, game: Signups) {
         const board = getBoard(votes, users, mayors, global.day);
         
         const logRef = db.collection('day').doc(global.day.toString()).collection('votes').doc();
+
+        const existing = votes.find(v => v.id == id);
         
         t.create(logRef, {
             board,
             search: {
-                name: users.find(user => user.id == id)?.nickname ?? "<@" + id + ">"
+                name: users.find(user => user.id == id)?.nickname ?? "<@" + id + ">",
+                ...(existing ? {
+                    for: users.find(user => user.id == existing.for)?.nickname ?? "<@" + existing.for + ">",
+                } : {})
             },
             prefix: true,
             message: "has revealed they are a mayor!",
@@ -423,8 +428,6 @@ async function reveal(id: string, global: Global, game: Signups) {
                 messageId: id,
             });
         };
-
-        const existing = votes.find(v => v.id == id);
 
         return {
             hammer: existing ? determineHammer(existing, votes, users, mayors, global.day) : { hammered: false as false, message: null, id: null },

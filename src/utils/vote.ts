@@ -29,6 +29,7 @@ export interface Log {
 export interface CustomLog {
     search: { //for vote history search, add nicknames
         for?: string,
+        replace?: string,
         name: string,
     },
     message: string,
@@ -67,7 +68,7 @@ export async function getVotes(day: number, transaction: Transaction | undefined
     logs.forEach(log => {
         if(log.type == 'reset') {
             votes = [];
-            
+
             return;
         }
 
