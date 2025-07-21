@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "ts-node src/setup.ts && nodemon src/discord.ts",
     "worker": "node build/setup.js && node build/discord.js",
-    "build": "tsc"
+    "build": "tsc",
+    "test": "jest",
+    "coverage": "jest --coverage"
   },
   "author": "",
   "license": "ISC",
@@ -17,12 +19,19 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "firebase-admin": "^12.1.1",
+    "firestore-jest-mock": "^0.26.0",
     "luxon": "^3.4.4",
     "parse-human-relative-time": "^3.0.2",
     "typescript": "^5.4.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@babel/core": "^7.28.0",
+    "@babel/preset-env": "^7.28.0",
+    "@babel/preset-typescript": "^7.27.1",
+    "@types/jest": "^30.0.0",
+    "babel-jest": "^30.0.4",
+    "jest": "^30.0.4",
     "nodemon": "^3.1.2",
     "ts-node": "^10.9.2"
   }
