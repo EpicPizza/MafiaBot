@@ -12,7 +12,7 @@ import { getUser, getUserByChannel, getUserByName } from "../utils/user";
 import { getFuture } from "../utils/timing";
 import { killPlayer } from "../commands/advance/kill";
 import { removePlayer } from "../commands/mod/remove";
-import { wipe } from "../commands/mod/wipe";
+import { wipe } from "../utils/vote";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 

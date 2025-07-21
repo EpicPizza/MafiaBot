@@ -2,10 +2,8 @@ import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "disc
 import { Command, removeReactions, TextCommandArguments } from "../../discord";
 import { deleteCollection, getGlobal } from "../../utils/main";
 import { getSetup } from "../../utils/setup";
-import { firebaseAdmin } from "../../firebase";
 import { z } from "zod";
-import { getVotes, ResetLog } from "../../utils/vote";
-import { Global } from "../../utils/main";
+import { wipe } from "../../utils/vote";
 
 export const WipeCommand = {
     name: "wipe",
@@ -64,28 +62,3 @@ export const WipeCommand = {
     }
 }
 
-export async function wipe(global: Global, message: string) {
-    const db = firebaseAdmin.getFirestore();
-
-    return await db.runTransaction(async t => {
-        await getVotes(global.day, t); //just need to lock documents
-
-        const board = "";
-
-        const ref = db.collection('day').doc(global.day.toString()).collection('votes').doc();
-
-        t.create(ref, {
-            messageId: null,
-            message: message == "" ? "Votes have been reset." : message,
-            board: board,
-            type: "reset",
-            timestamp: new Date().valueOf(),
-        } satisfies ResetLog);
-
-        return async (id: string) => {
-            await ref.update({
-                messageId: id,
-            })
-        }
-    });
-}

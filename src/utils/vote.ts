@@ -86,31 +86,6 @@ export async function getVotes(day: number, transaction: Transaction | undefined
     return votes;
 }
 
-export async function resetVotes(options: { day: number | string } | undefined = undefined) {
-    const db = firebaseAdmin.getFirestore();
-
-    if(options) {
-        const ref = db.collection('day').doc(options.day.toString()).collection('votes');
-
-        const docs = await ref.listDocuments();
-
-        const batch = db.batch();
-
-        docs.forEach(ref => batch.delete(ref));
-
-        await batch.commit();
-    } else {
-        const ref = db.collection('day');
-
-        const days = await ref.listDocuments();
-
-        for(let i = 0; i < days.length; i++) {
-            await resetVotes({ day: days[i].id });
-        }
-    }
-}
-
-
 export const flow = {
     placeVote: async (t: Transaction, voter: User, voting: User | undefined, type: 'unvote' | 'vote', users: User[], day: number) => {
         const votes = await getVotes(day, t);
@@ -290,4 +265,30 @@ async function hammerExtensions(global: Global, setup: Setup, game: Signups, ham
 
 function getNickname(id: string, users: User[]) {
     return users.find(user => user.id == id)?.nickname ?? "<@" + id + ">";
+}
+
+export async function wipe(global: Global, message: string) {
+    const db = firebaseAdmin.getFirestore();
+
+    return await db.runTransaction(async (t) => {
+        await getVotes(global.day, t); //just need to lock documents
+
+        const board = "";
+
+        const ref = db.collection('day').doc(global.day.toString()).collection('votes').doc();
+
+        t.create(ref, {
+            messageId: null,
+            message: message == "" ? "Votes have been reset." : message,
+            board: board,
+            type: "reset",
+            timestamp: new Date().valueOf(),
+        } satisfies ResetLog);
+
+        return async (id: string) => {
+            await ref.update({
+                messageId: id,
+            });
+        };
+    });
 }
