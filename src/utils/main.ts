@@ -416,7 +416,7 @@ export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup
     if(player) await setupMainPlayer(player, setup);
     await setupDeadPlayer(deadPlayer, setup)
     await setupMafiaPlayer(mafiaPlayer, setup, gameSetup);
-    await setTag(userProfile, player);
+    if(player) await setTag(userProfile, player);
 
     let channel = await setup.secondary.guild.channels.fetch(userProfile.channel ?? "").catch(() => null);
     let newPlayer = channel == null;
