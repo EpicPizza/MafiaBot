@@ -12,6 +12,7 @@ import { getUser, getUserByChannel, getUserByName } from "../utils/user";
 import { getFuture } from "../utils/timing";
 import { killPlayer } from "../commands/advance/kill";
 import { removePlayer } from "../commands/mod/remove";
+import { wipe } from "../utils/vote";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -25,7 +26,7 @@ const help = `**?kill {nickname}** Command used by player to day kill.
 - Remove: completely removes player, giving them spectator perms. 
 - Hammer: ends the day and doesn't automatically flip. 
 
-Note: If running during the night, the current day is the day before, so expiring after 1 day will cuase it to expire once the night ends.
+Note: Setting expire to \`0\` will expire the current day, during night, set \`1\` to expire the day after.
 
 **?daykill list** List all set day kills. Must be run in spectator chat.
 
@@ -94,7 +95,7 @@ module.exports = {
             })
         }
     ],
-    onStart: async (global: Global, setup: Setup, game: Signups) => {
+    onStart: async (global, setup, game) => {
         /**
          * Runs during game start processes.
          */
@@ -119,7 +120,7 @@ module.exports = {
 
         console.log("Extension Lock");
     },
-    onUnlock: async (global, setup, game, incremented: boolean) => {
+    onUnlock: async (global, setup, game, incremented) => {
         /**
          * Runa after game has unlocked.
          * 
@@ -226,7 +227,7 @@ module.exports = {
                     components: [],
                 });
 
-                await message.reply({
+                const final = await message.reply({
                     content: "<@&" + setup.primary.alive.id + ">\n# " + killing.nickname + " was **" + (killingPlayer.alignment == null || killingPlayer.alignment == "default" ? "town" : killingPlayer.alignment)  + "**!"
                 });
 
@@ -235,6 +236,10 @@ module.exports = {
                 } else {
                     await removePlayer(killing.nickname, global, setup);
                 }
+
+                const setMessage = await wipe(global, killing.nickname + " was " + killingPlayer.alignment + "!");
+
+                await setMessage(final.id);
 
                 await unlockGame(false);
             }  
@@ -276,7 +281,7 @@ module.exports = {
 
                 return {
                     type: data.type as string,
-                    expire: data.expire as number,
+                    expire: data.expire as number + 1,
                     lock: data.lock as string,
                     day: data.day as number,
                     user: user,
@@ -359,7 +364,7 @@ module.exports = {
 
             const type = customId.type ?? "mute";
 
-            await interaction.message.reply({
+            const message = await interaction.message.reply({
                 content: "<@&" + setup.primary.alive.id + ">\n# " + killing.nickname + " was **" + killingPlayer.alignment + "**!",
                 components: [],
             });
@@ -370,12 +375,16 @@ module.exports = {
                 await removePlayer(killing.nickname, global, setup);
             }
 
+            const setMessage = await wipe(global, killing.nickname + " was " + killingPlayer.alignment + "!");
+
+            await setMessage(message.id);
+
             await unlockGame(false);
         }
 
         return;
     },
-    onMessage: async (message: Message, cache: Cache) => {},
+    onMessage: async (message, cache) => {},
     onEnd: async (global, setup, game) => {
         /**
          * Runs during game end processes.
@@ -389,38 +398,8 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onVote: async (votes: Vote[], vote: Vote ,voted: boolean, global, setup, game) => {
-        /**
-         * Runs after vote is counted, before vote/hammer is annouced.
-         * 
-         * vote: { id: string, for: string, timestamp: number }[]
-         */
-
-        console.log(vote, voted, votes);
-
-        return { hammer: true, message: "hiiiiiii", hammered: "put an id here" };
-
-        /**
-         * hammer: boolean - Tells to hammer or not.
-         * message: string | null - Message to append to vote/hammer, null will return default.
-         */
-    },
-    onVotes: async (voting: string[], votes: Map<string, Vote[]>, day: number, global, setup, game) => {
-        /**
-         * Runs while processing votes command.
-         * 
-         * voting: string[] - array of each voted person's id
-         * votes: Map<string, Vote[]> - array of votes for each voted person, key is person's id
-         */
-
-        console.log(voting, votes);
-        
-        return { description: "This votes counter has been overtaken by extension.", message: "" }
-
-        /**
-         * A string that will replace the votes list in votes command.
-         */
-    },
+    onVote: async (global, setup, game, voter, voting, type, users, transaction) => {},
+    onVotes: async (global, setup, game, board ) => { return ""; },
     onHammer: async (global, setup, game, hammered: string) => {},
     onRemove: async (global, setup, game, removed: string) => {}
 } satisfies Extension;

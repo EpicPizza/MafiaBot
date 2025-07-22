@@ -316,7 +316,7 @@ export const AlignmentSelect = {
             for(let j = 0; j < rowComponents[i].components.length; j++) {
                 const component = rowComponents[i].components[j];
 
-                if(('style' in component && component.style == ButtonStyle.Link)) continue;
+                if(('style' in component && !('custom_id' in component))) continue;
 
                 if(component.custom_id == interaction.customId && component.type == ComponentType.StringSelect) {
                     component.options.forEach(option => {
@@ -324,7 +324,7 @@ export const AlignmentSelect = {
                     });
                 }
 
-                if(component.type == ComponentType.Button && component.label != "Finish") {
+                if(component.type == ComponentType.Button &&  component.label != "Finish") {
                     component.disabled = values.length == 0;
                 }
             }

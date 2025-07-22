@@ -11,6 +11,7 @@ import { Signups, addSignup, getGameSetup } from "../utils/games";
 import { FieldValue } from "firebase-admin/firestore";
 import { addMafiaPlayer } from "../commands/mod/alignments";
 import { Extension, ExtensionInteraction, getEnabledExtensions } from "../utils/extensions";
+import { Cache } from "../discord";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -115,7 +116,7 @@ module.exports = {
         } else if(command.name == "replace") {
             const ingame = !global.locked;
 
-            if(global.day == 0) throw new Error("Setup allignments first.");
+            if(global.day == 0) throw new Error("Setup alignments first.");
 
             const replacing = await getUserByName(command.arguments[0] as string);
             const to = await getUserByName(command.arguments[2] as string);
@@ -294,8 +295,8 @@ module.exports = {
             await db.collection('settings').doc('game').collection('games').doc(game.id).update({ signups: FieldValue.arrayRemove(to.id) });
         }
     },
-    onVote: async (votes: Vote[], vote: Vote ,voted: boolean, global, setup, game) => {},
-    onVotes: async (voting: string[], votes: Map<string, Vote[]>, day: number, global, setup, game) => {},
+    onVote: async (global, setup, game, voter, voting, type, users, transaction) => {},
+    onVotes: async (global, setup, game, board ) => { return ""; },
     onHammer: async (global: Global, setup: Setup, game, hammered: string) => {},
     onRemove: async (global, setup, game, removed: string) => {}
 } satisfies Extension;

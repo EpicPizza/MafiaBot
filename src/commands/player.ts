@@ -3,7 +3,7 @@ import { Command, Data } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { z } from "zod";
 import { User, createUser, editUser, getUser, getUserByName } from "../utils/user";
-import { getAllCurrentNicknames, getAllNicknames, getGameByID, getGlobal } from "../utils/main";
+import { getAllNicknames, getGameByID, getGlobal } from "../utils/main";
 import { addSignup, refreshSignup } from "../utils/games";
 
 const setNickname = z.object({

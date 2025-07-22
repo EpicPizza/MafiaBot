@@ -9,6 +9,7 @@ import { firebaseAdmin } from "../firebase";
 import { Global } from "../utils/main";
 import { checkMod } from "../utils/mod";
 import { Extension, ExtensionInteraction } from "../utils/extensions";
+import { Signups } from "../utils/games";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -64,7 +65,7 @@ module.exports = {
          */
     },
     onLock: async (global, setup, game) => {},
-    onUnlock: async (global, setup, game, incremented: boolean) => {},
+    onUnlock: async (global, setup, game, incremented) => {},
     onCommand: async (command: Command) => {
         /**
          * Text commands only for the forseeable future.
@@ -136,11 +137,11 @@ module.exports = {
          */
     },
     onInteraction: async (extensionInteraction: ExtensionInteraction) => {},
-    onMessage: async (message: Message, cache: Cache) => {},
+    onMessage: async (message, cache) => {},
     onEnd: async (global, setup, game) => {},
-    onVote: async (votes: Vote[], vote: Vote ,voted: boolean, global, setup, game) => {},
-    onVotes: async (voting: string[], votes: Map<string, Vote[]>, day: number, global, setup, game) => {},
-    onHammer: async (global: Global, setup: Setup, game, hammered: string) => {
+    onVote: async (global, setup, game, voter, voting, type, users, transaction) => {},
+    onVotes: async (global, setup, game, board ) => { return ""; },
+    onHammer: async (global, setup, game, hammered) => {
         const user = await getUser(hammered);
 
         if(!user) return;

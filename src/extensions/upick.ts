@@ -62,7 +62,7 @@ module.exports = {
         }
     ] satisfies CommandOptions[],
     interactions: [],
-    onStart: async (global: Global, setup: Setup, game: Signups) => {
+    onStart: async (global, setup, game) => {
         /**
          * Runs during game start processes.
          */
@@ -109,28 +109,8 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onLock: async (global, setup, game) => {
-        /**
-         * Runs after game has locked.
-         */
-
-        console.log("Extension Lock");
-    },
-    onUnlock: async (global, setup, game, incremented: boolean) => {
-        /**
-         * Runa after game has unlocked.
-         * 
-         * incremented: boolean - Whether day has advanced or not.
-         */
-
-        console.log("Extension Unlock", incremented);
-
-        return;
-
-        /**
-         * Nothing to return.
-         */
-    },
+    onLock: async (global, setup, game) => {},
+    onUnlock: async (global, setup, game, incremented) => {},
     onCommand: async (command: Command) => {
         /**
          * Text commands only for the forseeable future.
@@ -272,83 +252,13 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onInteraction: async (extensionInteraction: ExtensionInteraction) => {
-        /**
-         * Interactions for buttons, modals, and select menus. Context menu and slash commands not implemented.
-         * 
-         *  interaction: {
-         *      customId: any,
-         *      name: string,
-         *      interaction: ButtonInteraction | ModalSubmitInteraction | AnySelectMenuInteraction
-         *  }
-         */
-
-        console.log(extensionInteraction);
-
-        return;
-    },
-    onMessage: async (message: Message, cache: Cache) => {
-        /*
-         * Keep fetches to a minimum, these can add up. For this reason, only cache is given, only use helper functions when necessary.
-         * 
-         * cache: { day: number, started: boolean, channel: null | TextChannel } - TextChannel may or may not be fetched depending if bot has fully intialized
-         */
-
-        //console.log("Extension", message);
-
-        return;
-
-        /**
-         * Nothing to return.
-         */
-    },
-    onEnd: async (global, setup, game) => {
-        /**
-         * Runs during game end processes.
-         */
-
-        console.log("Extension End");
-
-        return;
-
-        /**
-         * Nothing to return.
-         */
-    },
-    onVote: async (votes: Vote[], vote: Vote ,voted: boolean, global, setup, game) => {
-        /**
-         * Runs after vote is counted, before vote/hammer is annouced.
-         * 
-         * vote: { id: string, for: string, timestamp: number }[]
-         */
-
-        console.log(vote, voted, votes);
-
-        return { hammer: true, message: "hiiiiiii", hammered: "put an id here" };
-
-        /**
-         * hammer: boolean - Tells to hammer or not.
-         * message: string | null - Message to append to vote/hammer, null will return default.
-         */
-    },
-    onVotes: async (voting: string[], votes: Map<string, Vote[]>, day: number, global, setup, game) => {
-        /**
-         * Runs while processing votes command.
-         * 
-         * voting: string[] - array of each voted person's id
-         * votes: Map<string, Vote[]> - array of votes for each voted person, key is person's id
-         */
-
-        console.log(voting, votes);
-        
-        return { description: "This votes counter has been overtaken by extension.", message: "" }
-
-        /**
-         * A string that will replace the votes list in votes command.
-         */
-    },
-    onHammer: async (global, setup, game, hammered: string) => {},
-    onRemove: async (global, setup, game, removed: string) => {}
+    onInteraction: async (extensionInteraction: ExtensionInteraction) => {},
+    onMessage: async (message, cache) => {},
+    onEnd: async (global, setup, game) => {},
+    onVote: async (global, setup, game, voter, voting, type, users, transaction) => {},
+    onVotes: async (global, setup, game, board ) => { return ""; },
+    onHammer: async (global, setup, game, hammered) => {},
+    onRemove: async (global, setup, game, removed) => {}
 } satisfies Extension;
 
 export function blockOverwrites() {

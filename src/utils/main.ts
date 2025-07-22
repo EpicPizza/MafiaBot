@@ -149,10 +149,6 @@ export async function unlockGame(increment: boolean = false, ping: boolean = tru
         game: global.game,
     }, { merge: true });
 
-    await db.collection('day').doc((increment ? global.day + 1 : global.day).toString()).collection('votes').doc('history').set({
-        game: global.game,
-    });
-
     if(increment == true) {
         await db.collection('day').doc((global.day + 1).toString()).set({
             game: global.game,
@@ -401,6 +397,17 @@ export async function setupMafiaPlayer(mafiaPlayer: GuildMember | undefined, set
     }
 }
 
+async function setTag(userProfile: User, player: GuildMember) {
+    const db = firebaseAdmin.getFirestore();
+
+    await db.collection('tags').doc(player.id).set({
+        id: player.id,
+        color: player.displayHexColor,
+        nickname: userProfile.nickname,
+        pfp: player.avatarURL() ?? player.displayAvatarURL() ?? client.user?.displayAvatarURL() ?? "https://cdn.discordapp.com/avatars/1248187665548054588/cc206768cd2ecf8dfe96c1b047caa60f.webp?size=160"
+    });
+}
+
 export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup) {
     const db = firebaseAdmin.getFirestore();
 
@@ -409,6 +416,7 @@ export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup
     if(player) await setupMainPlayer(player, setup);
     await setupDeadPlayer(deadPlayer, setup)
     await setupMafiaPlayer(mafiaPlayer, setup, gameSetup);
+    await setTag(userProfile, player);
 
     let channel = await setup.secondary.guild.channels.fetch(userProfile.channel ?? "").catch(() => null);
     let newPlayer = channel == null;
@@ -460,26 +468,6 @@ export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup
     }
 }
 
-export async function getAllUsers(game: Signups) {
-    const db = firebaseAdmin.getFirestore();
-
-    const ref = db.collection('users');
-
-    const docs = (await ref.get()).docs;
-    
-    const nicknames = [] as User[];
-
-    for(let i = 0; i < game.signups.length; i++) {
-        for(let j = 0; j < docs.length; j++) {
-            if(game.signups[i] == docs[j].id) {
-                nicknames.push(docs[j].data() as User);
-            }
-        }
-    }
-
-    return nicknames;
-}
-
 export async function getAllNicknames() {
     const db = firebaseAdmin.getFirestore();
 
@@ -492,26 +480,6 @@ export async function getAllNicknames() {
     for(let j = 0; j < docs.length; j++) {
         if(docs[j].data().nickname != null) {
             nicknames.push(docs[j].data().nickname);
-        }
-    }
-
-    return nicknames;
-}
-
-export async function getAllCurrentNicknames(global: Global) {
-    const db = firebaseAdmin.getFirestore();
-
-    const ref = db.collection('users');
-
-    const docs = (await ref.get()).docs;
-    
-    const nicknames = [] as string[];
-
-    for(let i = 0; i < global.players.length; i++) {
-        for(let j = 0; j < docs.length; j++) {
-            if(global.players[i].id == docs[j].id) {
-                nicknames.push(docs[j].data().nickname);
-            }
         }
     }
 

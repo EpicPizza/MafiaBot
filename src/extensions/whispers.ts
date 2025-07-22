@@ -1,4 +1,4 @@
-import { ChannelType, Colors, EmbedBuilder, Message, TextBasedChannel } from "discord.js";
+import { ChannelType, Colors, EmbedBuilder, GuildTextBasedChannel, Message, TextBasedChannel } from "discord.js";
 import { Vote } from "../utils/vote";
 import client, { Command, CommandOptions } from "../discord";
 import { deleteCollection, getGameByID, getGlobal } from "../utils/main";
@@ -113,7 +113,7 @@ module.exports = {
         }
     ] satisfies CommandOptions[],
     interactions: [],
-    onStart: async (global: Global, setup: Setup, game: Signups) => {
+    onStart: async (global, setup, game) => {
         /**
          * Runs during game start processes.
          */
@@ -148,7 +148,7 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onLock: async (global: Global, setup: Setup, game: Signups) => {
+    onLock: async (global, setup, game) => {
         const settings = await getSettings();
 
         if(settings.locked != 'match') return;
@@ -161,7 +161,7 @@ module.exports = {
             actual: true,
         } satisfies Partial<Settings>);
     },
-    onUnlock: async (global: Global, setup: Setup, game: Signups, incremented: boolean) => {
+    onUnlock: async (global, setup, game, incremented) => {
         const settings = await getSettings();
 
         if(settings.locked != 'match') return;
@@ -225,7 +225,7 @@ module.exports = {
                 .setAuthor({ name: player.nickname + " whispered to you...", iconURL: member.avatarURL() ?? member.displayAvatarURL() ?? client.user?.displayAvatarURL() ?? "https://cdn.discordapp.com/avatars/1248187665548054588/cc206768cd2ecf8dfe96c1b047caa60f.webp?size=160" })
                 .setDescription(command.arguments.length < 2 ? "*I don't what they whispered to you, but ig they whispered something?*" : command.arguments[1] as string);
 
-            const channel = await setup.secondary.guild.channels.fetch(sendingTo.channel ?? "") as TextBasedChannel | null;
+            const channel = await setup.secondary.guild.channels.fetch(sendingTo.channel ?? "") as GuildTextBasedChannel | null;
             if(channel == null) throw new Error("Channel not found.");
 
             await channel.send({
@@ -506,12 +506,12 @@ module.exports = {
         }
     },
     onInteraction: async (extensionInteraction: ExtensionInteraction) => {},
-    onMessage: async (message: Message, cache: Cache) => {},
+    onMessage: async (message, cache) => {},
     onEnd: async (global, setup, game) => {},
-    onVote: async (votes: Vote[], vote: Vote ,voted: boolean, global, setup, game) => {},
-    onVotes: async (voting: string[], votes: Map<string, Vote[]>, day: number, global, setup, game) => {},
-    onHammer: async (global, setup, game, hammered: string) => {},
-    onRemove: async (global: Global, setup: Setup, game: Signups, removed: string) => {
+    onVote: async (global, setup, game, voter, voting, type, users, transaction) => {},
+    onVotes: async (global, setup, game, board ) => { return ""; },
+    onHammer: async (global, setup, game, hammered) => {},
+    onRemove: async (global, setup, game, removed) => {
         const db = firebaseAdmin.getFirestore();
 
         const ref = db.collection('whispers').doc(removed);

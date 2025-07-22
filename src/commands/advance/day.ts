@@ -10,57 +10,6 @@ import { Global } from "../../utils/main";
 import { firebaseAdmin } from "../../firebase";
 import { FieldValue } from "firebase-admin/firestore";
 
-export const WipeCommand = {
-    name: "wipe",
-    description: "?adv wipe {day}",
-    command: {
-        slash: new SlashCommandSubcommandBuilder()
-            .setName("wipe")
-            .setDescription("Clear a day's votes.")
-            .addNumberOption(option =>
-                option
-                    .setName("day")
-                    .setDescription("Which day to clear.")
-                    .setRequired(true)
-            ),
-        text: {
-            required: [ z.coerce.number() ],
-            optional: []
-        } satisfies TextCommandArguments
-    },
-    execute: async (interaction: Command | ChatInputCommandInteraction) => {
-        if(interaction.type != 'text') {
-            await interaction.deferReply({ ephemeral: true });
-        } else {
-            await interaction.message.react("<a:loading:1256150236112621578>");
-        }
-       
-        const global = await getGlobal();
-        const setup  = await getSetup();
-        
-        if(global.started == false) throw new Error("Game has not started.");
-
-        const day = interaction.type == 'text' ? interaction.arguments[1] as number : interaction.options.getNumber("day");
-
-        if(day == null) throw new Error("Day not specified.");
-
-        const db = firebaseAdmin.getFirestore();
-
-        const dayDoc = db.collection('day').doc((day).toString());
-
-        await deleteCollection(db, dayDoc.collection('votes').doc('history').collection('logs'), 20);
-        await deleteCollection(db, dayDoc.collection('votes'), 20);
-
-        if(interaction.type != 'text') {
-            await interaction.editReply({ content: "Day wiped."});
-        } else {
-            await removeReactions(interaction.message);
-
-            await interaction.message.react("✅");
-        }
-    }
-}
-
 export const ClearCommand = {
     name: "clear",
     description: "?adv clear {day}",
@@ -99,10 +48,8 @@ export const ClearCommand = {
 
         const dayDoc = db.collection('day').doc((day).toString());
 
-        await deleteCollection(db, dayDoc.collection('votes').doc('history').collection('logs'), 20);
         await deleteCollection(db, dayDoc.collection('votes'), 20);
         await deleteCollection(db, dayDoc.collection('players'), 20);
-        await dayDoc.collection('votes').doc('history').delete();
         await dayDoc.delete();
         
         if(interaction.type != 'text') {

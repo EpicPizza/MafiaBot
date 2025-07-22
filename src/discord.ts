@@ -288,13 +288,13 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
 
             if((await ref.get()).exists) {
                 ref.update({
-                    reactions: FieldValue.arrayUnion({ timestamp: new Date().valueOf(), reaction: reaction.emoji.toString() })
+                    reactions: FieldValue.arrayUnion({ timestamp: new Date().valueOf(), reaction: reaction.emoji.toString(), message: reaction.message.id })
                 })
             } else {
                 ref.set({
                     messages: 0,
                     words: 0,
-                    reactions: FieldValue.arrayUnion({ timestamp: new Date().valueOf(), reaction: reaction.emoji.toString() })
+                    reactions: FieldValue.arrayUnion({ timestamp: new Date().valueOf(), reaction: reaction.emoji.toString(), message: reaction.message.id })
                 })
             }
 

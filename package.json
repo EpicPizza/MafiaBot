@@ -13,7 +13,7 @@
   "dependencies": {
     "@types/luxon": "^3.4.2",
     "date-and-time": "^3.3.0",
-    "discord.js": "^14.15.3",
+    "discord.js": "^14.21.0",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "firebase-admin": "^12.1.1",

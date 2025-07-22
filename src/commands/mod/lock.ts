@@ -9,13 +9,13 @@ import { firebaseAdmin } from "../../firebase";
 
 export const LockCommand = {
     name: "lock",
-    description: "?mod lock",
+    description: "?mod lock now // use slash command to schedule",
     command: {
         slash: new SlashCommandSubcommandBuilder()
             .setName("lock")
             .setDescription("Locks the mafia game."),
         text: {
-
+            required: [ z.literal('now') ]
         } satisfies TextCommandArguments
     },
     execute: async (interaction: Command | ChatInputCommandInteraction) => {
@@ -138,7 +138,7 @@ export const Minute = {
             for(let j = 0; j < rowComponents[i].components.length; j++) {
                 const select = rowComponents[i].components[j];
 
-                if(!('style' in select && select.style == ButtonStyle.Link) && select.custom_id == interaction.customId && select.type == ComponentType.StringSelect) {
+                if(!('style' in select && !('custom_id' in select)) && select.custom_id == interaction.customId && select.type == ComponentType.StringSelect) {
                     select.options.forEach(option => {
                         if(option.default) {
                             option.default = false;
@@ -206,7 +206,7 @@ export const ChangeGraceButton = {
             for(let j = 0; j < components[i].components.length; j++) {
                 const button = components[i].components[j];
 
-                if(button.style != ButtonStyle.Link && button.custom_id == interaction.customId) {
+                if('custom_id' in button && button.custom_id == interaction.customId) {
                     if(button.style == ButtonStyle.Success) {
                         button.style = ButtonStyle.Danger;
                         button.label = "Grace Off";
@@ -224,20 +224,20 @@ export const ChangeGraceButton = {
 
 export const UnlockCommand = {
     name: "unlock",
-    description: "?mod unlock",
+    description: "?mod unlock now {stay|advance} // use slash command to schedule",
     command: {
         slash: new SlashCommandSubcommandBuilder()
             .setName("unlock")
             .setDescription("Unlocks the mafia game."),
         text: {
-
+            required: [ z.literal('now'), z.union([z.literal('stay'), z.literal('advance')]) ]
         } satisfies TextCommandArguments
     },
     execute: async (interaction: Command | ChatInputCommandInteraction) => {
         const global = await getGlobal();
 
         if(!global.started) throw new Error("Game not started.");
-        if(global.day == 0) throw new Error("Setup allignments first.");
+        if(global.day == 0) throw new Error("Setup alignments first.");
         if(!global.locked) throw new Error("Game is already unlocked.");
 
         await handleLocking(interaction, false);
@@ -314,6 +314,18 @@ async function handleUnlockButton(interaction: ButtonInteraction) {
 }
 
 async function handleLocking(interaction: ChatInputCommandInteraction | Command, type: boolean) {
+    if(interaction.type == 'text') {
+        if(interaction.arguments[0] == "unlock") {
+            await unlockGame((interaction.arguments[2] as string) == 'stay' ? false : true);
+        } else {
+            await lockGame();
+        }
+
+        await interaction.message.react('✅');
+
+        return;
+    }
+
     const timing = await getFuture();
 
     const embed = new EmbedBuilder()
@@ -327,7 +339,7 @@ async function handleLocking(interaction: ChatInputCommandInteraction | Command,
     //dnt.format(date, "h:mm A, M/DD/YY")
 
     const select = new StringSelectMenuBuilder()
-        .setCustomId(JSON.stringify({ name: "future", type: type, through: interaction.type == 'text' ? 'text' : 'slash' }))
+        .setCustomId(JSON.stringify({ name: "future", type: type, through: 'slash' }))
         .setPlaceholder('When to ' + (type ? "lock" : "unlock") + " channel?")
         .setOptions(
             new StringSelectMenuOptionBuilder()

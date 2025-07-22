@@ -1,5 +1,5 @@
 import { Message } from "discord.js";
-import { Vote } from "../utils/vote";
+import { flow, Vote } from "../utils/vote";
 import { Command, CommandOptions } from "../discord";
 import { getGlobal } from "../utils/main";
 import { z } from "zod";
@@ -44,7 +44,7 @@ module.exports = {
 
         console.log("Extension Lock");
     },
-    onUnlock: async (global, setup, game, incremented: boolean) => {
+    onUnlock: async (global, setup, game, incremented) => {
         /**
          * Runa after game has unlocked.
          * 
@@ -59,7 +59,7 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onCommand: async (command: Command) => {
+    onCommand: async (command) => {
         /**
          * Text commands only for the forseeable future.
          * 
@@ -74,7 +74,7 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onInteraction: async (extensionInteraction: ExtensionInteraction) => {
+    onInteraction: async (extensionInteraction) => {
         /**
          * Interactions for buttons, modals, and select menus. Context menu and slash commands not implemented.
          * 
@@ -89,7 +89,7 @@ module.exports = {
 
         return;
     },
-    onMessage: async (message: Message, cache: Cache) => {
+    onMessage: async (message, cache) => {
         /*
          * Keep fetches to a minimum, these can add up. For this reason, only cache is given, only use helper functions when necessary.
          * 
@@ -117,38 +117,40 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onVote: async (votes: Vote[], vote: Vote ,voted: boolean, global, setup, game) => {
+    onVote: async (global, setup, game, voter, voting, type, users, transaction) => {
         /**
-         * Runs after vote is counted, before vote/hammer is annouced.
+         * Control the entire voting logic. This example shows the default voting behavior.
          * 
-         * vote: { id: string, for: string, timestamp: number }[]
+         * This runs within a database transaction, reading with the transaction blocks other writes, only read with transaction as necessary. Use users or fallback to normal reads.
          */
 
-        console.log(vote, voted, votes);
-
-        return { hammer: true, message: "hiiiiiii", hammered: "put an id here" };
-
-        /**
-         * hammer: boolean - Tells to hammer or not.
-         * message: string | null - Message to append to vote/hammer, null will return default.
-         */
-    },
-    onVotes: async (voting: string[], votes: Map<string, Vote[]>, day: number, global, setup, game) => {
-        /**
-         * Runs while processing votes command.
-         * 
-         * voting: string[] - array of each voted person's id
-         * votes: Map<string, Vote[]> - array of votes for each voted person, key is person's id
-         */
-
-        console.log(voting, votes);
+        const { reply, vote, votes } = await flow.placeVote(transaction, voter, voting, type, users, global.day); // doesn't save vote yet since board needs to be created
         
-        return { description: "This votes counter has been overtaken by extension.", message: "" }
+        if(vote == undefined) return { reply };
+
+        const board = flow.board(votes, users);
+
+        const setMessage = flow.finish(transaction, vote, board, global.day); // locks in vote
+
+        return {
+            reply,
+            hammer: flow.determineHammer(vote, votes, users),
+            setMessage,
+        }
 
         /**
-         * A string that will replace the votes list in votes command.
+         * reply: { typed: string, emoji: string } - What gets replied to the user. Typed for slash/context/etc commands, emoji for text commands.
+         * hammer?: { message: string, hammered: boolean, id: string } 
+         * setMessage?: (id: string) => Promise<void> - Setting the id of the message to keep in logs.
          */
     },
-    onHammer: async (global, setup, game, hammered: string) => {},
-    onRemove: async (global, setup, game, removed: string) => {}
+    onVotes: async (global, setup, game, board ) => { 
+        return "Example footer.";
+
+        /**
+         * Return what is show in the footer in ?votes.
+         */
+    },
+    onHammer: async (global, setup, game, hammered) => {},
+    onRemove: async (global, setup, game, removed) => {}
 } satisfies Extension;
