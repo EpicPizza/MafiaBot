@@ -361,7 +361,7 @@ export async function setupMainPlayer(player: Discord.GuildMember, setup: Setup)
 export async function getPlayerObjects(id: string, setup: Setup) {
     const deadPlayer = setup.secondary.guild.members.fetch(id).catch(() => undefined);
     const userProfile = getUser(id);
-    const player = setup.primary.guild.members.fetch(id);
+    const player = setup.primary.guild.members.fetch(id).catch(() => undefined);
     const mafiaPlayer = setup.tertiary.guild.members.fetch(id).catch(() => undefined);
 
     const results = await Promise.allSettled([ deadPlayer, userProfile, player, mafiaPlayer ]);
@@ -378,7 +378,7 @@ export async function getPlayerObjects(id: string, setup: Setup) {
     return { 
         deadPlayer: await deadPlayer, 
         userProfile: await userProfile as User, 
-        player: await player as Discord.GuildMember, 
+        player: await player, 
         mafiaPlayer: await mafiaPlayer,
     };
 }
@@ -413,7 +413,7 @@ export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup
 
     const { deadPlayer, userProfile, player, mafiaPlayer } = await getPlayerObjects(id, setup);
 
-    await setupMainPlayer(player, setup);
+    if(player) await setupMainPlayer(player, setup);
     await setupDeadPlayer(deadPlayer, setup)
     await setupMafiaPlayer(mafiaPlayer, setup, gameSetup);
     await setTag(userProfile, player);
@@ -656,7 +656,7 @@ export async function clearPlayer(id: string, setup: Setup, gameSetup: GameSetup
 
     const { deadPlayer, userProfile, player, mafiaPlayer } = await getPlayerObjects(id, setup);
 
-    promises.push(player.roles.remove(setup.primary.alive));
+    if(player) promises.push(player.roles.remove(setup.primary.alive));
 
     if(deadPlayer) {
         promises.push(deadPlayer.roles.add(setup.secondary.spec));
@@ -714,7 +714,7 @@ export async function endGame(interaction: ChatInputCommandInteraction | Command
 
     const gameSetup = await getGameSetup(game, setup);
 
-    await checkSignups(game.signups, setup);
+    //await checkSignups(game.signups, setup);
 
     const promises = [] as Promise<any>[];
 

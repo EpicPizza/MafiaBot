@@ -220,7 +220,7 @@ module.exports = {
 
             const { player } = await getPlayerObjects(to.id, setup);
 
-            await setupMainPlayer(player, setup);
+            if(player) await setupMainPlayer(player, setup);
 
             await message.edit("Replacing " + replacing.nickname + " with " + to.nickname + ". ✅");
 
