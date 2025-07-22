@@ -203,6 +203,7 @@ module.exports = {
                     return;
                 }
 
+                 //@ts-ignore
                 await message.channel.send("BOOM 💥");
             }
         }
@@ -235,6 +236,7 @@ module.exports = {
                     return;
                 }
 
+                 //@ts-ignore
                 await message.channel.send("CHOMP");
             }
         }
@@ -267,6 +269,7 @@ module.exports = {
                     return;
                 }
 
+                //@ts-ignore
                 await message.channel.send("NO MEOW");
             }
         }
