@@ -236,6 +236,7 @@ module.exports = {
                     return;
                 }
 
+                 //@ts-ignore
                 await message.channel.send("CHOMP");
             }
         }
