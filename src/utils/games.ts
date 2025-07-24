@@ -6,7 +6,7 @@ import { z } from "zod";
 import { FieldValue } from "firebase-admin/firestore";
 import { User, getUser } from "./user";
 import { register } from "../register";
-import { Command } from "../discord";
+import client, { Command } from "../discord";
 
 export interface Signups { 
     name: string, 
@@ -20,30 +20,68 @@ export interface Signups {
         spec: string,
         mafia: string,
     }
+    confirmations: string[],
 }
 
 export async function addSignup(options: { id: string, game: string }) {
     const db = firebaseAdmin.getFirestore();
+    const setup = await getSetup();
 
     const game = await getGameByName(options.game);
+    const gameSetup = await getGameSetup(game, setup);
 
     if(game == null) return false;
 
     const ref = db.collection('settings').doc('game').collection('games').doc(game.id);
 
-    await db.runTransaction(async t => {
+    const confirmed = await db.runTransaction(async t => {
         const doc = await t.get(ref);
 
         const data = doc.data();
 
         if(data == undefined) return;
 
+        const confirmed = (data.confirmations as string[]).includes(options.id);
+
         if(!(data.signups as string[]).includes(options.id)) {
             t.update(ref, {
                 signups: FieldValue.arrayUnion(options.id)
             })
         }
+
+        return confirmed;
     });
+
+    if(confirmed === false) {
+        const dm = await (await client.users.fetch(options.id)).createDM();
+
+        if(!dm) return await gameSetup.spec.send("Unable to send dms to <@" + options.id + ">.");
+
+        const db = firebaseAdmin.getFirestore();
+
+        const domain = (process.env.DEV == 'TRUE' ? process.env.DEVDOMAIN : process.env.DOMAIN);
+        let message = "";
+
+        const query = db.collection('documents').where('integration', '==', 'Welcome');
+        const docs = (await query.get()).docs;
+        if(docs.length < 1) message = domain  + "/docs/welcome-message/";
+        if(docs.length > 0) message = (docs[0].data().content as string).replaceAll("](/", "](" + domain + "/");
+
+        const embed = new EmbedBuilder()
+            .setTitle('Welcome!')
+            .setDescription(message)
+            .setColor(Colors.Yellow)
+
+        const row = new ActionRowBuilder<ButtonBuilder>()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId(JSON.stringify({ name: "confirm-signup", game: game.name }))
+                    .setStyle(ButtonStyle.Primary)
+                    .setLabel('Confirm')
+            )
+
+        dm.send({ components: [row], embeds: [embed] });
+    }
 
     return true;
 }
@@ -256,6 +294,7 @@ export async function createGame(interaction: ChatInputCommandInteraction | Comm
         name: name,
         closed: false,
         message: null,
+        confirmations: [],
         channels: {
             spec: spec.id,
             mafia: mafia.id,

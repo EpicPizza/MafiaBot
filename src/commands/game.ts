@@ -7,6 +7,7 @@ import { User, getUser } from "../utils/user";
 import { getSetup } from "../utils/setup";
 import { getVotes } from "../utils/vote";
 import { addSignup, getGames, refreshSignup, removeSignup } from "../utils/games";
+import { FieldValue } from "firebase-admin/firestore";
 
 module.exports = {
     data: [
@@ -59,6 +60,14 @@ module.exports = {
                 name: z.literal('leave'),
                 game: z.string(),
             })
+        },
+        {
+            type: 'button',
+            name: 'button-confirm-signup',
+            command: z.object({
+                name: z.literal('confirm-signup'),
+                game: z.string(),
+            })
         }
     ] satisfies Data[],
 
@@ -86,7 +95,28 @@ module.exports = {
         } else if(interaction.isButton()) {
             const id = JSON.parse(interaction.customId);
 
-            return await leaveSignup(interaction, id.game);
+            if(id.name == "leave") return await leaveSignup(interaction, id.game);
+
+            const global = await getGlobal();
+            const game = await getGameByName(id.game);
+
+            if(global == null || game == null) throw new Error("Game not found.");
+
+            if(game.closed) throw new Error("Sign ups are closed.");
+            if(global.started && global.game == game.id) throw new Error("Game has started.");
+
+            const user = await getUser(interaction.user.id);
+
+            if(!user || !game.signups.includes(user.id)) throw new Error("You haven't signed up!");
+            if(game.confirmations.includes(user.id)) throw new Error("You've already confirmed!");
+
+            const db = firebaseAdmin.getFirestore();
+
+            await db.collection('settings').doc('game').collection('games').doc(game.id).update({
+                confirmations: FieldValue.arrayUnion(user.id)
+            });
+
+            await interaction.reply("Thanks for confirming!");
         }
     } 
 }

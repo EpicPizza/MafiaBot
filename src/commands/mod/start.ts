@@ -36,7 +36,10 @@ export const StartCommand = {
 
         const global = await getGlobal();
 
-        if(global.started == true) throw new Error("Game has already started."); 
+        if(global.started == true) throw new Error("Game has already started."); ;
+
+        const confirmed = game.signups.map(signup => game.confirmations.includes(signup)).filter(confirmation => confirmation);
+        if(confirmed.length != game.signups.length) throw new Error("Not everyone has confirmed!");
 
         const users = await getUsersArray(game.signups);
 

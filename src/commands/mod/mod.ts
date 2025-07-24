@@ -3,7 +3,7 @@ import { Command, TextCommandArguments } from "../../discord";
 import { ChangeGraceButton, GraceCommand, GraceSelect, LockCommand, LockingSelect, Minute, UnlockButton, UnlockCommand } from "./lock";
 import { ZodObject, ZodSchema, z } from "zod";
 import { CloseCommand, OpenCommand, ReactivateButton, SignupsCommand } from "./signups";
-import { ArchiveCommand, CreateCommand } from "./game";
+import { ArchiveCommand, ConfirmationsCommand, CreateCommand, ResendConfirmationsCommand } from "./game";
 import { EndCommand } from "./end";
 import { AlignmentSelect, CancelButton, CustomAlignment, CustomModal, DefaultAlignment, MafiaAlignment, NeutralAlignment, StartButton, StartCommand } from "./start";
 import { KickCommand, SpectatorCommand } from "./invite";
@@ -14,7 +14,7 @@ import { AlignmentCommand } from "../advance/alignment";
 import { WipeCommand } from "./wipe";
 
 export function ModCommand() {
-    const commands = [ LockCommand, UnlockCommand, CloseCommand, OpenCommand, CreateCommand, EndCommand, StartCommand, SignupsCommand, SpectatorCommand, KickCommand, RemoveCommand, ExtensionCommand, ArchiveCommand, GraceCommand, ShowAlignments, WipeCommand ] as { name: string, description?: string, execute: Function, command: { slash: SlashCommandSubcommandBuilder | SlashCommandSubcommandGroupBuilder, text: TextCommandArguments } }[];
+    const commands = [ LockCommand, UnlockCommand, CloseCommand, OpenCommand, CreateCommand, EndCommand, StartCommand, SignupsCommand, SpectatorCommand, KickCommand, RemoveCommand, ExtensionCommand, ArchiveCommand, GraceCommand, ShowAlignments, WipeCommand, ConfirmationsCommand, ResendConfirmationsCommand ] as { name: string, description?: string, execute: Function, command: { slash: SlashCommandSubcommandBuilder | SlashCommandSubcommandGroupBuilder, text: TextCommandArguments } }[];
     const interactions = [ LockingSelect, UnlockButton, ReactivateButton, ConfirmAlignmentsButton, StartButton, CancelButton, GraceSelect, ChangeGraceButton, Minute, AlignmentSelect, DefaultAlignment, MafiaAlignment, NeutralAlignment, CustomAlignment, CustomModal ] as { name: string, type: string, command: ZodObject<any>, execute: Function }[];
 
     function getBuilders() {
