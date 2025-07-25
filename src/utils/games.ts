@@ -1,7 +1,7 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, ChatInputCommandInteraction, Colors, EmbedBuilder, TextChannel } from "discord.js";
 import { firebaseAdmin } from "../firebase";
 import { getSetup } from "./setup";
-import { getGameByName, getGameID, getGlobal } from "./main";
+import { getGameByName, getGameID, getGlobal, getPlayerObjects } from "./main";
 import { z } from "zod";
 import { FieldValue } from "firebase-admin/firestore";
 import { User, getUser } from "./user";
@@ -51,6 +51,16 @@ export async function addSignup(options: { id: string, game: string }) {
 
         return confirmed;
     });
+    
+    const playerObjects = await getPlayerObjects(options.id, setup);
+
+    if(playerObjects.player) {
+        const member = playerObjects.player;
+
+        if(member.roles.cache.get(setup.primary.gang.id) == undefined) {
+            await member.roles.add(setup.primary.gang.id);
+        }
+    }
 
     if(confirmed === false) {
         const dm = await (await client.users.fetch(options.id)).createDM();
