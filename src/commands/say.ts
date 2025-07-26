@@ -44,6 +44,7 @@ module.exports = {
 
     execute: async (interaction: Command | ChatInputCommandInteraction) => {
         const setup = await getSetup();
+        const global = await getGlobal();
 
         let guildId: string;
         let channelId: string;
@@ -51,14 +52,14 @@ module.exports = {
 
         if ('arguments' in interaction) {
             // Text command
-            await checkMod(setup, interaction.user.id, interaction.message?.guild?.id ?? "");
+            await checkMod(setup, global, interaction.user.id, interaction.message?.guild?.id ?? "");
             if (interaction.arguments.length < 3) throw new Error("No message to send?");
             guildId = interaction.arguments[0] as string;
             channelId = interaction.arguments[1] as string;
             message = interaction.arguments[2] as string;
         } else {
             // Slash command
-            await checkMod(setup, interaction.user.id, interaction.guildId ?? "");
+            await checkMod(setup, global, interaction.user.id, interaction.guildId ?? "");
             guildId = interaction.options.getString('guild', true);
             channelId = interaction.options.getString('channel', true);
             message = interaction.options.getString('message', true);

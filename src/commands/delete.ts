@@ -4,6 +4,7 @@ import { firebaseAdmin } from "../firebase";
 import { Command } from "../discord";
 import { checkMod } from "../utils/mod";
 import { getSetup } from "../utils/setup";
+import { getGlobal } from "../utils/main";
 
 module.exports = {
     data: [
@@ -23,8 +24,9 @@ module.exports = {
 
     execute: async function(interaction: ContextMenuCommandInteraction | Command) {
         const setup = await getSetup();
+        const global = await getGlobal();
 
-        await checkMod(setup, interaction.user.id, 'message' in interaction ? interaction.message?.guild?.id ?? "" : interaction.guildId ?? "");
+        await checkMod(setup, global, interaction.user.id, 'message' in interaction ? interaction.message?.guild?.id ?? "" : interaction.guildId ?? "");
 
         if(interaction.type != 'text' && !interaction.isMessageContextMenuCommand()) throw new Error("Unable to fetch message.");
 

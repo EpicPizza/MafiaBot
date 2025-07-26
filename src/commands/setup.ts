@@ -132,7 +132,6 @@ module.exports = {
                             
                         )
                 )
-                .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
         },
         {
             type: 'button',
@@ -144,9 +143,9 @@ module.exports = {
     ] satisfies Data[],
 
     execute: async (interaction: ChatInputCommandInteraction | ButtonInteraction) => {
-        if(!interaction.memberPermissions?.has(PermissionFlagsBits.ManageRoles)) throw new Error("You're not allowed to use this command!");
-
-        if(!(interaction.user.id == process.env.OWNER)) throw new Error("You're not a mod!");
+        const global = await getGlobal();
+        
+        if(!(global.admin.includes(interaction.user.id))) throw new Error("You're not a mod!");
 
         if(interaction.isChatInputCommand() && interaction.options.getSubcommand() == "database") {
             const db = firebaseAdmin.getFirestore();
@@ -202,6 +201,7 @@ module.exports = {
                 bulletin: null,
                 extensions: [],
                 grace: false,
+                admin: [],
             })
 
             return await interaction.reply({ content: "Database setup.", ephemeral: true });
@@ -425,6 +425,8 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
 
             await interaction.reply({ ephemeral: true, content: "Signups refreshed." });
         } else if(subcommand == "mod") {
+            await interaction.deferReply({ ephemeral: true });
+
             const setup = await getSetup();
 
             if(typeof setup == 'string') throw new Error("Setup Incomplete");
@@ -520,7 +522,7 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
                 }
             }
 
-            await interaction.reply({ ephemeral: true, content: "Mod has been " + (remove ? "removed" : "added") + ". You may need to rerun this command after a game starts (since invites reset)." });
+            await interaction.editReply({ content: "Mod has been " + (remove ? "removed" : "added") + ". You may need to rerun this command after a game starts (since invites reset)." });
         }
     } 
 }

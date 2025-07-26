@@ -88,9 +88,9 @@ module.exports = {
         } 
 
         const setup  = await getSetup();
-        if(typeof setup == 'string') throw new Error("Setup Incomplete");
+        const global = await getGlobal();
 
-        await checkMod(setup, interaction.user.id, 'message' in interaction ? interaction.message?.guild?.id ?? "" : interaction.guildId ?? "");
+        await checkMod(setup, global, interaction.user.id, 'message' in interaction ? interaction.message?.guild?.id ?? "" : interaction.guildId ?? "");
 
         if(interaction.type == 'text' || interaction.isChatInputCommand()) {
             await advance.handleCommand(interaction)

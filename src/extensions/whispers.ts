@@ -235,7 +235,7 @@ module.exports = {
 
             await command.message.react("✅");
         } else if(command.name == "lock") {
-            checkMod(setup, command.user.id, command.message.guildId ?? "");
+            checkMod(setup, global, command.user.id, command.message.guildId ?? "");
 
             const ref = db.collection('whispers').doc('settings');
 
@@ -255,7 +255,7 @@ module.exports = {
 
             await command.message.react("✅");
         } else if(command.name == "unlock") {
-            checkMod(setup, command.user.id, command.message.guildId ?? "");
+            checkMod(setup, global, command.user.id, command.message.guildId ?? "");
 
             const ref = db.collection('whispers').doc('settings');
 
@@ -266,7 +266,7 @@ module.exports = {
 
             await command.message.react("✅");
         } else if(command.name == "block") {
-            checkMod(setup, command.user.id, command.message.guildId ?? "");
+            checkMod(setup, global, command.user.id, command.message.guildId ?? "");
 
             const user = await getUserByChannel(command.message.channelId);
             if(user == undefined) throw new Error("Not in dm?");
@@ -289,7 +289,7 @@ module.exports = {
 
             await command.message.react("✅");
         } else if(command.name == "unblock") {
-            checkMod(setup, command.user.id, command.message.guildId ?? "");
+            checkMod(setup, global, command.user.id, command.message.guildId ?? "");
 
             const user = await getUserByChannel(command.message.channelId);
             if(user == undefined) throw new Error("Not in dm?");
@@ -316,7 +316,7 @@ module.exports = {
 
             await command.message.react("✅");
         } else if(command.name == "restrict") {
-            checkMod(setup, command.user.id, command.message.guildId ?? "");
+            checkMod(setup, global, command.user.id, command.message.guildId ?? "");
 
             const user = await getUserByChannel(command.message.channelId);
             if(user == undefined) throw new Error("Not in dm?");
@@ -359,7 +359,7 @@ module.exports = {
 
             await command.message.react("✅");
         } else if(command.name == "unrestrict") {
-            checkMod(setup, command.user.id, command.message.guildId ?? "");
+            checkMod(setup, global, command.user.id, command.message.guildId ?? "");
 
             const user = await getUserByChannel(command.message.channelId);
             if(user == undefined) throw new Error("Not in dm?");
@@ -382,7 +382,7 @@ module.exports = {
 
             await command.message.react("✅");
         } else if(command.name == "cooldown") {
-            checkMod(setup, command.user.id, command.message.guildId ?? "");
+            checkMod(setup, global, command.user.id, command.message.guildId ?? "");
 
             const subcommand = command.arguments[0] as 'match' | 'clear' | number;
 

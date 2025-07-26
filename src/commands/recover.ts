@@ -7,6 +7,7 @@ import { DateTime } from "luxon";
 import { Command } from "../discord";
 import { getSetup } from "../utils/setup";
 import { checkMod } from "../utils/mod";
+import { getGlobal } from "../utils/main";
 
 dnt.plugin(meridiem);
 
@@ -27,8 +28,9 @@ module.exports = {
         ran = true;
 
         const setup = await getSetup();
+        const global = await getGlobal();
 
-        checkMod(setup, interaction.user.id, interaction.message?.guild?.id ?? "");
+        checkMod(setup, global, interaction.user.id, interaction.message?.guild?.id ?? "");
 
         const message = await interaction.message.reply("Fetching messages...");
 

@@ -96,7 +96,7 @@ module.exports = {
         const game = await getGameByID(global.game ?? "");
 
         if(command.name == "set") {
-            await checkMod(setup, command.user.id, command.message.guildId ?? "");
+            await checkMod(setup, global, command.user.id, command.message.guildId ?? "");
 
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
 
@@ -126,7 +126,7 @@ module.exports = {
 
             await command.message.react("✅");
         } else if(command.name == "clear") {
-            await checkMod(setup, command.user.id, command.message.guildId ?? "");
+            await checkMod(setup, global, command.user.id, command.message.guildId ?? "");
 
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
 
@@ -173,7 +173,7 @@ module.exports = {
 
             await handleHammer(result.hammer, global, setup, game);
         } else if(command.name == "votes") {
-            await checkMod(setup, command.user.id, command.message.guildId ?? "");
+            await checkMod(setup, global, command.user.id, command.message.guildId ?? "");
 
             const gameSetup = await getGameSetup(game, setup);
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != gameSetup.spec.guildId || command.message.channel.id != gameSetup.spec.id) throw new Error("This command must be run in dead chat.");

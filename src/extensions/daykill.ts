@@ -244,7 +244,7 @@ module.exports = {
                 await unlockGame(false);
             }  
         } else if(command.name == "set") {
-            await checkMod(setup, command.user.id, command.message.guildId ?? "---");
+            await checkMod(setup, global, command.user.id, command.message.guildId ?? "---");
 
             const type = command.arguments[0] as string;
             const lock = type == "hammer" ? "hammer" : "pause";
@@ -264,7 +264,7 @@ module.exports = {
 
             await command.message.react("✅");
         } else if(command.name == "list") {
-            await checkMod(setup, command.user.id, command.message.guildId ?? "---");
+            await checkMod(setup, global, command.user.id, command.message.guildId ?? "---");
 
             const game = await getGameByID(global.game ?? "---");
             if(game == undefined) throw new Error("Game not found.");
@@ -297,7 +297,7 @@ module.exports = {
 
             await command.reply({ embeds: [embed] });
         } else if(command.name == "configure") {
-            await checkMod(setup, command.user.id, command.message.guildId ?? "---");
+            await checkMod(setup, global, command.user.id, command.message.guildId ?? "---");
 
             const type = command.arguments[0] as string;
             const minutes = command.arguments[1] as number;
@@ -309,7 +309,7 @@ module.exports = {
 
             await command.message.react("✅");
         } else if(command.name == "check") {
-            await checkMod(setup, command.user.id, command.message.guildId ?? "---");
+            await checkMod(setup, global, command.user.id, command.message.guildId ?? "---");
 
             const settings = await getSettings();
 
@@ -348,7 +348,7 @@ module.exports = {
 
         if(!('isButton' in interaction) || !interaction.isButton()) return;
 
-        await checkMod(setup, interaction.user.id, interaction.guildId ?? "---");
+        await checkMod(setup, global, interaction.user.id, interaction.guildId ?? "---");
 
         if(extensionInteraction.name == "button-daykill-cancel-reveal") {
             if(close) close(false);

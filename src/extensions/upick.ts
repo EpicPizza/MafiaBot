@@ -125,7 +125,7 @@ module.exports = {
         const setup = await getSetup();
         const global = await getGlobal();
 
-        await checkMod(setup, command.user.id, command.message.guildId ?? "---");
+        await checkMod(setup, global, command.user.id, command.message.guildId ?? "---");
         
         if(command.name == "respec") {
             const categories = (await Promise.all(categoryIds.map(id => setup.secondary.guild.channels.fetch(id)))).filter(category => category != null).filter(category => category.type == ChannelType.GuildCategory);

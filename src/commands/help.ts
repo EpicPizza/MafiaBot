@@ -36,7 +36,7 @@ module.exports = {
 
         const extensions = await getEnabledExtensions(global);
 
-        const mod = await isMod(await getSetup(), interaction.user.id, (interaction.type == 'text' ? interaction.message.guildId : interaction.guildId) ?? "");
+        const mod = await isMod(await getSetup(), global, interaction.user.id, (interaction.type == 'text' ? interaction.message.guildId : interaction.guildId) ?? "");
 
         let page = interaction.type != 'text' && interaction.isStringSelectMenu() ? interaction.values[0] : "0";
 

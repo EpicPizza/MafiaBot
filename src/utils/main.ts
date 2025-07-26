@@ -36,6 +36,7 @@ export interface Global {
     bulletin: string | null, 
     extensions: string[],
     grace: boolean,
+    admin: string[],
 }
 
 interface Player {
