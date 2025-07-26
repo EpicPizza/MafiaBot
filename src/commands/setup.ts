@@ -206,9 +206,7 @@ module.exports = {
 
             return await interaction.reply({ content: "Database setup.", ephemeral: true });
         }
-
-        if(interaction.member && interaction.memberPermissions && !interaction.memberPermissions.has(PermissionFlagsBits.ManageRoles)) throw new Error("You are not admin!");
-
+        
         const db = firebaseAdmin.getFirestore();
 
         const ref = db.collection('settings').doc('setup');
