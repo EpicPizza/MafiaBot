@@ -1,6 +1,6 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandBuilder } from "discord.js";
 import { Data } from "../discord";
-import { getGameByID, getGlobal } from "../utils/main";
+import { getAllUsers, getGameByID, getGlobal } from "../utils/main";
 import { firebaseAdmin } from "../firebase";
 import { getSetup } from "../utils/setup";
 import { getUser, getUsers, User } from "../utils/user";
@@ -72,7 +72,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
     if(day > global.day) throw new Error("Not on day " + day + " yet!");
     if(day < 1) throw new Error("Must be at least day 1.");
 
-    const users = await getUsers(game.signups);
+    const users = await getAllUsers();
 
     const db = firebaseAdmin.getFirestore();
 
@@ -88,7 +88,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
     for(let i = 0; i < docs.length; i++) {
         const data = docs[i].data();
 
-        const user = users.get(docs[i].id);
+        const user = users.find(user => user.id == docs[i].id);
 
         if(data) {
             list.push({
@@ -110,7 +110,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
         currentPlayers.forEach(player => {
             if(list.find(stat => stat.id == player) != undefined) return;
 
-            const user = users.get(player);
+            const user = users.find(user => user.id == player);
             
             list.push({
                 name: user ? user.nickname : "<@" + player + ">",

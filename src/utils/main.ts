@@ -469,6 +469,24 @@ export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup
     }
 }
 
+export async function getAllUsers() {
+    const db = firebaseAdmin.getFirestore();
+
+    const ref = db.collection('users');
+
+    const docs = (await ref.get()).docs;
+    
+    const users = [] as User[];
+
+    for(let j = 0; j < docs.length; j++) {
+        if(docs[j].data().nickname != null) {
+            users.push(docs[j].data() as User);
+        }
+    }
+
+    return users;
+}
+
 export async function getAllNicknames() {
     const db = firebaseAdmin.getFirestore();
 
