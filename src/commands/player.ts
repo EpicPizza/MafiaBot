@@ -202,7 +202,7 @@ module.exports = {
 async function showModal(interaction: ButtonInteraction | ChatInputCommandInteraction,autoSignUp: boolean, type: string, game: string | undefined = undefined) {
     const global = await getGlobal();
 
-    if(global.started) throw new Error("Cannot change nickname while game is underway.");
+    if(global.players.find(player => player.id == interaction.user.id)) throw new Error("Cannot change nickname while you're in a game.");
 
     const user = await getUser(interaction.user.id);
     
