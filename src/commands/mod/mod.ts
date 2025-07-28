@@ -1,6 +1,6 @@
 import { ButtonInteraction, ChatInputCommandInteraction, InteractionType, ModalSubmitInteraction, SlashCommandBuilder, SlashCommandSubcommandBuilder, SlashCommandSubcommandGroupBuilder, StringSelectMenuInteraction } from "discord.js";
 import { Command, TextCommandArguments } from "../../discord";
-import { ChangeGraceButton, GraceCommand, GraceSelect, LockCommand, LockingSelect, Minute, UnlockButton, UnlockCommand } from "./lock";
+import { GraceButton, GraceCommand, GraceSelect, LockCommand, LockingSelect, Minute, UnlockButton, UnlockCommand } from "./lock";
 import { ZodObject, ZodSchema, z } from "zod";
 import { CloseCommand, OpenCommand, ReactivateButton, SignupsCommand } from "./signups";
 import { ArchiveCommand, ConfirmationsCommand, CreateCommand, ResendConfirmationsCommand } from "./game";
@@ -15,7 +15,7 @@ import { WipeCommand } from "./wipe";
 
 export function ModCommand() {
     const commands = [ LockCommand, UnlockCommand, CloseCommand, OpenCommand, CreateCommand, EndCommand, StartCommand, SignupsCommand, SpectatorCommand, KickCommand, RemoveCommand, ExtensionCommand, ArchiveCommand, GraceCommand, ShowAlignments, WipeCommand, ConfirmationsCommand, ResendConfirmationsCommand ] as { name: string, description?: string, execute: Function, command: { slash: SlashCommandSubcommandBuilder | SlashCommandSubcommandGroupBuilder, text: TextCommandArguments } }[];
-    const interactions = [ LockingSelect, UnlockButton, ReactivateButton, ConfirmAlignmentsButton, StartButton, CancelButton, GraceSelect, ChangeGraceButton, Minute, AlignmentSelect, DefaultAlignment, MafiaAlignment, NeutralAlignment, CustomAlignment, CustomModal ] as { name: string, type: string, command: ZodObject<any>, execute: Function }[];
+    const interactions = [ LockingSelect, UnlockButton, ReactivateButton, ConfirmAlignmentsButton, StartButton, CancelButton, GraceSelect, Minute, AlignmentSelect, DefaultAlignment, MafiaAlignment, NeutralAlignment, CustomAlignment, CustomModal, GraceButton ] as { name: string, type: string, command: ZodObject<any>, execute: Function }[];
 
     function getBuilders() {
         return commands.map(command => command.command.slash)
