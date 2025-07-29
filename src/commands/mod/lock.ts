@@ -304,7 +304,7 @@ async function handleLockingSelect(interaction: StringSelectMenuInteraction) {
 
             if(optionValue.success == false) return;
 
-            let date = DateTime.fromMillis(optionValue.data);
+            let date = DateTime.fromMillis(optionValue.data).setZone('US/Pacific');
 
             if(value == "forward") {
                 date = date.plus({ day: 1 });
