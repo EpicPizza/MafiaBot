@@ -113,7 +113,7 @@ module.exports = {
             if(interaction.channelId != setup.primary.chat.id) throw new Error("Must vote in main chat.");
         }
 
-        const users = await getUsersArray(global.players.map(player => player.id));
+        const users = await getUsersArray(game.signups);
 
         const author = ('arguments' in interaction) ? interaction.message.author : interaction.user;
         const voter = users.find(user => user.id == author.id);

@@ -179,7 +179,7 @@ module.exports = {
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != gameSetup.spec.guildId || command.message.channel.id != gameSetup.spec.id) throw new Error("This command must be run in dead chat.");
 
             const votes = await getVotes(global.day);
-            const users = await getUsersArray(global.players.map(player => player.id));
+            const users = await getUsersArray(game.signups);
             const mayors = await getMayors();
 
             const board = getBoard(votes, users, mayors, global.day, true);
@@ -385,7 +385,7 @@ async function reveal(id: string, global: Global, game: Signups) {
 
     const ref = db.collection('mayor').doc(id);
 
-    const users = await getUsersArray(global.players.map(player => player.id));
+    const users = await getUsersArray(game.signups);
 
     const result = await db.runTransaction(async t => {
         const votes = await getVotes(global.day, t); // no need to actually put a vote, just retrieve votes
