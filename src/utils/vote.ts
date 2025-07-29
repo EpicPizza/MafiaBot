@@ -164,7 +164,7 @@ export const flow = {
 
             counting.push({
                 voting,
-                voters: votes.filter(vote => vote.for == votingId).sort((a, b) => a.timestamp.valueOf() - b.timestamp.valueOf()).map(voter => users.find(user => user.id == voter.id)?.nickname ?? "<@" + votingId + ">"),
+                voters: votes.filter(vote => vote.for == votingId).sort((a, b) => a.timestamp.valueOf() - b.timestamp.valueOf()).map(voter => users.find(user => user.id == voter.id)?.nickname ?? "<@" + voter.id + ">"),
             });
         });
 
