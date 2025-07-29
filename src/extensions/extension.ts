@@ -134,7 +134,7 @@ module.exports = {
 
         return {
             reply,
-            hammer: flow.determineHammer(vote, votes, users),
+            hammer: flow.determineHammer(vote, votes, users, global),
             setMessage,
         }
 

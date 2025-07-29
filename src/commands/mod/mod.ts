@@ -12,9 +12,10 @@ import { ConfirmAlignmentsButton, ShowAlignments } from "./alignments";
 import { ExtensionCommand } from "./extension";
 import { AlignmentCommand } from "../advance/alignment";
 import { WipeCommand } from "./wipe";
+import { HammerCommand } from "./hammer";
 
 export function ModCommand() {
-    const commands = [ LockCommand, UnlockCommand, CloseCommand, OpenCommand, CreateCommand, EndCommand, StartCommand, SignupsCommand, SpectatorCommand, KickCommand, RemoveCommand, ExtensionCommand, ArchiveCommand, GraceCommand, ShowAlignments, WipeCommand, ConfirmationsCommand, ResendConfirmationsCommand ] as { name: string, description?: string, execute: Function, command: { slash: SlashCommandSubcommandBuilder | SlashCommandSubcommandGroupBuilder, text: TextCommandArguments } }[];
+    const commands = [ LockCommand, UnlockCommand, CloseCommand, OpenCommand, CreateCommand, EndCommand, StartCommand, SignupsCommand, SpectatorCommand, KickCommand, RemoveCommand, ExtensionCommand, ArchiveCommand, GraceCommand, ShowAlignments, WipeCommand, ConfirmationsCommand, ResendConfirmationsCommand, HammerCommand ] as { name: string, description?: string, execute: Function, command: { slash: SlashCommandSubcommandBuilder | SlashCommandSubcommandGroupBuilder, text: TextCommandArguments } }[];
     const interactions = [ LockingSelect, UnlockButton, ReactivateButton, ConfirmAlignmentsButton, StartButton, CancelButton, GraceSelect, Minute, AlignmentSelect, DefaultAlignment, MafiaAlignment, NeutralAlignment, CustomAlignment, CustomModal, GraceButton ] as { name: string, type: string, command: ZodObject<any>, execute: Function }[];
 
     function getBuilders() {

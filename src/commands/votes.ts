@@ -71,7 +71,7 @@ async function handleVoteList(interaction: ChatInputCommandInteraction | Command
         const standard = "Hammer is at " + (half + 1) + " votes.";
         const footer = extension ? await extension.onVotes(global, setup, game, board) : standard;
 
-        embed.setFooter({ text: footer == "" ? standard : footer });
+        if(extension || global.hammer) embed.setFooter({ text: footer == "" ? standard : footer });
     }
 
     const row = new ActionRowBuilder<ButtonBuilder>()

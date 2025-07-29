@@ -37,6 +37,7 @@ export interface Global {
     extensions: string[],
     grace: boolean,
     admin: string[],
+    hammer: boolean,
 }
 
 interface Player {

@@ -193,11 +193,11 @@ export const flow = {
             });
         }
     },
-    determineHammer: (vote: Vote, votes: Vote[], users: User[]) => {
+    determineHammer: (vote: Vote, votes: Vote[], users: User[], global: Global) => {
         let votesForHammer = votes.filter(v => v.for == vote.for);
         let half = Math.floor(users.length / 2);
 
-        if(votesForHammer.length > half) {
+        if(votesForHammer.length > half && global.hammer) {
             return {
                 message: (users.find(user => vote.for == user.id)?.nickname ?? "<@" + vote.for + ">") + " has been hammered!",
                 hammered: true as true,
@@ -224,7 +224,7 @@ export async function defaultVote(global: Global, setup: Setup, game: Signups, v
 
     return {
         reply,
-        hammer: flow.determineHammer(vote, votes, users),
+        hammer: flow.determineHammer(vote, votes, users, global),
         setMessage,
     }
 }

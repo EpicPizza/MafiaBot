@@ -202,6 +202,7 @@ module.exports = {
                 extensions: [],
                 grace: false,
                 admin: [],
+                hammer: true,
             })
 
             return await interaction.reply({ content: "Database setup.", ephemeral: true });
