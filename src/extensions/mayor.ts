@@ -224,11 +224,17 @@ module.exports = {
 
         return {
             reply,
-            hammer: determineHammer(vote, votes, users, mayors, global.day),
+            hammer: determineHammer(vote, votes, users, mayors, global.day, global),
             setMessage,
         }
     },
-    onVotes: async (global, setup, game, board ) => { return ""; }, // no need to change from default behavior
+    onVotes: async (global, setup, game, board ) => {
+        if(global.hammer) {
+            return "";
+        } else {
+            return "Hammer disabled;"
+        }
+     }, // no need to change from default behavior
     onHammer: async (global, setup, game, hammered) => {},
     onRemove: async (global, setup, game, removed) => {}
 } satisfies Extension;
@@ -324,8 +330,8 @@ function getBoard(votes: Vote[], users: User[], mayors: Awaited<ReturnType<typeo
     return board;
 }
 
-function determineHammer(vote: Vote, votes: Vote[], users: User[], mayors: Awaited<ReturnType<typeof getMayors>>, day: number): TransactionResult["hammer"] {
-    if(vote.for == 'unvote') return { hammered: false, message: null, id: null };
+function determineHammer(vote: Vote, votes: Vote[], users: User[], mayors: Awaited<ReturnType<typeof getMayors>>, day: number, global: Global): TransactionResult["hammer"] {
+    if(vote.for == 'unvote' || global.hammer == false) return { hammered: false, message: null, id: null };
 
     console.log(votes);
     console.log(mayors);
@@ -430,7 +436,7 @@ async function reveal(id: string, global: Global, game: Signups) {
         };
 
         return {
-            hammer: existing ? determineHammer(existing, votes, users, mayors, global.day) : { hammered: false as false, message: null, id: null },
+            hammer: existing ? determineHammer(existing, votes, users, mayors, global.day, global) : { hammered: false as false, message: null, id: null },
             setMessage
         }
     });
