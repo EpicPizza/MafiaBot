@@ -81,7 +81,7 @@ export const VoteCommand = {
         const voter = playerUser;
         const voting = forUser;
 
-        const users = await getUsersArray(global.players.map(player => player.id));
+        const users = await getUsersArray(game.signups);
         
         const db = firebaseAdmin.getFirestore();
         
