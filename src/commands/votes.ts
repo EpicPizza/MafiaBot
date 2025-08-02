@@ -51,7 +51,10 @@ async function handleVoteList(interaction: ChatInputCommandInteraction | Command
 
     if(day < 1) throw new Error("Must be at least day 1.");
 
-    const half = Math.floor(global.players.length / 2);
+    const custom = parseInt(process.env.HAMMER_THRESHOLD_PLAYERS ?? '-1');
+    const players = custom === -1 ? global.players.length : custom;
+    const half = Math.floor(players / 2);
+
     const db = firebaseAdmin.getFirestore();
     const docs = (await db.collection('day').doc(day.toString()).collection('votes').orderBy('timestamp', 'desc').limit(1).get()).docs;
 
