@@ -196,7 +196,7 @@ export const flow = {
     determineHammer: (vote: Vote, votes: Vote[], users: User[], global: Global) => {
         let votesForHammer = votes.filter(v => v.for == vote.for);
         const hammerThreshold = parseInt(process.env.HAMMER_THRESHOLD_PLAYERS ?? '-1');
-        let half = hammerThreshold === -1 ? Math.floor(users.length / 2) : Math.floor(hammerThreshold / 2);
+        let half = hammerThreshold === -1 ? Math.floor(global.players.length / 2) : Math.floor(hammerThreshold / 2);
 
         if(votesForHammer.length > half && global.hammer) {
             return {

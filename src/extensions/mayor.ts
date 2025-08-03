@@ -346,7 +346,7 @@ function determineHammer(vote: Vote, votes: Vote[], users: User[], mayors: Await
         }
     }, 0);
 
-    const half = Math.floor(users.length / 2);
+    const half = Math.floor(global.players.length / 2);
 
     console.log("HALF", half);
     console.log("VOTES", votesForHammer);
