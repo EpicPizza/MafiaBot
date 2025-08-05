@@ -90,7 +90,7 @@ export async function addSignup(options: { id: string, game: string }) {
                     .setLabel('Confirm')
             )
 
-        dm.send({ components: [row], embeds: [embed] });
+        await dm.send({ components: [row], embeds: [embed] });
     }
 
     return true;

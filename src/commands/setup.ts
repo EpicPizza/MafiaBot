@@ -512,12 +512,12 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
             }
 
             if(remove) {
-                dm.send("You're not a mod anymore, your roles have been adjusted.");
+                await dm.send("You're not a mod anymore, your roles have been adjusted.");
             } else {
                 if(message == "") {
-                    dm.send("You're now a mod, your roles have been adjusted.");
+                    await dm.send("You're now a mod, your roles have been adjusted.");
                 } else {
-                    dm.send("You're now a mod, here are invites to the servers you're not in:\n" + message);
+                    await dm.send("You're now a mod, here are invites to the servers you're not in:\n" + message);
                 }
             }
 

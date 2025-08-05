@@ -459,7 +459,7 @@ export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup
         if(!dm) return await gameSetup.spec.send("Unable to send dms to " + userProfile.nickname + ".");
 
         if(pings) {
-            dm.send("Join the Dead Chat server to play in mafia! Here's a server invite: \nhttps://discord.com/invite/" + invite.code);
+            await dm.send("Join the Dead Chat server to play in mafia! Here's a server invite: \nhttps://discord.com/invite/" + invite.code);
         }
     } else if(newPlayer) {
         await channel.permissionOverwrites.create(userProfile.id, editOverwrites());
@@ -666,7 +666,7 @@ export async function setMafiaSpectator(mafiaPlayer: GuildMember | undefined, id
         if(!dm) return await gameSetup.spec.send("Unable to send dms to " + userProfile.nickname + ".");
 
         if(pings) {
-            dm.send("Here's a server invite to spectate mafia chat: \nhttps://discord.com/invite/" + invite.code);
+            await dm.send("Here's a server invite to spectate mafia chat: \nhttps://discord.com/invite/" + invite.code);
         }
     }
 }
