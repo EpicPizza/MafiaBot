@@ -37,8 +37,9 @@ export const ShowAlignments = {
             .setColor(Colors.Red)
             .setDescription(players.map(player => {
                 switch(player.alignment) {
-                    case 'default': 
-                        return player.user?.nickname + " - 💼 " + player.alignment;
+                    case 'default':
+                    case null:
+                        return player.user?.nickname + " - 💼 Default";
                     case 'neutral':
                         return player.user?.nickname + " - 📎 " + player.alignment;
                     case 'mafia':
