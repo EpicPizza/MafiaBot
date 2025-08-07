@@ -18,6 +18,8 @@ export async function archiveMessage(channel: TextChannel, message: Message, web
         }
     }
 
+    console.log(message);
+
     var response = await getNickname(message);
     var footer = response.footer;
     var nickname = response.nickname;

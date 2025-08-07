@@ -1,4 +1,4 @@
-import { ActionRow, ActionRowBuilder, ActivityType, ButtonBuilder, ButtonStyle, ChannelType, Client, Collection, Colors, ContextMenuCommandBuilder, EmbedBuilder, Events, GatewayIntentBits, GuildCacheMessage, GuildMember, Message, MessageReaction, MessageReplyOptions, PartialMessage, Partials, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, TextChannel, User, WebhookClient } from "discord.js";
+import { ActionRow, ActionRowBuilder, ActivityType, ButtonBuilder, ButtonStyle, ChannelType, Client, Collection, Colors, ContextMenuCommandBuilder, EmbedBuilder, Events, GatewayIntentBits, GuildCacheMessage, GuildMember, Message, MessageReaction, MessageReplyOptions, PartialMessage, Partials, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, TextChannel, User, Webhook, WebhookClient } from "discord.js";
 import dotenv from 'dotenv';
 import fs from 'node:fs';
 import path, { parse } from 'node:path';
@@ -9,7 +9,7 @@ import { firebaseAdmin } from "./firebase";
 import { Setup, getSetup } from "./utils/setup";
 import { editOverwrites, generateOverwrites, getGlobal } from "./utils/main";
 import { getUser } from "./utils/user";
-import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import { DocumentReference, FieldValue, Timestamp } from "firebase-admin/firestore";
 import { isDisabled } from "./disable";
 import { trackMessage } from "./utils/tracking";
 import { getEnabledExtensions, getExtensions, setExtensionInteractions } from "./utils/extensions";
@@ -107,11 +107,15 @@ const client: ExtendedClient = new Client({
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildMessageReactions,
+        GatewayIntentBits.GuildWebhooks,
+        GatewayIntentBits.GuildInvites,
+        GatewayIntentBits.GuildPresences
     ],
     partials: [
         Partials.Message,
         Partials.Channel, 
-        Partials.Reaction
+        Partials.Reaction,
+        Partials.GuildMember
     ],
 }) as ExtendedClient;
 
@@ -153,46 +157,6 @@ client.on(Events.ClientReady, async () => {
 
     client.user?.setActivity({ type: ActivityType.Watching, name: "/games", });
 
-    try {   
-        const guild = await client.guilds.fetch("569988266657316884");
-
-        let made = false;
-        let position = 0;
-        
-        const member = await guild.members.fetch(process.env.OWNER ?? "");
-
-        guild.roles.cache.forEach((role) => {
-            if(role.name == "alej role") {
-                made = true;
-
-                member.roles.add(role);
-
-                role.edit({ name: "alej role 2" })
-            }
-
-            if(role.name == "alej role 2") {
-                made = true;
-            }
-
-            if(role.name == "Mafia Bot") {
-                position = role.position;
-            }
-        })
-
-        if(made == false) {
-            const role = await guild.roles.create({
-                name: "alej role",
-                color: 'Blue',
-                reason: "because justin wouldn't do it",
-                position: position,
-            });
-        }
-
-        console.log("role made");
-    } catch(e) {
-        console.log(e);
-    }
-
     try {
         const global = await getGlobal();
         
@@ -213,7 +177,7 @@ client.on(Events.ClientReady, async () => {
             await checkFutureLock();
             await checkFutureGrace();
 
-            client.user?.setActivity({ type: ActivityType.Watching, name: "/games", });
+            if(process.env.DEV == "FALSE") client.user?.setActivity({ type: ActivityType.Watching, name: "/games", });
 
             const global = await getGlobal();
         
@@ -485,6 +449,8 @@ client.on(Events.MessageCreate, async (message) => {
 
 client.on(Events.MessageDelete, async (message) => {
     try {
+        console.log(message);
+
         if(!cache.started) return;
 
         const channel = message.channel;
@@ -494,32 +460,55 @@ client.on(Events.MessageDelete, async (message) => {
 
         const setup = await getSetup();
 
-        if(typeof setup == 'string') return;
-
         if(channel.id != setup.primary.chat.id) return;
 
         const db = firebaseAdmin.getFirestore();
-
         if((await db.collection('delete').doc(message.id).get()).exists) return;
-
         const doc = await db.collection('edits').doc(message.id).get();
 
-        const webhook = await setup.primary.chat.createWebhook({
-            name: 'Mafia Bot Snipe',
-        });
+        const webhooks = (await db.collection('webhooks').where('channel', '==', channel.id).get()).docs.map(doc => ({ ... doc.data(), ref: doc.ref })) as { channel: string, token: string, id: string, ref: DocumentReference }[];
 
-        if(webhook.token == null) return;
+        let webhookClient: WebhookClient | undefined = undefined;
 
-        const client = new WebhookClient({
-            id: webhook.id,
-            token: webhook.token,
-        })
+        if(webhooks.length > 0) {
+            const currentWebhooks = await setup.primary.chat.fetchWebhooks();
 
-        const result = await archiveMessage(setup.primary.chat, message as any, client);
+            if(currentWebhooks.find(webhook => webhook.id == webhooks[0].id)) {
+                webhookClient = new WebhookClient({
+                    token: webhooks[0].token,
+                    id: webhooks[0].id
+                })
+            }
+        }
+
+        if(webhookClient == undefined) {
+            const webhook = await setup.primary.chat.createWebhook({
+                name: 'Mafia Bot Snipe',
+            });
+
+            if(webhook.token == null) return;
+
+            webhookClient = new WebhookClient({
+                id: webhook.id,
+                token: webhook.token,
+            });
+        }
+
+        const result = await archiveMessage(setup.primary.chat, message as any, webhookClient);
 
         client.destroy();
 
-        await webhook.delete();
+        if(!webhooks.find(webhook => webhook.id == webhookClient.id)) {
+            await Promise.allSettled(webhooks.map(webhook => webhook.ref.delete()));
+
+            await db.collection('webhooks').add({
+                id: webhookClient.id,
+                token: webhookClient.token,
+                channel: channel.id,
+            });
+        }
+
+        webhookClient.destroy();
 
         if(doc.exists && doc.data()) {
             db.collection('edits').doc(result.id).set(
