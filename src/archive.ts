@@ -1,9 +1,6 @@
 import { Attachment, AttachmentBuilder, Collection, EmbedBuilder, EmbedFooterOptions, Message, TextChannel, WebhookClient } from "discord.js";
 import Stream from 'stream';
 import * as https from 'https';
-import { getSetup } from "./utils/setup";
-
-//this code is from another project, i'm not sure if i even know how it works.
 
 export async function archiveMessage(channel: TextChannel, message: Message, webhook: WebhookClient, note = false, name: string = "") {
     channel.messages.cache.clear();

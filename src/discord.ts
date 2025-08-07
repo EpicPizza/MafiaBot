@@ -496,8 +496,6 @@ client.on(Events.MessageDelete, async (message) => {
 
         const result = await archiveMessage(setup.primary.chat, message as any, webhookClient);
 
-        client.destroy();
-
         if(!webhooks.find(webhook => webhook.id == webhookClient.id)) {
             await Promise.allSettled(webhooks.map(webhook => webhook.ref.delete()));
 
