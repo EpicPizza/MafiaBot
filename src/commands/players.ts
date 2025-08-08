@@ -7,6 +7,8 @@ import { Command } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { getSetup } from "../utils/setup";
 
+const Format = z.union([ z.literal('complete'), z.literal('gxe'), z.literal('wr'), z.literal('alphabetical') ]);
+
 module.exports = {
     data: [
         { 
@@ -21,15 +23,33 @@ module.exports = {
                         .setDescription('Name of the game.')
                         .setAutocomplete(true)
                 )
-                .addBooleanOption(option => 
-                    option
-                        .setName('complete')
-                        .setDescription('Shows each account connected to each player.')
-                )
                 .addIntegerOption(option =>
                     option 
                         .setName('day')
                         .setDescription('From which day to show players of.')
+                )
+                .addStringOption(option => 
+                    option
+                        .setName('format')
+                        .setDescription('What format to show the players in.')
+                        .setChoices([
+                            {
+                                name: "complete",
+                                value: "complete",
+                            },
+                            {
+                                name: "gxe",
+                                value: "gxe",
+                            },
+                            {
+                                name: "wr",
+                                value: "wr",
+                            },
+                            {
+                                name: "alphabetical",
+                                value: "alphabetical",
+                            }
+                        ])
                 )
         }, 
         {
@@ -37,8 +57,8 @@ module.exports = {
             name: 'text-players',
             command: {
                 optional: [
-                    z.union([z.string().min(1).max(100), z.number()]).or(z.literal('complete')),
-                    z.literal('complete')
+                    z.union([z.string().min(1).max(100), z.number()]).or(Format),
+                    Format
                 ]
             }
         },
@@ -47,8 +67,8 @@ module.exports = {
             name: 'text-signups',
             command: {
                 optional: [
-                    z.string().min(1).max(100).or(z.literal('complete')),
-                    z.literal('complete')
+                    z.string().min(1).max(100).or(Format),
+                    Format
                 ]
             }
         },
@@ -57,8 +77,8 @@ module.exports = {
             name: 'text-pl',
             command: {
                 optional: [
-                    z.union([z.coerce.number().min(1).max(100), z.string().min(1).max(100)]).or(z.literal('complete')),
-                    z.literal('complete')
+                    z.union([z.coerce.number().min(1).max(100), z.string().min(1).max(100)]).or(Format),
+                    Format
                 ]
             }
         },
