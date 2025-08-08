@@ -6,6 +6,7 @@ import { z } from "zod";
 import { Command } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { getSetup } from "../utils/setup";
+import { getStats } from "../utils/stats";
 
 const Format = z.union([ z.literal('complete'), z.literal('gxe'), z.literal('wr'), z.literal('alphabetical') ]);
 
@@ -115,11 +116,17 @@ module.exports = {
 async function handlePlayerList(interaction: ChatInputCommandInteraction | Command | ButtonInteraction) {
     const global = await getGlobal();
 
-    const complete = 'customId' in interaction ? JSON.parse(interaction.customId).complete as boolean : interaction.type == 'text' ? interaction.arguments[1] == "complete" || interaction.arguments[0] == "complete" : interaction.options.getBoolean('complete') ?? false;
+    const format = 'customId' in interaction ? JSON.parse(interaction.customId).format as ReturnType<typeof checkType> 
+        : interaction.type == 'text' ? checkType(interaction.arguments[1]) ?? checkType(interaction.arguments[0]) 
+        : checkType(interaction.options.getString('format'));
+
+    console.log("FORMAT", format);
 
     let users = [] as { nickname: string, id: string }[];
 
-    let reference = 'customId' in interaction ? JSON.parse(interaction.customId).game as string : interaction.type == 'text' ? interaction.arguments[0] == "complete" ? null : interaction.arguments[0] as string | number | null ?? null : interaction.options.getString("game");
+    let reference = 'customId' in interaction ? JSON.parse(interaction.customId).game as string 
+        : interaction.type == 'text' ? checkType(interaction.arguments[0]) ? null : interaction.arguments[0] as string | number | null ?? null : interaction.options.getString("game");
+    
     const day = 'customId' in interaction ? null : interaction.type == 'text' ? (typeof reference == "number" ? reference : null) : interaction.options.getInteger("day");
 
     const games = await getGames();
@@ -161,7 +168,7 @@ async function handlePlayerList(interaction: ChatInputCommandInteraction | Comma
             row.addComponents(games.filter((game, index) => index >= i && index <= i + 4).map(game => {
                 return new ButtonBuilder()
                     .setLabel(game.name)
-                    .setCustomId(JSON.stringify({ name: "players", game: game.name, complete: complete }))
+                    .setCustomId(JSON.stringify({ name: "players", game: game.name, format: format }))
                     .setStyle(ButtonStyle.Primary);
             }));
     
@@ -189,13 +196,35 @@ async function handlePlayerList(interaction: ChatInputCommandInteraction | Comma
         users = await getUsersArray(global.players.map(player => player.id));
     }
 
+    const stats = await getStats();
+
+    if(format == 'alphabetical') {
+        users.sort((a, b) => {
+            if (a.nickname < b.nickname) return -1;
+            if (a.nickname > b.nickname) return 1;
+            return 0;
+        });
+    }
+
+    if((format == 'gxe' || format == 'wr') && stats == false) throw new Error("No stats!");
+
     const embed = new EmbedBuilder()
         .setTitle(typeof reference == 'string' || day == null ? "Players - " + users.length : "Players » Day " + day ) 
         .setColor(Colors.Purple)
-        .setDescription(users.length == 0 ? "No Players" : complete ? 
-            users.reduce((previous, current) => previous += current.nickname +  " - <@"  + current.id + "> \n", "") :
-            users.reduce((previous, current) => previous += current.nickname +  "\n", "")
-        )
+        .setDescription(users.length == 0 ? "No Players" : users.reduce((previous, current) => previous += ((user) => {
+            const stat = !stats ? undefined : stats.find(stat => stat.player.toLowerCase() == current.nickname.toLowerCase());
+
+            switch(format) {
+                case 'complete':
+                    return user.nickname + " - <@" + user.id + ">";
+                case 'gxe':
+                    return user.nickname + (stat ? " (" + stat.gxe + ")" : " (N/A)");
+                case 'wr':
+                    return user.nickname + (stat ? " (" + stat.wr + ")" : " (N/A)");
+                default:
+                    return user.nickname;
+            }
+        })(current) + "\n", ""))
         .setFooter({ text: reference == null || reference == "" || typeof reference == 'number' ? "Showing " + users.length + " game player" + (users.length == 1 ? "" : "s") + "." : "Showing signups for " + reference + "." });
 
     if('customId' in interaction) {
@@ -236,4 +265,14 @@ async function getGames() {
     };
 
     return games;
+}
+
+function checkType(type: unknown) {
+    const parsed = Format.safeParse(type);
+
+    if(parsed.success) {
+        return parsed.data;
+    } else {
+        return undefined;
+    }
 }

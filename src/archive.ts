@@ -215,7 +215,7 @@ async function handleReference(message: Message): Promise<any[]> {
                 }
             ]
 
-        })
+        }) 
     }
     return components;
 }
