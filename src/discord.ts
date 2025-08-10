@@ -20,6 +20,21 @@ import { Signups } from "./utils/games";
 import { playersRoleId } from "./extensions/upick";
 import { checkMessage } from "./doc";
 
+if(process.env.DEV == "FALSE") {
+    console.log(process.env.CLIENT);
+    console.log(process.env.DEV);
+    console.log(process.env.DEVGUILD);
+    console.log(process.env.FALSE);
+    console.log(process.env.FIREBASE_ADMIN);
+    console.log(process.env.GOOGLE_CLIENT);
+    console.log(process.env.GOOGLE_KEY);
+    console.log(process.env.HAMMER_THRESHOLD_PLAYERS);
+    console.log(process.env.NO_CHANGE);
+    console.log(process.env.OWNER);
+    console.log(process.env.TOKEN);
+    console.log(process.env.VOTE_SWAPPED);
+}
+
 interface ExtendedClient extends Client {
     commands: Collection<string, Function | {execute: Function, zod: ZodObject<any> }>,
     textCommands: Collection<string, {execute: Function, zod: TextCommandArguments, description?: string }>,
