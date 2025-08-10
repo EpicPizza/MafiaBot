@@ -27,7 +27,7 @@ export async function init() {
         if(!snapshot.exists || data == undefined) return;
 
         const tokens = JSON.parse((await decrypt(data.value, data.iv)).value) as Credentials;
-        const keys = JSON.parse(process.env.GOOGLE_ClIENT ?? "---");
+        const keys = JSON.parse(process.env.GOOGLE_ClIENT as unknown as string);
 
         console.log("INIT", tokens);
 
@@ -67,7 +67,7 @@ export async function init() {
 }
 
 export async function encrypt(value: string) {
-	const key = Buffer.from(process.env.GOOGLE_KEY ?? "---", "hex");
+	const key = Buffer.from(process.env.GOOGLE_KEY as unknown as string, "hex");
 	const iv = randomBytes(16);
 
 	const cipher = createCipheriv("aes-256-cbc", key, iv);
@@ -79,7 +79,7 @@ export async function encrypt(value: string) {
 }
 
 export async function decrypt(encryptedValue: string, iv: string) {
-	const key = Buffer.from(process.env.GOOGLE_KEY ?? "---", "hex");
+	const key = Buffer.from(process.env.GOOGLE_KEY as unknown as string, "hex");
 
 	const decipher = createDecipheriv("aes-256-cbc", key, Buffer.from(iv, "hex"));
 
