@@ -1,0 +1,54 @@
+import { AttachmentBuilder, ChatInputCommandInteraction, FileBuilder, SlashCommandBuilder } from "discord.js";
+import { Data } from "../discord";
+import { getGlobal } from "../utils/main";
+import { getUser, User } from "../utils/user";
+import { Command } from "../discord";
+import { firebaseAdmin } from "../firebase";
+import { randomInt } from "crypto";
+import { z } from "zod";
+import { getClient } from "../google";
+import { google } from 'googleapis';
+import { finished } from "stream/promises";
+
+const googleDocIdRegex = /docs\.google\.com\/(?:document|spreadsheets|presentation)\/d\/([a-zA-Z0-9-_]+)/;
+
+module.exports = {
+    data: [
+        {
+            type: 'text',
+            name: 'text-doc',
+            command: {
+                required: [ z.string() ],
+            }
+        }
+    ] satisfies Data[],
+
+    execute: async (interaction: Command) => {
+        const client = getClient();
+        const service = google.drive({ version: 'v3', auth: client });
+        
+        const link = interaction.arguments[0] as string;
+        const match = googleDocIdRegex.exec(link);
+        let id: undefined | string = undefined
+        if (match && match.length > 1) id = match[0].substring(match[0].lastIndexOf("/") + 1);
+
+        if(id == undefined) throw new Error("ID not found!");
+
+        console.log(id);
+
+        const result = await service.files.export({
+            fileId: id,
+            mimeType: 'text/plain',
+        }, {
+            responseType: "stream"
+        });
+
+        if(result.status != 200) throw new Error("Failed to fetch!");
+        
+        const attachment = new AttachmentBuilder(result.data)
+            .setName('download.txt')
+            .setDescription('Mafia Bot download test.');
+
+        await interaction.reply({ files: [ attachment ] });
+    }
+}

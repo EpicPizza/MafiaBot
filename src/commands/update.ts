@@ -90,7 +90,7 @@ module.exports = {
 async function fetchGlicko(url: string) {
     const results = [] as any[];
 
-    const { body } = await fetch(url);csvParser();
+    const { body } = await fetch(url);
     if(body == null) throw new Error("Unable to fetch!");
 
     const csv = csvParser({

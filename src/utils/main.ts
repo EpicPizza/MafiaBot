@@ -8,6 +8,7 @@ import { Setup, getSetup } from "./setup";
 import { promise, z } from "zod";
 import { GameSetup, Signups, getGameSetup, refreshSignup } from "./games";
 import { getEnabledExtensions } from "./extensions";
+import { clearFiles } from "../doc";
 
 const pings = true;
 
@@ -749,6 +750,7 @@ export async function endGame(interaction: ChatInputCommandInteraction | Command
     promises.push(setupPermissions(setup, false));
     promises.push(archiveChannels(setup));
     promises.push(endExtensions(global, setup, game));
+    promises.push(clearFiles());
 
     for(let i = 0; i < game.signups.length; i++) {
         promises.push(clearPlayer(game.signups[i], setup, gameSetup));

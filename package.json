@@ -19,6 +19,8 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "firebase-admin": "^12.1.1",
+    "google-auth-library": "^10.2.1",
+    "googleapis": "^155.0.1",
     "luxon": "^3.4.4",
     "parse-human-relative-time": "^3.0.2",
     "typescript": "^5.4.5",
