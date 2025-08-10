@@ -129,6 +129,14 @@ export async function checkMessage(message: Message, cache: Cache) {
                 timestamp: new Date().valueOf(),
                 type: link.type == 'spreadsheets' ? 'spreadsheet' : link.type,
             });
+
+            await service.permissions.create({
+                fileId: promise.value.data.id ?? "---",
+                requestBody: {
+                    type: 'anyone',
+                    role: 'reader',
+                }
+            });
         }
     }));
 
