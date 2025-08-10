@@ -27,7 +27,7 @@ export async function init() {
         if(!snapshot.exists || data == undefined) return;
 
         const tokens = JSON.parse((await decrypt(data.value, data.iv)).value) as Credentials;
-        const keys = JSON.parse(process.env.GOOGLE_ClIENT as unknown as string);
+        const keys = JSON.parse(process.env.GOOGLE_CLIENT as string);
 
         console.log("INIT", tokens);
 
