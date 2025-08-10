@@ -6,6 +6,7 @@ import meridiem from 'date-and-time/plugin/meridiem'
 import { DateTime } from "luxon";
 import { Command } from "../discord";
 import { getSetup } from "../utils/setup";
+import { snipeMessage } from "../doc";
 
 dnt.plugin(meridiem);
 
@@ -54,7 +55,9 @@ module.exports = {
                 ])
         ] : [];
 
-        if(data == undefined) return await interaction.reply({ content: "No edits recorded.", components: rows });
+        const embeds = await snipeMessage(await setup.primary.chat.messages.fetch({ message: id, cache: true}));
+
+        if(data == undefined) return await interaction.reply({ content: "No edits recorded.", embeds: [ ... embeds ], components: rows });
 
         const edits = data.edits as { content: string, timestamp: number }[];
 
@@ -65,6 +68,6 @@ module.exports = {
                 return previous += "[<t:" + Math.round(new Date(current.timestamp).valueOf() / 1000) + ":T>, <t:" + Math.round(new Date(current.timestamp).valueOf() / 1000) + ":d>] - `" + current.content.replaceAll("`", "'") + "`\n";
             }, ""));
 
-        await interaction.reply({ embeds: [embed], components: rows });
+        await interaction.reply({ embeds: [embed, ...embeds ], components: rows });
     }
 }

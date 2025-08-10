@@ -1,5 +1,7 @@
-import { ActionRow, ActionRowBuilder, ActivityType, ButtonBuilder, ButtonStyle, ChannelType, Client, Collection, Colors, ContextMenuCommandBuilder, EmbedBuilder, Events, GatewayIntentBits, GuildCacheMessage, GuildMember, Message, MessageReaction, MessageReplyOptions, PartialMessage, Partials, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, TextChannel, User, Webhook, WebhookClient } from "discord.js";
 import dotenv from 'dotenv';
+dotenv.config();
+
+import { ActionRow, ActionRowBuilder, ActivityType, ButtonBuilder, ButtonStyle, ChannelType, Client, Collection, Colors, ContextMenuCommandBuilder, EmbedBuilder, Events, GatewayIntentBits, GuildCacheMessage, GuildMember, Message, MessageReaction, MessageReplyOptions, PartialMessage, Partials, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, TextChannel, User, Webhook, WebhookClient } from "discord.js";
 import fs from 'node:fs';
 import path, { parse } from 'node:path';
 import { ZodAny, ZodAnyDef, ZodBoolean, ZodNull, ZodNumber, ZodString, ZodLiteral, ZodSchema, z, type ZodObject } from "zod";
@@ -16,8 +18,7 @@ import { getEnabledExtensions, getExtensions, setExtensionInteractions } from ".
 import { Global } from "./utils/main";
 import { Signups } from "./utils/games";
 import { playersRoleId } from "./extensions/upick";
-
-dotenv.config();
+import { checkMessage } from "./doc";
 
 interface ExtendedClient extends Client {
     commands: Collection<string, Function | {execute: Function, zod: ZodObject<any> }>,
@@ -303,6 +304,8 @@ client.on(Events.MessageCreate, async (message) => {
             await trackMessage(message, cache);
 
             if(!message.author.bot) await messageExtensions(cache.extensions, message, cache);
+
+            await checkMessage(message, cache);
 
             return;
         }
