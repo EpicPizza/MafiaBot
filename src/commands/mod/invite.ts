@@ -197,9 +197,9 @@ export const KickCommand = {
 
         if(name == null) throw new Error("Game needs to be specified.");
 
-        const value = interaction.type == 'text' ? interaction.arguments[1] as string : interaction.options.getString('member');
+        const value = interaction.type == 'text' ? interaction.arguments[1] as string : interaction.options.getString('player');
 
-        if(value == null || value == "") throw new Error("Member must be specified.");
+        if(value == null || value == "") throw new Error("Player must be specified.");
 
         if(name.length < 2) throw new Error("Member id or nickname too short.");
 
