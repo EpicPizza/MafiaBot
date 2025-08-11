@@ -56,16 +56,10 @@ module.exports = {
 
 async function handleStatsList(interaction: ChatInputCommandInteraction | Command) {
     const global = await getGlobal();
-
     if(global.started == false) throw new Error("Game has not started.");
-
     const game = await getGameByID(global.game != null ? global.game : "bruh");
-
     if(game == null) throw new Error("Game not found.");
-
     const setup = await getSetup();
-
-    if(typeof setup == 'string') throw new Error("Setup Incomplete");
 
     const day = interaction.type == 'text' ? (typeof interaction.arguments[0] == "number" ? interaction.arguments[0] as number ?? global.day : global.day) : Math.round(interaction.options.getNumber("day") ?? global.day);
 
@@ -75,11 +69,8 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
     const users = await getAllUsers();
 
     const db = firebaseAdmin.getFirestore();
-
     const ref = db.collection('day').doc(day.toString()).collection('players');
-
     const currentPlayers = (await db.collection('day').doc(day.toString()).get()).data()?.players as string[] | undefined ?? [];
-
     const docs = (await ref.get()).docs;
 
     let list = [] as { name: string, id: string, messages: number, words: number, show: boolean, alive: boolean, images: number, reactions: { reaction: string, timestamp: number, message: string }[] }[];
