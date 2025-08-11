@@ -5,6 +5,7 @@ import { z } from "zod";
 import { User, createUser, editUser, getUser, getUserByName } from "../utils/user";
 import { getAllNicknames, getGameByID, getGlobal } from "../utils/main";
 import { addSignup, refreshSignup } from "../utils/games";
+import { getSetup } from "../utils/setup";
 
 const setNickname = z.object({
     name: z.literal('set-nickname'),
@@ -62,7 +63,8 @@ module.exports = {
             type: 'text',
             name: 'text-info',
             command: {
-                optional: [ z.string().regex(/^<@\d+>$/).or(z.string().regex(/^[a-zA-Z]+$/, "Only letters allowed. No spaces.")) ]
+                required: [ z.string().regex(/^<@\d+>$/).or(z.string().regex(/^[a-zA-Z]+$/, "Only letters allowed. No spaces.")) ],
+                optional: [ z.literal('extra') ]
             }
         }
     ] satisfies Data[],
@@ -108,6 +110,9 @@ module.exports = {
             const userOption = interaction.type == 'text' ? interaction.arguments[0] as string : interaction.options.getUser("user");
             const nicknameOption = interaction.type == 'text' ? interaction.arguments[0] as string : interaction.options.getString("nickname");
 
+            const extra = interaction.type == 'text' ? interaction.arguments.length > 1 : false;
+
+
             let user: User | undefined = undefined;
 
             if(userOption == null && nicknameOption == null) {
@@ -127,10 +132,22 @@ module.exports = {
             const embed = new EmbedBuilder()
                 .setAuthor({ name: user.nickname })
                 .setColor(Colors.DarkOrange)
-                
-            embed.setDescription("Nickname: " + user.nickname + "\nUser: <@" + user.id + ">");
+                .setDescription("Nickname: " + user.nickname + "\nUser: <@" + user.id + ">");
 
-            await interaction.reply({ embeds: [embed], ephemeral: true });
+            if(extra) {
+                const setup = await getSetup();
+
+                const member = await setup.primary.guild.members.fetch({ user: user?.id, cache: true });
+
+                const pfp = (member.avatarURL() ?? member.displayAvatarURL() ?? member.user?.displayAvatarURL() ?? "https://cdn.discordapp.com/avatars/1248187665548054588/cc206768cd2ecf8dfe96c1b047caa60f.webp?size=160");
+
+                const extraEmbed = new EmbedBuilder()
+                    .setDescription('Color: ' + member.displayHexColor + "\nURL: " + pfp.substring(0, pfp.length - 5) + ".png");
+
+                await interaction.reply({ embeds: [embed, extraEmbed], ephemeral: true });
+            } else {
+                await interaction.reply({ embeds: [embed], ephemeral: true });
+            }
         } else if(interaction.type != 'text' && interaction.isChatInputCommand() && interaction.commandName == "nickname") {
             await showModal(interaction, false, "command");
         } else if(interaction.type != 'text' && interaction.isModalSubmit()) {
