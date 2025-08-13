@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ApplicationCommandType, ApplicationEmoji, AutocompleteInteraction, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, ContextMenuCommandBuilder, ContextMenuCommandInteraction, EmbedBuilder, GuildEmoji, SlashCommandBuilder, SlashCommandSubcommandBuilder, time } from "discord.js";
+import { ActionRowBuilder, ApplicationCommandType, ApplicationEmoji, AutocompleteInteraction, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, ContextMenuCommandBuilder, ContextMenuCommandInteraction, EmbedBuilder, GuildEmoji, PermissionsBitField, SlashCommandBuilder, SlashCommandSubcommandBuilder, time } from "discord.js";
 import client, { Data, removeReactions } from "../discord";
 import { firebaseAdmin } from "../firebase";
 import { set, z } from "zod";
@@ -11,6 +11,7 @@ import { getEnabledExtensions } from "../utils/extensions";
 import { Signups } from "../utils/games";
 import { Global } from "../utils/main";
 import { Transaction } from "firebase-admin/firestore";
+import { capitalize, placeVote, removeVote, retrieveVotes, storeVotes, wipeVotes } from "../utils/fakevotes";
 
 module.exports = {
     data: [
@@ -57,7 +58,15 @@ module.exports = {
     ] satisfies Data[],
 
     execute: async (interaction: ChatInputCommandInteraction | ContextMenuCommandInteraction | Command | AutocompleteInteraction) => {
+        const global = await getGlobal();
+        
         if(interaction.type != 'text' && interaction.isAutocomplete()) {
+            if(global.started == false) {
+                await interaction.respond(
+                    [ { name: "Use text command!", value: "Aarav" } ]
+                );
+            }
+
             const focusedValue = interaction.options.getFocused();
 
             const nicknames = await getAllNicknames();
@@ -81,21 +90,34 @@ module.exports = {
             }
         })();
 
-        const global = await getGlobal();
-
         if(global.started == false) {
-            if(player != null) {
-                if('arguments' in interaction) {
-                    await interaction.message.react("✅");
-                } else if (interaction.isChatInputCommand()) {
-                    await interaction.reply("Voted for " + interaction.options.getString('player'));
-                } else {
-                    await interaction.reply("Voted for <@" + interaction.targetId + ">");
-                }
-            } else {
-                throw new Error("Player must be specified.");
-            }
+            if(!('arguments' in interaction)) throw new Error("Use text command!");
+                
+            const votes = await retrieveVotes(interaction.message.channelId);
+            
 
+            if(interaction.name == 'unvote' || player == null) {
+                removeVote(interaction.user.id, votes);
+            } else if(interaction.arguments[0] == "clear") {
+                if(!interaction.message.guild) throw new Error("not here?");
+                
+                const member = await interaction.message.guild.members.fetch({ user: interaction.user.id, cache: true });
+
+                if(!member.permissions.has(PermissionsBitField.Flags.ManageMessages)) throw new Error("Invalid permissions! (Manage Messages)");
+
+                wipeVotes(votes);
+            } else {
+                placeVote({
+                    name: capitalize(interaction.arguments[0] as string),
+                    timestamp: new Date().valueOf(),
+                    id: interaction.user.id,
+                }, votes);
+            }
+            
+            await storeVotes(interaction.message.channelId, votes);
+
+            await interaction.message.react('✅');
+            
             return;
         }
 

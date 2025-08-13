@@ -9,6 +9,7 @@ import { Command } from "../discord";
 import { getEnabledExtensions } from "../utils/extensions";
 import { firebaseAdmin } from "../firebase";
 import { Transaction } from "firebase-admin/firestore";
+import { getBoard, retrieveVotes } from "../utils/fakevotes";
 
 module.exports = {
     data: [
@@ -40,15 +41,31 @@ module.exports = {
 
 async function handleVoteList(interaction: ChatInputCommandInteraction | Command) {
     const global = await getGlobal();
-    if(global.started == false) throw new Error("Game has not started.");
+    
+    if(global.started == false) {
+        if(!('arguments' in interaction)) throw new Error("Use text command!");
+
+        const votes = await retrieveVotes(interaction.message.channelId);
+
+        const board = getBoard(votes);
+
+        const embed = new EmbedBuilder()
+            .setTitle("Votes")
+            .setColor(Colors.Gold)
+            .setDescription(board);
+
+        await interaction.reply({ embeds: [embed] });
+
+        return;
+    }
+
+
     const game = await getGameByID(global.game != null ? global.game : "bruh");
     if(game == null) throw new Error("Game not found.");
     const setup = await getSetup();
     
     const day = interaction.type == 'text' ? interaction.arguments[0] as number ?? global.day : Math.round(interaction.options.getNumber("day") ?? global.day);
-
     if(day > global.day) throw new Error("Not on day " + day + " yet!");
-
     if(day < 1) throw new Error("Must be at least day 1.");
 
     const custom = parseInt(process.env.HAMMER_THRESHOLD_PLAYERS ?? '-1');

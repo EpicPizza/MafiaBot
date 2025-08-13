@@ -20,12 +20,17 @@ module.exports = {
                         .setName('day')
                         .setDescription('Which day to show stats from.')
                 )
+                .addBooleanOption(option =>
+                    option
+                        .setName('total')
+                        .setDescription('To calculate cumulative stats.')
+                )
         },
         {
             type: 'text',
             name: 'text-stats',
             command: {
-                optional: [ z.coerce.number().min(1).max(100) ]
+                optional: [ z.coerce.number().min(1).max(100).or(z.literal('total')) ]
             }
         },
         { 
@@ -59,6 +64,78 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
     if(global.started == false) throw new Error("Game has not started.");
     const game = await getGameByID(global.game != null ? global.game : "bruh");
     if(game == null) throw new Error("Game not found.");
+    
+    if(interaction.type == 'text' ? (interaction.arguments.length > 0 && interaction.arguments[0] === 'total') : (interaction.options.getBoolean('total') === true)) {
+        const users = await getAllUsers();
+        const db = firebaseAdmin.getFirestore();
+
+        const cumulativeStats: Map<string, { messages: number, words: number }> = new Map();
+
+        for (let d = 1; d <= global.day; d++) {
+            const ref = db.collection('day').doc(d.toString()).collection('players');
+            const docs = (await ref.get()).docs;
+
+            for (const doc of docs) {
+                const data = doc.data();
+                if (data) {
+                    const current = cumulativeStats.get(doc.id) ?? { messages: 0, words: 0 };
+                    cumulativeStats.set(doc.id, {
+                        messages: current.messages + (data.messages ?? 0),
+                        words: current.words + (data.words ?? 0)
+                    });
+                }
+            }
+        }
+
+        let list = Array.from(cumulativeStats.entries()).map(([id, stats]) => {
+            const user = users.find(user => user.id == id);
+            return {
+                name: user ? user.nickname : `<@${id}>`,
+                id: id,
+                messages: stats.messages,
+                words: stats.words,
+                show: true,
+                alive: false, // will be set later
+                reactions: [],
+                images: 0,
+            };
+        });
+
+        const currentPlayersData = (await db.collection('day').doc(global.day.toString()).get()).data();
+        const currentPlayers = currentPlayersData?.players as string[] | undefined ?? game.signups;
+
+        currentPlayers.forEach(playerId => {
+            if (!list.some(p => p.id === playerId)) {
+                const user = users.find(user => user.id == playerId);
+                list.push({
+                    name: user ? user.nickname : `<@${playerId}>`,
+                    id: playerId,
+                    messages: 0,
+                    words: 0,
+                    show: true,
+                    alive: true,
+                    reactions: [],
+                    images: 0,
+                });
+            }
+        });
+
+        const aliveList = list.filter(p => currentPlayers.includes(p.id));
+        aliveList.forEach(p => p.alive = true);
+        
+        aliveList.sort((a, b) => b.messages - a.messages);
+
+        const message = aliveList.reduce((previous, current) => previous += `${current.name} » ${current.messages} message${current.messages === 1 ? "" : "s"} containing ${current.words} word${current.words === 1 ? "" : "s"}\n`, "");
+
+        const embed = new EmbedBuilder()
+            .setTitle(`Total Stats » ${game.name}`)
+            .setColor(Colors.Gold)
+            .setDescription(message === '' ? "No Stats" : message);
+
+        await interaction.reply({ embeds: [embed] });
+        return;
+    }
+
     const setup = await getSetup();
 
     const day = interaction.type == 'text' ? (typeof interaction.arguments[0] == "number" ? interaction.arguments[0] as number ?? global.day : global.day) : Math.round(interaction.options.getNumber("day") ?? global.day);
