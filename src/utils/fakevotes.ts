@@ -1,4 +1,5 @@
 import { firebaseAdmin } from "../firebase";
+import { getAllUsers } from "./main";
 
 interface FakeVote {
     name: string,
@@ -53,12 +54,18 @@ export async function storeVotes(channel: string, votes: Map<string, FakeVote[]>
     });
 }
 
-export function getBoard(votes: Map<string, FakeVote[]>) {
+export async function getBoard(votes: Map<string, FakeVote[]>) {
     const placed = getVotes(votes);
 
     if(placed.length == 0) return "No votes recorded.";
 
-    const board = placed.reduce((prev, curr) => prev += (curr.votes.length + " - " + curr.name + " « " + curr.votes.map(vote => "<@" + vote.id + ">").join(", ")) + "\n", "");
+    const nicknames = await getAllUsers();
+
+    const board = placed.reduce((prev, curr) => prev += (curr.votes.length + " - " + curr.name + " « " + curr.votes.map(vote => {
+        const user = nicknames.find(user => user.id == vote.id);
+
+        return user ? user.nickname : "<@" + vote.id + ">";
+    }).join(", ")) + "\n", "");
 
     return board;
 }

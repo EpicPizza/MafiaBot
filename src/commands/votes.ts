@@ -47,7 +47,7 @@ async function handleVoteList(interaction: ChatInputCommandInteraction | Command
 
         const votes = await retrieveVotes(interaction.message.channelId);
 
-        const board = getBoard(votes);
+        const board = await getBoard(votes);
 
         const embed = new EmbedBuilder()
             .setTitle("Votes")
