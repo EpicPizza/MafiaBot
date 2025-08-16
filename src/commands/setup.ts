@@ -181,6 +181,7 @@ module.exports = {
                     mod: null,
                     ongoing: null,
                     spec: null,
+                    logs: null,
                 },
                 tertiary: {
                     access: null,
@@ -300,6 +301,7 @@ Secondary server: https://discord.com/channels/${setup.secondary.guild.id}
 Tertiary server: https://discord.com/channels/${setup.tertiary.guild.id}
 
 Primary chat channel: https://discord.com/channels/${setup.primary.guild.id}/${setup.primary.chat.id}
+Secondary logs channel: https://discord.com/channels/${setup.secondary.guild.id}/${setup.secondary.logs.id}
 
 Secondary ongoing category: https://discord.com/channels/${setup.secondary.guild.id}/${setup.secondary.ongoing.id}
 Secondary archive category: https://discord.com/channels/${setup.secondary.guild.id}/${setup.secondary.archive.id}

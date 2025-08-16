@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import { ActionRow, ActionRowBuilder, ActivityType, ButtonBuilder, ButtonStyle, ChannelType, Client, Collection, Colors, ContextMenuCommandBuilder, EmbedBuilder, Events, GatewayIntentBits, GuildCacheMessage, GuildMember, Message, MessageReaction, MessageReplyOptions, PartialMessage, Partials, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, TextChannel, User, Webhook, WebhookClient } from "discord.js";
+import { ActionRow, ActionRowBuilder, ActivityType, AuditLogEvent, ButtonBuilder, ButtonStyle, ChannelType, Client, Collection, Colors, ContextMenuCommandBuilder, EmbedBuilder, Events, GatewayIntentBits, GuildCacheMessage, GuildMember, Message, MessageReaction, MessageReplyOptions, PartialMessage, Partials, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, TextChannel, User, Webhook, WebhookClient } from "discord.js";
 import fs from 'node:fs';
 import path, { parse } from 'node:path';
 import { ZodAny, ZodAnyDef, ZodBoolean, ZodNull, ZodNumber, ZodString, ZodLiteral, ZodSchema, z, type ZodObject } from "zod";
@@ -297,6 +297,85 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
     }
 });
 
+client.on(Events.GuildMemberRemove, async (member) => {
+    try {
+        const global = await getGlobal();
+        if(!global.started) return;
+
+        const setup = await getSetup();
+        const name = Object.entries(setup).find(entry => entry[1].guild.id == member.guild.id)?.[0];
+        if(name == undefined) return;
+
+        const fetchedLogs = await member.guild.fetchAuditLogs({
+            limit: 1,
+            type: AuditLogEvent.MemberKick,
+        });
+
+        const kickLog = fetchedLogs.entries.first();
+
+        if (!kickLog || kickLog.targetId !== member.id) return;
+
+        const { executor } = kickLog;
+
+        await setup.secondary.logs.send({ embeds: [
+            new EmbedBuilder()
+                .setTitle('Member Kick')
+                .setColor(Colors.Red)
+                .setDescription(`${name.substring(0, 1).toUpperCase() + name.substring(1)} Server - <@${member.id}> (${(await getUser(member.id))?.nickname ?? "n/a"}) was kicked by ${executor ? `<@${executor.id}>` : 'Unknown'}`)
+        ]});
+    } catch(e) {
+        console.log(e);
+    }
+})
+
+client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
+    try {
+        if (oldMember.pending && !newMember.pending) {
+            return;
+        }
+    
+        const global = await getGlobal();
+        if(!global.started) return;
+
+        const setup = await getSetup();
+        const name = Object.entries(setup).find(entry => entry[1].guild.id == newMember.guild.id)?.[0];
+        if(name == undefined) return;
+
+        if(name != 'primary' || (newMember.roles.cache.has(setup.primary.gang.id))) {
+            const oldRoles = oldMember.roles.cache;
+            const newRoles = newMember.roles.cache;
+
+            const addedRoles = newRoles.filter(role => !oldRoles.has(role.id));
+            const removedRoles = oldRoles.filter(role => !newRoles.has(role.id));
+
+            let description = "";
+
+            if(oldMember.nickname != newMember.nickname) {
+                description += `**Nickname Change**: ${oldMember.nickname ?? "None"} -> ${newMember.nickname ?? "None"}\n`;
+            }
+
+            if(addedRoles.size > 0) {
+                description += `**Roles Added**: ${addedRoles.map(role => role.name).join(", ")}\n`;
+            }
+
+            if(removedRoles.size > 0) {
+                description += `**Roles Removed**: ${removedRoles.map(role => role.name).join(", ")}\n`;
+            }
+
+            if(description == "") return;
+
+            await setup.secondary.logs.send({ embeds: [
+                new EmbedBuilder()
+                    .setTitle('Member Update')
+                    .setColor(Colors.Blue)
+                    .setDescription(`${name.substring(0, 1).toUpperCase() + name.substring(1)} Server - <@${newMember.id}> (${(await getUser(newMember.id))?.nickname ?? "n/a"})\n\n${description}`)
+            ]});
+        }
+    } catch(e) {
+        console.log(e);
+    }
+});
+
 
 client.on(Events.MessageCreate, async (message) => {
     try {
@@ -553,6 +632,15 @@ client.on(Events.GuildMemberAdd, async (member) => {
         const name = Object.entries(setup).find(entry => entry[1].guild.id == member.guild.id)?.[0];
         if(name == undefined) return;
 
+        if(name != 'primary') {
+            await setup.secondary.logs.send({ embeds: [
+                new EmbedBuilder()
+                    .setTitle('Member Join')
+                    .setColor(Colors.Green)
+                    .setDescription(`${name.substring(0, 1).toUpperCase() + name.substring(1)} Server - <@${member.id}> (${(await getUser(member.id))?.nickname ?? "n/a"})`)
+            ]});
+        }
+
         const ref = db.collection('roles').where('id', '==', member.id).where('server', '==', name);
         const docs = (await ref.get()).docs
         const roles = docs.map(doc => doc.data()) as RoleQueue[];
@@ -560,6 +648,8 @@ client.on(Events.GuildMemberAdd, async (member) => {
         for(let i = 0; i < roles.length; i++) {
             const queue: RoleQueue = roles[i];
             const guild = setup[queue.server].guild;
+
+            let message = `${name.substring(0, 1).toUpperCase() + name.substring(1)} Server\n\n`;
 
             const addRoles = queue.roles.add?.map(role => guild.roles.cache.find(cachedRole => cachedRole.name == role)).filter(role => role != undefined) ?? [];
             const removeRoles = queue.roles.remove?.map(role => guild.roles.cache.find(cachedRole => cachedRole.name == role)).filter(role => role != undefined) ?? [];
@@ -570,15 +660,36 @@ client.on(Events.GuildMemberAdd, async (member) => {
             if(queue.permissions) {
                 const permissionsChannel = guild.channels.cache.get(queue.permissions.channel);
                 if(permissionsChannel && permissionsChannel.type == ChannelType.GuildText) await permissionsChannel.permissionOverwrites.create(member.id, editOverwrites());
+
+                message += "Read permissions for " + permissionsChannel?.url + "\n\n";
             }
 
             if(queue.message) {
                 const messageChannel = guild.channels.cache.get(queue.message.channel);
                 if(messageChannel && messageChannel.isTextBased()) await messageChannel.send(queue.message.content);
+
+                message += "Message sent in " + messageChannel?.url + "\n";
+                message += "> " + queue.message.content;
             }
+
+            await setup.secondary.logs.send({ embeds: [
+                new EmbedBuilder()
+                    .setTitle('Invite Entry')
+                    .setColor(Colors.Yellow)
+                    .setDescription(message)
+            ]});
         }
 
-        if(roles.length == 0 && (setup.secondary.guild.id == member.guild.id || setup.tertiary.guild.id == member.guild.id) && member.kickable && cache.started) await member.kick();
+        if(roles.length == 0 && (setup.secondary.guild.id == member.guild.id || setup.tertiary.guild.id == member.guild.id) && member.kickable && cache.started) {
+            await member.kick();
+
+            await setup.secondary.logs.send({ embeds: [
+                new EmbedBuilder()
+                    .setTitle('Member Kick')
+                    .setColor(Colors.Red)
+                    .setDescription(`An invite entry for <@${member.id}> (${(await getUser(member.id))?.nickname ?? "n/a"}) count not be found.`)
+            ]});
+        }
 
         await Promise.allSettled(docs.map(doc => doc.ref.delete()));
     } catch(e) {

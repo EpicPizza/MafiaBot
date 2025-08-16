@@ -20,6 +20,7 @@ const PartialSetup = z.object({
         ongoing: z.string().nullable(),
         archive: z.string().nullable(),
         access: z.string().nullable(),
+        logs: z.string().nullable(),
     }),
     tertiary: z.object({
         guild: z.string().nullable(),
@@ -86,6 +87,7 @@ export async function checkSetup() {
     const seocndaryOngoing = fetchCategory(setup.secondary.ongoing, setup.secondary.guild, "Secondary ongoing category");
     const secondaryArchive = fetchCategory(setup.secondary.archive, setup.secondary.guild, "Secondary archive category");
     const secondaryAccess = fetchRole(setup.secondary.access, setup.secondary.guild, "Secondary access role");
+    const logs = fetchChannel(setup.secondary.logs, setup.secondary.guild, "Secondary logs channel");
 
     const tertiaryMod = fetchRole(setup.tertiary.mod, setup.tertiary.guild, "Tertiary mod role"); 
     const tertiarySpec = fetchRole(setup.tertiary.spec, setup.tertiary.guild, "Tertiary spec role");
@@ -118,6 +120,7 @@ export async function checkSetup() {
             ongoing: await seocndaryOngoing,
             archive: await secondaryArchive,
             access: await secondaryAccess,
+            logs: await logs,
         },
         tertiary: {
             guild: await tertiary,

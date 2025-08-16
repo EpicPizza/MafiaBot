@@ -3,7 +3,7 @@ import { firebaseAdmin } from "../firebase";
 import client, { Command, removeReactions, onjoin } from "../discord";
 import Discord, { ActionRow, ActionRowComponent, BaseGuildTextChannel, ButtonInteraction, ButtonStyle, ChannelType, ChatInputCommandInteraction, Collection, Colors, CommandInteraction, ComponentEmojiResolvable, FetchMembersOptions, GuildBasedChannel, GuildMember, PermissionsBitField, TextChannel } from "discord.js";
 import { ActionRowBuilder, ButtonBuilder, EmbedBuilder, SelectMenuBuilder, SelectMenuOptionBuilder, StringSelectMenuBuilder } from "@discordjs/builders";
-import { User, getUser, getUsers } from "./user";
+import { User, getUser, getUsers, getUsersArray } from "./user";
 import { Setup, getSetup } from "./setup";
 import { promise, z } from "zod";
 import { GameSetup, Signups, getGameSetup, refreshSignup } from "./games";
@@ -558,7 +558,6 @@ export async function startGame(interaction: ChatInputCommandInteraction | Comma
     promises.push(deleteCollection(db, db.collection("roles"), 20));
     promises.push(deleteInvites(setup));
     promises.push(finishSignups(game));
-    promises.push(prepareGame(game));
     promises.push(setupPermissions(setup, true));
     promises.push(startExtensions(global, setup, game));
 
@@ -593,13 +592,88 @@ export async function startGame(interaction: ChatInputCommandInteraction | Comma
         await setup.primary.chat.send("Game has locked!");
     }
 
+    await prepareGame(game);
+
     if(interaction.type != 'text') {
-        return await interaction.editReply({ content: "Game is starting!" });
+        await interaction.editReply({ content: "Game is starting!" });
     } else {
         await removeReactions(interaction.message);
 
         await interaction.message.react("✅")
     }
+
+    await startLog(setup, global, game);
+}
+
+export async function startLog(setup: Setup, global: Global, game: Signups) {
+    const users = await getUsersArray(game.signups);
+
+    const embed = new EmbedBuilder()
+        .setTitle('Game Started')
+        .setFields([
+            {
+                name: "Players",
+                value: users.map(user => user.nickname).join("\n"),
+                inline: true,
+            },
+            {
+                name: "Extensions",
+                value: global.extensions.join("\n"),
+                inline: true,
+            },
+            {
+                name: "GM",
+                value: setup.primary.mod.members.map(member => "<@" + member.id + ">").join("\n"),
+                inline: true,
+            },
+        ])
+        .setColor(Colors.Orange);
+
+    const secondaryEmbed = new EmbedBuilder()
+        .setTitle('Secondary Server - dead chat')
+        .setFields([
+            {
+                name: "Members",
+                value: setup.secondary.guild.members.cache.map(member => "<@" + member.id + ">").join("\n"),
+                inline: true,
+            },
+            {
+                name: "Spectator",
+                value: setup.secondary.spec.members.map(member => "<@" + member.id + ">").join("\n"),
+                inline: true,
+            },
+            {
+                name: "GM",
+                value: setup.secondary.mod.members.map(member => "<@" + member.id + ">").join("\n"),
+                inline: true,
+            }
+        ])
+        .setColor(Colors.Orange);
+    
+    const tertiaryEmbed = new EmbedBuilder()
+        .setTitle('Tertiary Server - mafia chat')
+        .setFields([
+            {
+                name: "Members",
+                value: setup.tertiary.guild.members.cache.map(member => "<@" + member.id + ">").join("\n"),
+                inline: true,
+            },
+            {
+                name: "Spectator",
+                value: setup.tertiary.spec.members.map(member => "<@" + member.id + ">").join("\n"),
+                inline: true,
+            },
+            {
+                name: "GM",
+                value: setup.tertiary.mod.members.map(member => "<@" + member.id + ">").join("\n"),
+                inline: true,
+            }
+        ])
+        .setColor(Colors.Orange);
+
+    await setup.secondary.logs.send({ embeds: [ embed ] });
+    await setup.secondary.logs.send({ embeds: [ secondaryEmbed ] });
+    await setup.secondary.logs.send({ embeds: [ tertiaryEmbed ] });
 }
 
 export async function clearGame() {
@@ -737,9 +811,9 @@ export async function endGame(interaction: ChatInputCommandInteraction | Command
 
     //await checkSignups(game.signups, setup);
 
-    const promises = [] as Promise<any>[];
+    await clearGame();
 
-    promises.push(clearGame());
+    const promises = [] as Promise<any>[];
 
     if(pings) {
         promises.push(setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game has ended!"));

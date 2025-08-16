@@ -63,8 +63,7 @@ module.exports = {
             type: 'text',
             name: 'text-info',
             command: {
-                required: [ z.string().regex(/^<@\d+>$/).or(z.string().regex(/^[a-zA-Z]+$/, "Only letters allowed. No spaces.")) ],
-                optional: [ z.literal('extra') ]
+                optional: [ z.string().regex(/^<@\d+>$/).or(z.string().regex(/^[a-zA-Z]+$/, "Only letters allowed. No spaces.")), z.literal('extra') ]
             }
         }
     ] satisfies Data[],
