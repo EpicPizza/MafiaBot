@@ -9,6 +9,7 @@ import { getEnabledExtensions } from "../../utils/extensions";
 import { Global } from "../../utils/main";
 import { addMafiaPlayer } from "../mod/alignments";
 import { firebaseAdmin } from "../../firebase";
+import { setAlignments } from "../mod/start";
 
 export const AlignmentCommand = {
     name: "alignment",
@@ -95,6 +96,37 @@ export const AlignmentCommand = {
         }
     }
 }
+
+export const InitialCommand = {
+    name: "initial",
+    description: "?mod initial",
+    command: {
+        slash: new SlashCommandSubcommandBuilder()
+            .setName("initial")
+            .setDescription("Clear a day's votes."),
+        text: {
+            
+        } satisfies TextCommandArguments
+    },
+    execute: async (interaction: Command | ChatInputCommandInteraction) => {
+        if(interaction.type != 'text') {
+            await interaction.deferReply();
+        } else {
+            await interaction.message.react("<a:loading:1256150236112621578>");
+        }
+       
+        await setAlignments();
+
+        if(interaction.type != 'text') {
+            await interaction.editReply({ content: "Message sent."});
+        } else {
+            await removeReactions(interaction.message);
+
+            await interaction.message.react("✅");
+        }
+    }
+}
+
 
 async function hammerExtensions(global: Global, setup: Setup, game: Signups, hammered: string) {
     const extensions = await getEnabledExtensions(global);

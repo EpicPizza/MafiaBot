@@ -396,7 +396,7 @@ function getSelected(interaction: ButtonInteraction | Message) {
     return selected;
 }
 
-async function setAlignments() {
+export async function setAlignments() {
     const embed = new EmbedBuilder()
         .setTitle("Set Alignments")
         .setColor(Colors.Orange)
