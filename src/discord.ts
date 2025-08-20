@@ -64,7 +64,7 @@ const cache: Cache = {
     started: false,
     channel: null,
     extensions: [],
-} satisfies Cache
+} satisfies Cache;
 
 export type Data = ({
     type: 'text',

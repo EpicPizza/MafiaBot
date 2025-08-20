@@ -1,4 +1,4 @@
-import { AttachmentBuilder, ChatInputCommandInteraction, FileBuilder, SlashCommandBuilder } from "discord.js";
+import { ApplicationCommandType, AttachmentBuilder, ChatInputCommandInteraction, ContextMenuCommandBuilder, ContextMenuCommandInteraction, FileBuilder, SlashCommandBuilder } from "discord.js";
 import { Data, removeReactions } from "../discord";
 import { getGlobal } from "../utils/main";
 import { getUser, User } from "../utils/user";
@@ -12,6 +12,8 @@ import { finished } from "stream/promises";
 import fs from 'fs';
 import { spawn } from "child_process";
 import { mkdir, readdir, rm, rmdir, stat } from "fs/promises";
+import { checkMessage } from "../doc";
+import { getSetup } from "../utils/setup";
 
 const googleDocIdRegex = /docs\.google\.com\/(?:document|spreadsheets|presentation)\/d\/([a-zA-Z0-9-_]+)/;
 
@@ -19,15 +21,36 @@ module.exports = {
     data: [
         {
             type: 'text',
-            name: 'text-slides',
-            command: {
-                required: [ z.string() ],
-            }
+            name: 'text-recheck',
+            command: {}
         },
+        {
+            type: 'context',
+            name: 'context-Recheck',
+            command: new ContextMenuCommandBuilder()
+                .setName('Recheck')
+                .setType(ApplicationCommandType.Message)
+        }
     ] satisfies Data[],
 
-    execute: async (interaction: Command) => {
-        const client = getClient();
+    execute: async (interaction: Command | ContextMenuCommandInteraction) => {
+        const global = await getGlobal();
+        const setup = await getSetup();
+
+        if(interaction.type != 'text' && !interaction.isMessageContextMenuCommand()) throw new Error("Unable to fetch meassage.");
+        const id = interaction.type == 'text' ? interaction.message.reference?.messageId : interaction.targetMessage.id;
+        if(id == undefined) throw new Error("Unable to fetch meassage.");
+
+        const message = await setup.primary.chat.messages.fetch({ message: id, cache: true});
+
+        await checkMessage(message, {
+            day: global.day,
+            channel: setup.primary.chat,
+            started: global.started,
+            extensions: global.extensions,
+        });
+
+        /*const client = getClient();
         const service = google.drive({ version: 'v3', auth: client });
         
         const link = interaction.arguments[0] as string;
@@ -119,6 +142,6 @@ module.exports = {
         await rm(`${name}.pdf`);
 
         await removeReactions(interaction.message);
-        await interaction.reply(folder.data.webViewLink);
+        await interaction.reply(folder.data.webViewLink);*/
     }
 }
