@@ -50,11 +50,6 @@ module.exports = {
             type: 'reaction',
             name: 'reaction-note',
             command: '📝'
-        },
-        {
-            type: 'reaction',
-            name: 'reaction-note-alias',
-            command: '👁️'
         }
     ] satisfies Data[],
 
