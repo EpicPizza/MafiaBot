@@ -32,13 +32,13 @@ module.exports = {
         {
             name: "avalanche",
             arguments: {
-                optional: [ z.string().min(1).max(100), z.string().min(1).max(100), z.string().min(1).max(100), z.string().min(1).max(100) ]
+                optional: [ z.string().min(1).max(100), z.string().min(1).max(100), z.string().min(1).max(100), z.string().min(1).max(100), "*" ]
             }
         },
         {
             name: "control",
             arguments: {
-                optional: [ z.string().min(1).max(100) ],
+                optional: [ z.string().min(1).max(100), "*" ],
             }
         }
     ] satisfies CommandOptions[],
