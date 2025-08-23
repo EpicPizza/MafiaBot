@@ -7,7 +7,6 @@ import { firebaseAdmin } from "../firebase";
 import { randomInt } from "crypto";
 import { z } from "zod";
 import { getClient } from "../google";
-import { google } from 'googleapis';
 import { finished } from "stream/promises";
 import fs from 'fs';
 import { spawn } from "child_process";

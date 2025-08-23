@@ -7,6 +7,7 @@ import { Extension, ExtensionInteraction, getEnabledExtensions } from "../utils/
 import { getUsersArray, User } from "../utils/user";
 import { firebaseAdmin } from "../firebase";
 import { getSetup } from "../utils/setup";
+import { randomInt } from "crypto";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -21,13 +22,23 @@ module.exports = {
         {
             name: "avalanche",
             to: "avalanche",
+        },
+        {
+            name: "control",
+            to: "control",
         }
     ],
     commands: [
         {
             name: "avalanche",
             arguments: {
-                required: [ z.string().min(1).max(100), z.string().min(1).max(100), z.string().min(1).max(100), z.string().min(1).max(100) ]
+                optional: [ z.string().min(1).max(100), z.string().min(1).max(100), z.string().min(1).max(100), z.string().min(1).max(100) ]
+            }
+        },
+        {
+            name: "control",
+            arguments: {
+                optional: [ z.string().min(1).max(100) ],
             }
         }
     ] satisfies CommandOptions[],
@@ -48,6 +59,15 @@ module.exports = {
         await ref.doc('avalanche').set({
             id: null,
             used: false,
+        });
+
+        await ref.doc('control').set({
+            id: null,
+            control: null,
+        });
+
+        await ref.doc('bites').set({
+            ids: [],
         });
 
         return;
@@ -91,11 +111,59 @@ module.exports = {
 
         const db = firebaseAdmin.getFirestore();
         
-        if(command.name == "avalanche") {
+        if(command.name == "control") {
+            if(global.locked || !global.started) return;
+
+            const ref = db.collection('animal').doc('control');
+            const data = (await ref.get()).data();
+            const settings = data == undefined ? undefined : data as { id: null | string, control: null | string };
+
+            if(!('parent' in command.message.channel) || command.message.channel.parentId != setup.secondary.dms.id) return;
+            if(settings == undefined) throw new Error("Setup incomplete!");
+            if(settings.id == null || settings.control == null) return;
+            if(settings.id != command.user.id) return;
+
+            await command.message.react("<a:loading:1256150236112621578>");
+
+            const users = await getUsersArray(game.signups);
+
+            const author = command.message.author;
+            const voter = users.find(user => user.id == author.id);
+            const voting = command.arguments.length > 0 ? users.find(user => user.nickname.toLowerCase() == (command.arguments[0] as string).toLowerCase()) : undefined;
+
+            const extensions = await getEnabledExtensions(global);
+            const extension = extensions.find(extension => extension.priority.includes("onVote"));
+
+            const type = command.arguments.length > 0 ? "vote" : "unvote";
+
+            if(type == 'vote' && voting == undefined) throw new Error("Player not found");
+            if(voter == undefined) throw new Error("You're not in this game?");
+
+            const result = await db.runTransaction(async t => {
+                let result: undefined | TransactionResult = undefined;
+
+                if(extension) result = await extension.onVote(global, setup, game, voter, voting, type, users, t) ?? undefined;
+
+                if(result == undefined) result = await defaultVote(global, setup, game, voter, voting, type, users, t);
+
+                return result;
+            }) satisfies TransactionResult;
+
+            await removeReactions(command.message);
+            await command.message.react(result.reply.emoji);
+
+            const message = await setup.primary.chat.send({ content: result.reply.typed });
+            if(result.setMessage) await result.setMessage(message.id);
+
+            await handleHammer(result.hammer, global, setup, game);
+        } else if(command.name == "avalanche") {
+            if(global.locked || !global.started) return;
+
             const ref = db.collection('animal').doc('avalanche');
             const data = (await ref.get()).data();
             const settings = data == undefined ? undefined : data as { id: null | string, used: boolean };
 
+            if(!('parent' in command.message.channel) || command.message.channel.parentId != setup.secondary.dms.id) return;
             if(settings == undefined || settings.id == null) throw new Error("Setup incomplete!");
             if(settings.id != command.user.id) return;
 
@@ -108,10 +176,21 @@ module.exports = {
             
             const users = await getUsersArray(game.signups);
 
-            const voting = users.find(user => user.nickname.toLowerCase() == (command.arguments[0] as string).toLowerCase());
-            const voterOne = users.find(user => user.nickname.toLowerCase() == (command.arguments[1] as string).toLowerCase());
-            const voterTwo = users.find(user => user.nickname.toLowerCase() == (command.arguments[2] as string).toLowerCase());
-            const voterThree = users.find(user => user.nickname.toLowerCase() == (command.arguments[3] as string).toLowerCase());
+            let voting = undefined as undefined | User;
+            let voterOne = undefined as undefined | User;
+            let voterTwo = undefined as undefined | User;
+            let voterThree = undefined as undefined | User;
+
+            try {
+                voting = users.find(user => user.nickname.toLowerCase() == (command.arguments[0] as string).toLowerCase());
+                voterOne = users.find(user => user.nickname.toLowerCase() == (command.arguments[1] as string).toLowerCase());
+                voterTwo = users.find(user => user.nickname.toLowerCase() == (command.arguments[2] as string).toLowerCase());
+                voterThree = users.find(user => user.nickname.toLowerCase() == (command.arguments[3] as string).toLowerCase());
+            } catch(e) {
+                console.log(e);
+
+                throw new Error("Invalid arguments!");
+            }
 
             if(voting == undefined) throw new Error("Who to vote player not found!");
             if(voterOne == undefined) throw new Error("Voter 1 player not found!");
@@ -221,6 +300,38 @@ module.exports = {
          * This runs within a database transaction, reading with the transaction blocks other writes, only read with transaction as necessary. Use users or fallback to normal reads.
          */
 
+        const db = firebaseAdmin.getFirestore();
+
+        const controlRef = db.collection('animal').doc('control');
+        const controlData = (await controlRef.get()).data();
+        const controlSettings = controlData == undefined ? undefined : controlData as { id: null | string, control: null | string };
+
+        if(controlSettings != undefined && controlSettings.control == voter.id) return {
+            reply: {
+                typed: "You cannot vote!",
+                emoji: process.env.FALSE ?? "⛔",
+            },
+            hammer: undefined,
+            setMessage: async (id: string) => {},
+        } satisfies TransactionResult;
+
+        const biteRef = db.collection('animal').doc('bites');
+        const biteData = (await biteRef.get()).data();
+        const biteSettings = biteData == undefined ? undefined : biteData as { ids: string[] };
+
+        if(biteSettings != undefined && biteSettings.ids.includes(voter.id)) {
+            const random = getRandom(1, 2);
+
+            if(random > 1.5) return {
+                reply: {
+                    typed: "You cannot vote!",
+                    emoji: process.env.FALSE ?? "⛔",
+                },
+                hammer: undefined,
+                setMessage: async (id: string) => {},
+            } satisfies TransactionResult;
+        }
+
         const { reply, vote, votes } = await flow.placeVote(transaction, voter, voting, type, users, global.day); // doesn't save vote yet since board needs to be created
         
         if(vote == undefined) return { reply };
@@ -282,4 +393,10 @@ async function determineHammer(vote: Vote, votes: Vote[], users: User[], global:
             id: null
         }
     }
+}
+
+function getRandom(min: number | undefined, max: number | undefined) {
+    if(max == undefined || min == undefined) throw new Error("Range must be set!");
+
+    return randomInt(min, max + 1);
 }
