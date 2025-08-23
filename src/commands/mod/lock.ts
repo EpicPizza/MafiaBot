@@ -235,7 +235,7 @@ async function handleLocking(interaction: ChatInputCommandInteraction, type: boo
         .setDescription("Options are in PT." + (timing ? "\n\nThis will overwrite current " + (timing.type ? "lock" : "unlock") + " at <t:" + Math.round(timing.when.valueOf() / 1000) + ":T>, <t:" + Math.round(timing.when.valueOf() / 1000) + ":d> if scheduling (selecting now will not)." : " "))
         .setFooter({ text: "Set the minute before setting the hour." });
 
-    let date = DateTime.now().setZone('US/Pacific').startOf("hour");
+    let date = DateTime.now().setZone('US/Pacific').startOf("hour").minus({ hours: 1 });
 
     //dnt.format(date, "h:mm A, M/DD/YY")
 
