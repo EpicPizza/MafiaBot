@@ -1,4 +1,4 @@
-import { firebaseAdmin } from "../firebase";
+import { firebaseAdmin } from "./firebase";
 import { getGameByID, getGlobal, lockGame, unlockGame } from "./main";
 import { DateTime } from 'luxon';
 import { getSetup } from "./setup";

@@ -6,7 +6,7 @@ import { z } from "zod";
 import { Extension, ExtensionInteraction } from "../utils/extensions";
 import { getSetup, Setup } from "../utils/setup";
 import { getGameSetup, Signups } from "../utils/games";
-import { firebaseAdmin } from "../firebase";
+import { firebaseAdmin } from "../utils/firebase";
 import { checkMod } from "../utils/mod";
 import { getUser, getUserByChannel, getUserByName } from "../utils/user";
 import { getFuture } from "../utils/timing";

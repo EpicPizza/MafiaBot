@@ -3,15 +3,15 @@ import { Data, removeReactions } from "../discord";
 import { getGlobal } from "../utils/main";
 import { getUser, User } from "../utils/user";
 import { Command } from "../discord";
-import { firebaseAdmin } from "../firebase";
+import { firebaseAdmin } from "../utils/firebase";
 import { randomInt } from "crypto";
 import { z } from "zod";
-import { getClient } from "../google";
+import { getClient } from "../utils/google";
 import { finished } from "stream/promises";
 import fs from 'fs';
 import { spawn } from "child_process";
 import { mkdir, readdir, rm, rmdir, stat } from "fs/promises";
-import { checkMessage } from "../doc";
+import { checkMessage } from "../utils/doc";
 import { getSetup } from "../utils/setup";
 
 const googleDocIdRegex = /docs\.google\.com\/(?:document|spreadsheets|presentation)\/d\/([a-zA-Z0-9-_]+)/;

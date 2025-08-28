@@ -1,5 +1,5 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, ChatInputCommandInteraction, Colors, EmbedBuilder, TextChannel } from "discord.js";
-import { firebaseAdmin } from "../firebase";
+import { firebaseAdmin } from "./firebase";
 import { getSetup } from "./setup";
 import { getGameByName, getGameID, getGlobal, getPlayerObjects } from "./main";
 import { z } from "zod";

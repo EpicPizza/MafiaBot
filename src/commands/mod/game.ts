@@ -4,7 +4,7 @@ import { archiveGame, createGame, getGameSetup } from "../../utils/games";
 import { z } from "zod";
 import { getGameByName } from "../../utils/main";
 import { getUserByName, getUsersArray } from "../../utils/user";
-import { firebaseAdmin } from "../../firebase";
+import { firebaseAdmin } from "../../utils/firebase";
 import { getSetup } from "../../utils/setup";
 
 export const CreateCommand = {

@@ -2,7 +2,7 @@ import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "disc
 import { Command, TextCommandArguments } from "../../discord";
 import { z } from "zod";
 import { endGame, startGame } from "../../utils/main";
-import { firebaseAdmin } from "../../firebase";
+import { firebaseAdmin } from "../../utils/firebase";
 
 export const HammerCommand = {
     name: "hammer",

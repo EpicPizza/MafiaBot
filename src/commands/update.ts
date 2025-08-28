@@ -3,7 +3,7 @@ import { Data, removeReactions } from "../discord";
 import { getGlobal } from "../utils/main";
 import { getUser, User } from "../utils/user";
 import { Command } from "../discord";
-import { firebaseAdmin } from "../firebase";
+import { firebaseAdmin } from "../utils/firebase";
 import { randomInt } from "crypto";
 import { checkMod } from "../utils/mod";
 import { getSetup } from "../utils/setup";

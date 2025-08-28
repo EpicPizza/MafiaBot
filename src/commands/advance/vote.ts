@@ -7,7 +7,7 @@ import { getGameSetup, Signups } from "../../utils/games";
 import { getUser, getUserByName, getUsersArray, User } from "../../utils/user";
 import { getEnabledExtensions } from "../../utils/extensions";
 import { Global } from "../../utils/main";
-import { firebaseAdmin } from "../../firebase";
+import { firebaseAdmin } from "../../utils/firebase";
 import { FieldValue } from "firebase-admin/firestore";
 import { defaultVote, flow, getVotes, handleHammer, TransactionResult } from "../../utils/vote";
 

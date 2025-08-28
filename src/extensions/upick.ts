@@ -6,7 +6,7 @@ import { z } from "zod";
 import { Extension, ExtensionInteraction } from "../utils/extensions";
 import { checkMod } from "../utils/mod";
 import { getSetup, Setup } from "../utils/setup";
-import { firebaseAdmin } from "../firebase";
+import { firebaseAdmin } from "../utils/firebase";
 import { closeSignups, GameSetup, getGameSetup, Signups } from "../utils/games";
 import { getUserByName } from "../utils/user";
 import { FieldValue } from "firebase-admin/firestore";

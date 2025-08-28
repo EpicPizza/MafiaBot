@@ -4,7 +4,7 @@ import { getGameByName, getGlobal } from "../utils/main";
 import { getUser, getUsers, getUsersArray } from "../utils/user";
 import { z } from "zod";
 import { Command } from "../discord";
-import { firebaseAdmin } from "../firebase";
+import { firebaseAdmin } from "../utils/firebase";
 import { getSetup } from "../utils/setup";
 import { getStats } from "../utils/stats";
 

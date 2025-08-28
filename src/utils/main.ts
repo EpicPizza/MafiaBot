@@ -1,5 +1,5 @@
 import { Transaction, FieldValue, Firestore, CollectionReference, Query, DocumentReference, DocumentSnapshot } from "firebase-admin/firestore";
-import { firebaseAdmin } from "../firebase";
+import { firebaseAdmin } from "./firebase";
 import client, { Command, removeReactions, onjoin } from "../discord";
 import Discord, { ActionRow, ActionRowComponent, BaseGuildTextChannel, ButtonInteraction, ButtonStyle, ChannelType, ChatInputCommandInteraction, Collection, Colors, CommandInteraction, ComponentEmojiResolvable, FetchMembersOptions, GuildBasedChannel, GuildMember, PermissionsBitField, TextChannel } from "discord.js";
 import { ActionRowBuilder, ButtonBuilder, EmbedBuilder, SelectMenuBuilder, SelectMenuOptionBuilder, StringSelectMenuBuilder } from "@discordjs/builders";
@@ -8,7 +8,7 @@ import { Setup, getSetup } from "./setup";
 import { promise, z } from "zod";
 import { GameSetup, Signups, getGameSetup, refreshSignup } from "./games";
 import { getEnabledExtensions } from "./extensions";
-import { clearFiles } from "../doc";
+import { clearFiles } from "./doc";
 
 const pings = true;
 

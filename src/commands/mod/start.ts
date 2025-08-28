@@ -5,7 +5,7 @@ import { getGameByID, getGameByName, getGlobal, startGame } from "../../utils/ma
 import { getUsers, getUsersArray } from "../../utils/user";
 import { getGameSetup } from "../../utils/games";
 import { getSetup } from "../../utils/setup";
-import { firebaseAdmin } from "../../firebase";
+import { firebaseAdmin } from "../../utils/firebase";
 
 export const StartCommand = {
     name: "start",

@@ -8,7 +8,7 @@ import { getUser, User } from "../../utils/user";
 import { getEnabledExtensions } from "../../utils/extensions";
 import { Global } from "../../utils/main";
 import { addMafiaPlayer } from "../mod/alignments";
-import { firebaseAdmin } from "../../firebase";
+import { firebaseAdmin } from "../../utils/firebase";
 import { setAlignments } from "../mod/start";
 
 export const AlignmentCommand = {

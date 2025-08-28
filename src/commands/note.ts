@@ -1,6 +1,6 @@
 import { ActionRow, ActionRowBuilder, ApplicationCommandType, ButtonBuilder, ButtonStyle, ChannelType, Colors, CommandInteraction, ContextMenuCommandBuilder, ContextMenuCommandInteraction, Embed, EmbedBuilder, InteractionType, SlashCommandBuilder, SlashCommandStringOption, TextChannel, WebhookClient } from "discord.js";
 import { Data, ReactionCommand } from "../discord";
-import { firebaseAdmin } from "../firebase";
+import { firebaseAdmin } from "../utils/firebase";
 import dnt from 'date-and-time';
 import meridiem from 'date-and-time/plugin/meridiem'
 import { DateTime } from "luxon";
@@ -8,7 +8,7 @@ import { Command } from "../discord";
 import { getSetup } from "../utils/setup";
 import { getGameByID, getGlobal } from "../utils/main";
 import { getUser } from "../utils/user";
-import { archiveMessage } from "../archive";
+import { archiveMessage } from "../utils/archive";
 import { z } from "zod";
 import { getGameSetup } from "../utils/games";
 

@@ -1,6 +1,6 @@
 import { Message } from "discord.js";
 import { FieldValue } from "firebase-admin/firestore";
-import { firebaseAdmin } from "../firebase";
+import { firebaseAdmin } from "./firebase";
 import { Cache } from "../discord";
 
 export async function trackMessage(message: Message, cache: Cache) {

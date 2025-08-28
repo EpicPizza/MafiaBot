@@ -1,7 +1,7 @@
 import { APIActionRowComponent, APIButtonComponent, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandSubcommandBuilder, TextChannel } from "discord.js";
 import { z } from "zod";
 import { getGameByID, getGlobal } from "../../utils/main";
-import { firebaseAdmin } from "../../firebase";
+import { firebaseAdmin } from "../../utils/firebase";
 import { getGameSetup } from "../../utils/games";
 import { Setup, getSetup } from "../../utils/setup";
 import { getUser, getUsers } from "../../utils/user";

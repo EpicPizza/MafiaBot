@@ -1,12 +1,12 @@
 import { ActionRow, ActionRowBuilder, ApplicationCommandType, ButtonBuilder, ButtonStyle, Colors, CommandInteraction, ContextMenuCommandBuilder, ContextMenuCommandInteraction, Embed, EmbedBuilder, SlashCommandBuilder } from "discord.js";
 import { Data } from "../discord";
-import { firebaseAdmin } from "../firebase";
+import { firebaseAdmin } from "../utils/firebase";
 import dnt from 'date-and-time';
 import meridiem from 'date-and-time/plugin/meridiem'
 import { DateTime } from "luxon";
 import { Command } from "../discord";
 import { getSetup } from "../utils/setup";
-import { snipeMessage } from "../doc";
+import { snipeMessage } from "../utils/doc";
 
 dnt.plugin(meridiem);
 

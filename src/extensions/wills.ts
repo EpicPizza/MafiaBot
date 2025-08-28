@@ -5,7 +5,7 @@ import { deleteCollection, getGameByID, getGlobal } from "../utils/main";
 import { z } from "zod";
 import { Setup, getSetup } from "../utils/setup";
 import { getUser, getUserByChannel } from "../utils/user";
-import { firebaseAdmin } from "../firebase";
+import { firebaseAdmin } from "../utils/firebase";
 import { Global } from "../utils/main";
 import { checkMod } from "../utils/mod";
 import { Extension, ExtensionInteraction } from "../utils/extensions";

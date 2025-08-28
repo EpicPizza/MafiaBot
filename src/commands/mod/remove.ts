@@ -2,7 +2,7 @@ import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "disc
 import { Command, TextCommandArguments, removeReactions } from "../../discord";
 import { z } from "zod";
 import { getGameByID, getGameByName, getGlobal, setMafiaSpectator } from "../../utils/main";
-import { firebaseAdmin } from "../../firebase";
+import { firebaseAdmin } from "../../utils/firebase";
 import { Setup, getSetup } from "../../utils/setup";
 import { User, getUser, getUserByName } from "../../utils/user";
 import { Signups, getGameSetup } from "../../utils/games";

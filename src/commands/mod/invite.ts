@@ -2,7 +2,7 @@ import { ChannelType, ChatInputCommandInteraction, SlashCommandSubcommandBuilder
 import client, { Command, TextCommandArguments, onjoin, removeReactions } from "../../discord";
 import { z } from "zod";
 import { endGame, getGameByName, getGlobal, startGame } from "../../utils/main";
-import { firebaseAdmin } from "../../firebase";
+import { firebaseAdmin } from "../../utils/firebase";
 import { getSetup } from "../../utils/setup";
 import { removeSignup, refreshSignup } from "../../utils/games";
 import { getUser } from "../../utils/user";

@@ -3,7 +3,7 @@ import { Command, TextCommandArguments } from "../../discord";
 import { z } from "zod";
 import { endGame, getGlobal, startGame } from "../../utils/main";
 import { extensions } from "../../utils/extensions";
-import { firebaseAdmin } from "../../firebase";
+import { firebaseAdmin } from "../../utils/firebase";
 import { FieldValue } from "firebase-admin/firestore";
 
 export const ExtensionCommand = {

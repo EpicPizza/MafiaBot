@@ -3,7 +3,7 @@ import { Vote } from "../utils/vote";
 import client, { Command, CommandOptions } from "../discord";
 import { deleteCollection, getGameByID, getGlobal } from "../utils/main";
 import { set, z } from "zod";
-import { firebaseAdmin } from "../firebase";
+import { firebaseAdmin } from "../utils/firebase";
 import { Setup, getSetup } from "../utils/setup";
 import { getGameSetup, Signups } from "../utils/games";
 import { Global } from "../utils/main";

@@ -1,4 +1,4 @@
-import { firebaseAdmin } from "../firebase";
+import { firebaseAdmin } from "./firebase";
 
 export interface User {
     id: string,

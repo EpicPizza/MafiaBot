@@ -1,4 +1,4 @@
-import { firebaseAdmin } from "../firebase";
+import { firebaseAdmin } from "./firebase";
 import { ApplicationEmoji, REST, Routes, SlashCommandBuilder, SlashCommandSubcommandsOnlyBuilder } from 'discord.js';
 import fs from 'node:fs';
 import dotenv from 'dotenv';

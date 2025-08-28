@@ -1,6 +1,6 @@
 import { ActionRowBuilder, ApplicationCommandType, ApplicationEmoji, AutocompleteInteraction, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, ContextMenuCommandBuilder, ContextMenuCommandInteraction, EmbedBuilder, GuildEmoji, PermissionsBitField, SlashCommandBuilder, SlashCommandSubcommandBuilder, time } from "discord.js";
 import client, { Data, removeReactions } from "../discord";
-import { firebaseAdmin } from "../firebase";
+import { firebaseAdmin } from "../utils/firebase";
 import { set, z } from "zod";
 import { getGlobal, getGameByName, lockGame, getGameByID, getAllNicknames } from "../utils/main";
 import { User, getUser, getUsers, getUsersArray } from "../utils/user";

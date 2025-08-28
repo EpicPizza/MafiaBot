@@ -7,7 +7,7 @@ import { Log, Vote, getVotes } from "../utils/vote";
 import { z } from "zod";
 import { Command } from "../discord";
 import { getEnabledExtensions } from "../utils/extensions";
-import { firebaseAdmin } from "../firebase";
+import { firebaseAdmin } from "../utils/firebase";
 import { Transaction } from "firebase-admin/firestore";
 import { getBoard, retrieveVotes } from "../utils/fakevotes";
 

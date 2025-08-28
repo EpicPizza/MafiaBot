@@ -5,7 +5,7 @@ import { getGameByID, getGlobal, Global } from "../utils/main";
 import { set, z } from "zod";
 import { Extension, ExtensionInteraction, getEnabledExtensions } from "../utils/extensions";
 import { getUsersArray, User } from "../utils/user";
-import { firebaseAdmin } from "../firebase";
+import { firebaseAdmin } from "../utils/firebase";
 import { getSetup } from "../utils/setup";
 import { randomInt } from "crypto";
 

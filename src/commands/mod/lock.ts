@@ -5,7 +5,7 @@ import { DateTime } from "luxon";
 import { getFuture, getGrace, setFuture, setGrace } from "../../utils/timing";
 import { getSetup } from "../../utils/setup";
 import { z } from "zod";
-import { firebaseAdmin } from "../../firebase";
+import { firebaseAdmin } from "../../utils/firebase";
 
 export const LockingSelect = {
     type: "select",

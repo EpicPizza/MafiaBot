@@ -3,7 +3,7 @@ import { CustomLog, flow, getVotes, handleHammer, TransactionResult, Vote } from
 import { Command, CommandOptions } from "../discord";
 import { deleteCollection, getGameByID, getGlobal } from "../utils/main";
 import { z } from "zod";
-import { firebaseAdmin } from "../firebase";
+import { firebaseAdmin } from "../utils/firebase";
 import { Setup, getSetup } from "../utils/setup";
 import { Signups, getGameSetup } from "../utils/games";
 import { Global } from "../utils/main"

@@ -5,9 +5,9 @@ import { ActionRow, ActionRowBuilder, ActivityType, AuditLogEvent, ButtonBuilder
 import fs from 'node:fs';
 import path, { parse } from 'node:path';
 import { ZodAny, ZodAnyDef, ZodBoolean, ZodNull, ZodNumber, ZodString, ZodLiteral, ZodSchema, z, type ZodObject } from "zod";
-import { archiveMessage } from "./archive";
+import { archiveMessage } from "./utils/archive";
 import { checkFutureGrace, checkFutureLock } from "./utils/timing";
-import { firebaseAdmin } from "./firebase";
+import { firebaseAdmin } from "./utils/firebase";
 import { Setup, getSetup } from "./utils/setup";
 import { editOverwrites, generateOverwrites, getGlobal } from "./utils/main";
 import { getUser } from "./utils/user";
@@ -18,7 +18,7 @@ import { getEnabledExtensions, getExtensions, setExtensionInteractions } from ".
 import { Global } from "./utils/main";
 import { Signups } from "./utils/games";
 import { playersRoleId } from "./extensions/upick";
-import { checkMessage } from "./doc";
+import { checkMessage } from "./utils/doc";
 
 interface ExtendedClient extends Client {
     commands: Collection<string, Function | {execute: Function, zod: ZodObject<any> }>,

@@ -1,6 +1,6 @@
 import { ActionRow, ActionRowBuilder, ApplicationCommandType, ButtonBuilder, ButtonStyle, Colors, CommandInteraction, ContextMenuCommandBuilder, ContextMenuCommandInteraction, Embed, EmbedBuilder, SlashCommandBuilder, time } from "discord.js";
 import { Data } from "../discord";
-import { firebaseAdmin } from "../firebase";
+import { firebaseAdmin } from "../utils/firebase";
 import { Command } from "../discord";
 import { checkMod } from "../utils/mod";
 import { getSetup } from "../utils/setup";

@@ -1,6 +1,6 @@
 import { ActionRowBuilder, AutocompleteInteraction, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, EmbedBuilder, ModalBuilder, ModalSubmitInteraction, SlashCommandBuilder, SlashCommandSubcommandBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
 import { Command, Data } from "../discord";
-import { firebaseAdmin } from "../firebase";
+import { firebaseAdmin } from "../utils/firebase";
 import { z } from "zod";
 import { User, createUser, editUser, getUser, getUserByName } from "../utils/user";
 import { getAllNicknames, getGameByID, getGlobal } from "../utils/main";

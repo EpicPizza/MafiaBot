@@ -1,6 +1,6 @@
 import { APIActionRowComponent, APIButtonComponent, ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChannelType, ChatInputCommandInteraction, Colors, CommandInteraction, ComponentType, EmbedBuilder, Interaction, ModalBuilder, ModalSubmitInteraction, SlashCommandBuilder, SlashCommandSubcommandBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, TextChannel, TextInputBuilder, TextInputStyle } from "discord.js";
 import client, { Command, Data } from "../discord";
-import { firebaseAdmin } from "../firebase";
+import { firebaseAdmin } from "../utils/firebase";
 import { z } from "zod";
 import { createUser, editUser, getUser } from "../utils/user";
 import { endGame, getGlobal, getGameByID, getGameByName, startGame, unlockGame, lockGame, getAllNicknames } from "../utils/main";
