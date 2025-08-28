@@ -82,7 +82,7 @@ export const RoleCommand = {
         const botRole = setup[server].guild.roles.botRoleFor(client.user?.id ?? "---");
         if(botRole == null) throw new Error("Cannot adjust roles on this server!");
 
-        if(role.position > botRole.position) throw new Error("Cannot add roles higher than bot role!");
+        if(role.position > botRole.position) throw new Error("Cannot add/remove roles higher than bot role!");
 
         if(remove) {
             await member.roles.remove(role);
