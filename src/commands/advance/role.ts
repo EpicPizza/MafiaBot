@@ -79,6 +79,11 @@ export const RoleCommand = {
 
         const remove = interaction.type == 'text' ? interaction.arguments.length > 4 : interaction.options.getBoolean('remove') ?? false;
 
+        const botRole = setup[server].guild.roles.botRoleFor(client.user?.id ?? "---");
+        if(botRole == null) throw new Error("Cannot adjust roles on this server!");
+
+        if(role.position > botRole.position) throw new Error("Cannot add roles higher than bot role!");
+
         if(remove) {
             await member.roles.remove(role);
         } else {
