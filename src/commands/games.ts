@@ -1,9 +1,9 @@
+import { Command } from "commander";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandBuilder } from "discord.js";
+import { Data } from '../discord';
+import { TextCommand } from '../discord';
 import { firebaseAdmin } from "../utils/firebase";
-import { Data } from "../discord";
 import { getSetup } from "../utils/setup";
-import { getGames } from "../utils/games";
-import { Command } from "../discord";
 
 module.exports = {
     data: [
@@ -17,11 +17,15 @@ module.exports = {
         {
             type: 'text',
             name: 'text-games',
-            command: {}
+            command: () => {
+                return new Command()
+                    .name('games')
+                    .description('see all games')
+            }
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction | Command) => {
+    execute: async (interaction: ChatInputCommandInteraction | TextCommand) => {
         const setup = await getSetup();
 
         if(typeof setup == 'string') throw new Error("Setup Incomplete");

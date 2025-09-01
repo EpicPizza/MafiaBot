@@ -1,5 +1,5 @@
-import { firebaseAdmin } from "./firebase";
-import { getAllUsers } from "./main";
+import { firebaseAdmin } from "../firebase";
+import { getAllUsers } from "./user";
 
 interface FakeVote {
     name: string,

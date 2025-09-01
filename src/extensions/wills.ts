@@ -1,15 +1,14 @@
-import { ChannelType, Message } from "discord.js";
-import { Vote } from "../utils/vote";
-import { Command, CommandOptions } from "../discord";
-import { deleteCollection, getGameByID, getGlobal } from "../utils/main";
-import { z } from "zod";
-import { Setup, getSetup } from "../utils/setup";
-import { getUser, getUserByChannel } from "../utils/user";
-import { firebaseAdmin } from "../utils/firebase";
-import { Global } from "../utils/main";
-import { checkMod } from "../utils/mod";
+import { Command } from "commander";
+import { ChannelType } from "discord.js";
+import { type TextCommand } from '../discord';
+import { simpleJoin } from '../utils/text';
 import { Extension, ExtensionInteraction } from "../utils/extensions";
-import { Signups } from "../utils/games";
+import { firebaseAdmin } from "../utils/firebase";
+import { getGlobal } from '../utils/global';
+import { deleteCollection } from "../utils/mafia/main";
+import { getUser, getUserByChannel } from "../utils/mafia/user";
+import { checkMod } from "../utils/mod";
+import { getSetup } from "../utils/setup";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -32,22 +31,23 @@ module.exports = {
     priority: [ ], //events that need a return can only have one extensions modifying it, this prevents multiple extensions from modifying the same event
     help: help,
     commands: [
-        {
-            name: "set",
-            arguments: {
-                required: [ z.string().min(1).max(100) ],
-                optional: Array(299).fill(z.string().min(1).max(100)) //maximum stupidity
-            }
+        () => {
+            return new Command()
+                .name('set')
+                .description('300 word limit will, must be set by the player before they are hammered')
+                .argument('<will...>', 'will', simpleJoin);
         },
-        {
-            name: "lock",
-            arguments: {},
+        () => {
+            return new Command()
+                .name('lock')
+                .description('mod command for deleting will and disallowing player to set will')
         },
-        {
-            name: "unlock",
-            arguments: {},
+        () => {
+            return new Command()
+                .name('unlock')
+                .description('mod command for allowing player to set will again if they were locked')
         }
-    ] satisfies CommandOptions[],
+    ],
     interactions: [],
     onStart: async (global, setup, game) => {
         /**
@@ -66,7 +66,7 @@ module.exports = {
     },
     onLock: async (global, setup, game) => {},
     onUnlock: async (global, setup, game, incremented) => {},
-    onCommand: async (command: Command) => {
+    onCommand: async (command: TextCommand) => {
         /**
          * Text commands only for the forseeable future.
          * 
@@ -81,7 +81,9 @@ module.exports = {
 
             if(user == undefined || !global.players.find(player => player.id == user.id)) throw new Error("You must be part of game.");
 
-            const will = command.arguments.join(" "); //maximum stupidity
+            const will = command.program.processedArgs[0] //~~maximum stupidity~~ not anymore!
+
+            console.log(will);
 
             const db = firebaseAdmin.getFirestore();
 

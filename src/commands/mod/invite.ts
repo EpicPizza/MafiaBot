@@ -1,43 +1,53 @@
+import { Command } from "commander";
 import { ChannelType, ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
-import client, { Command, TextCommandArguments, onjoin, removeReactions } from "../../discord";
 import { z } from "zod";
-import { endGame, getGameByName, getGlobal, startGame } from "../../utils/main";
+import { type TextCommand } from '../../discord';
+import { fromZod } from '../../utils/text';
+import client from "../../discord/client";
+import { removeReactions } from "../../discord/helpers";
 import { firebaseAdmin } from "../../utils/firebase";
+import { getGlobal } from '../../utils/global';
+import { getGameByName, refreshSignup, removeSignup } from "../../utils/mafia/games";
+import { onjoin } from "../../utils/mafia/invite";
+import { getUser } from "../../utils/mafia/user";
 import { getSetup } from "../../utils/setup";
-import { removeSignup, refreshSignup } from "../../utils/games";
-import { getUser } from "../../utils/user";
+import { Subcommand } from "../../utils/subcommands";
 
 export const SpectatorCommand = {
     name: "spectator",
-    description: "?mod spectator {@member}",
-    command: {
-        slash: new SlashCommandSubcommandBuilder()
-            .setName('spectator')
-            .setDescription('Invite a spectator.')
-            .addUserOption(option =>
-                option  
-                    .setName('member')
-                    .setDescription('Member to add spectator.')
-                    .setRequired(true)
-            )
-            .addBooleanOption(option => 
-                option 
-                    .setName('remove')
-                    .setDescription('If wanted, to remove spectator.')
-                    .setRequired(false)
-            )
-            .addBooleanOption(option => 
-                option 
-                    .setName('invite')
-                    .setDescription('Set true to send invite back to you instead of dm.')
-                    .setRequired(false)
-            ),
-        text: {
-            required: [ z.string().regex(/^<@\d+>$/) ],
-            optional: [ z.union([z.literal('false'), z.literal('true')]), z.union([z.literal('false'), z.literal('true')]) ]
-        } satisfies TextCommandArguments
+    subcommand: true,
+
+    slash: new SlashCommandSubcommandBuilder()
+        .setName('spectator')
+        .setDescription('Invite a spectator.')
+        .addUserOption(option =>
+            option  
+                .setName('member')
+                .setDescription('Member to add spectator.')
+                .setRequired(true)
+        )
+        .addBooleanOption(option => 
+            option 
+                .setName('remove')
+                .setDescription('If wanted, to remove spectator.')
+                .setRequired(false)
+        )
+        .addBooleanOption(option => 
+            option 
+                .setName('invite')
+                .setDescription('Set true to send invite back to you instead of dm.')
+                .setRequired(false)
+        ),  
+    text: () => {
+        return new Command()
+            .name('spectator')
+            .description('invite a spectator')
+            .argument('[@member]', '@ to invite', fromZod(z.string().regex(/^<@\d+>$/, "Not a valid @!")))
+            .option('-r, --remove', 'to remove exisiting spectator')
+            .option('-i, --invite', 'to send invite back to you instead of dm');
     },
-    execute: async (interaction: Command | ChatInputCommandInteraction) => {
+
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
         if(interaction.type != 'text') {
             await interaction.deferReply({ ephemeral: true });
         } else {
@@ -48,19 +58,17 @@ export const SpectatorCommand = {
 
         const setup = await getSetup();
 
-        const spectator = interaction.type == 'text' ? (interaction.arguments[1] as string).substring(2, (interaction.arguments[1] as string).length - 1) : interaction.options.getUser('member')?.id;
+        const spectator = interaction.type == 'text' ? (interaction.program.processedArgs[0] as string).substring(2, (interaction.program.processedArgs[0] as string).length - 1) : interaction.options.getUser('member')?.id;
 
         if(spectator == undefined) throw new Error("A member must be specified");
 
-        const remove = interaction.type == 'text' ? interaction.arguments.length > 2 && interaction.arguments[2] === 'true' : interaction.options.getBoolean('remove') === true;
-
-        console.log(interaction.type == 'text' ? interaction.arguments : "");
+        const remove = interaction.type == 'text' ? interaction.program.getOptionValue('remove') === true : interaction.options.getBoolean('remove') === true;
 
         const global = await getGlobal();
 
         if(global.players.filter(player => player.id == spectator).length > 0) throw new Error("Cannot give/remove spectator to a player.");
 
-        const sendDM = interaction.type == 'text' ? interaction.arguments.length > 3 && interaction.arguments[3] === 'false' ? false : true : interaction.options.getBoolean('invite') == null ? true : interaction.options.getBoolean('invite');
+        const sendDM = interaction.type == 'text' ? interaction.program.getOptionValue('invite') != true : (interaction.options.getBoolean('invite') == null ? true : interaction.options.getBoolean('invite'));
 
         const dm = await client.users.cache.get(spectator)?.createDM();
 
@@ -165,39 +173,45 @@ export const SpectatorCommand = {
         }
     
     }
-}
+} satisfies Subcommand;
+
 
 export const KickCommand = {
     name: "kick",
-    description: "?mod kick {nickname} {game}",
-    command: {
-        slash: new SlashCommandSubcommandBuilder()
-            .setName('kick')
-            .setDescription('Remove a signup.')
-            .addStringOption(option =>
-                option  
-                    .setName('player')
-                    .setDescription('Nickname or ID of player to kick.')
-                    .setRequired(true)
-                    .setAutocomplete(true)
-            )
-            .addStringOption(option =>
-                option  
-                    .setName('game')
-                    .setDescription('Name of the game.')
-                    .setRequired(true)
-                    .setAutocomplete(true)
-            ),
-        text: {
-            required: [ z.string().min(1).max(100), z.string().min(1).max(100) ]
-        } satisfies TextCommandArguments
+    subcommand: true,
+
+    slash: new SlashCommandSubcommandBuilder()
+        .setName('kick')
+        .setDescription('Remove a signup.')
+        .addStringOption(option =>
+            option  
+                .setName('player')
+                .setDescription('Nickname or ID of player to kick.')
+                .setRequired(true)
+                .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+            option  
+                .setName('game')
+                .setDescription('Name of the game.')
+                .setRequired(true)
+                .setAutocomplete(true)
+        ),
+    text: () => {
+        return new Command()
+            .name('kick')
+            .description('remove a signup')
+            .argument('<player>', 'nickname of player', fromZod(z.string().min(1).max(100)))
+            .argument('<game>', 'name of game', fromZod(z.string().min(1).max(100)))
     },
-    execute: async (interaction: Command | ChatInputCommandInteraction) => {
-        const name = interaction.type == 'text' ? interaction.arguments[2] as string : interaction.options.getString('game');
+    
+
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+        const name = interaction.type == 'text' ? interaction.program.processedArgs[1] as string : interaction.options.getString('game');
 
         if(name == null) throw new Error("Game needs to be specified.");
 
-        const value = interaction.type == 'text' ? interaction.arguments[1] as string : interaction.options.getString('player');
+        const value = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');
 
         if(value == null || value == "") throw new Error("Player must be specified.");
 
@@ -229,4 +243,4 @@ export const KickCommand = {
 
         return await interaction.reply({ content: ping + " has been kicked from " + game.name + ".", ephemeral: true, allowedMentions: { repliedUser: true } });
     }
-}
+} satisfies Subcommand;

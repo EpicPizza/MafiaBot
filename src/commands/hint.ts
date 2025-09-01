@@ -1,10 +1,11 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
-import { Data } from "../discord";
-import { getGlobal } from "../utils/main";
-import { getUser, User } from "../utils/user";
-import { Command } from "../discord";
-import { firebaseAdmin } from "../utils/firebase";
+import { Command } from "commander";
 import { randomInt } from "crypto";
+import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+import { Data } from '../discord';
+import { TextCommand } from '../discord';
+import { firebaseAdmin } from "../utils/firebase";
+import { getGlobal } from '../utils/global';
+import { getUser, User } from "../utils/mafia/user";
 
 module.exports = {
     data: [
@@ -18,11 +19,15 @@ module.exports = {
         {
             type: 'text',
             name: 'text-hint',
-            command: {}
+            command: () => {
+                return new Command()
+                    .name('hint')
+                    .description('get a hint')
+            }
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction | Command) => {
+    execute: async (interaction: ChatInputCommandInteraction | TextCommand) => {
         const random = getRandom(1, 11);
 
         let user = null as null | User;

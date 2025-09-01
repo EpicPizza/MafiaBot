@@ -1,32 +1,38 @@
+import { Command } from "commander";
 import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
-import { Command, removeReactions, TextCommandArguments } from "../../discord";
 import { z } from "zod";
-import { getGameByID, getGlobal, lockGame } from "../../utils/main";
-import { getSetup, Setup, } from "../../utils/setup";
-import { getGameSetup, Signups } from "../../utils/games";
-import { getUser, User } from "../../utils/user";
+import { type TextCommand } from '../../discord';
+import { fromZod } from '../../utils/text';
+import { removeReactions } from "../../discord/helpers";
 import { getEnabledExtensions } from "../../utils/extensions";
-import { Global } from "../../utils/main";
+import { getGlobal, type Global } from '../../utils/global';
+import { getGameByID, Signups } from "../../utils/mafia/games";
+import { lockGame } from "../../utils/mafia/main";
+import { getUser, User } from "../../utils/mafia/user";
+import { getSetup, Setup, } from "../../utils/setup";
+import { Subcommand } from "../../utils/subcommands";
 
 export const TriggerCommand = {
     name: "trigger",
-    description: "?adv trigger {nickname}",
-    command: {
-        slash: new SlashCommandSubcommandBuilder()
-            .setName("trigger")
-            .setDescription("Trigger a hammer on a player.")
-            .addStringOption(option =>
-                option
-                    .setName("player")
-                    .setDescription("Which player to hammer.")
-                    .setRequired(true)
-                    .setAutocomplete(true)),
-        text: {
-            required: [ z.string() ],
-            optional: []
-        } satisfies TextCommandArguments
+    subcommand: true,
+
+    slash: new SlashCommandSubcommandBuilder()
+        .setName("trigger")
+        .setDescription("Trigger a hammer on a player.")
+        .addStringOption(option =>
+            option
+                .setName("player")
+                .setDescription("Which player to hammer.")
+                .setRequired(true)
+                .setAutocomplete(true)),
+    text: () => {
+        return new Command()
+            .name('trigger')
+            .description('trigger a hammer on a player')
+            .argument('<player>', 'nickname of player', fromZod(z.string().min(1).max(100)));
     },
-    execute: async (interaction: Command | ChatInputCommandInteraction) => {
+
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
         if(interaction.type != 'text') {
             await interaction.deferReply({ ephemeral: true });
         } else {
@@ -40,7 +46,7 @@ export const TriggerCommand = {
 
         const game = await getGameByID(global.game ?? "");
 
-        const player = interaction.type == 'text' ? interaction.arguments[1] as string : interaction.options.getString('player');
+        const player = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');
 
         if(player == null) throw new Error("Choose a player.");
 
@@ -77,7 +83,7 @@ export const TriggerCommand = {
             await interaction.message.react("✅");
         }
     }
-}
+} satisfies Subcommand;
 
 async function hammerExtensions(global: Global, setup: Setup, game: Signups, hammered: string) {
     const extensions = await getEnabledExtensions(global);

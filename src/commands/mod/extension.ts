@@ -1,70 +1,78 @@
-import { ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandSubcommandBuilder, SlashCommandSubcommandGroupBuilder } from "discord.js";
-import { Command, TextCommandArguments } from "../../discord";
-import { z } from "zod";
-import { endGame, getGlobal, startGame } from "../../utils/main";
-import { extensions } from "../../utils/extensions";
-import { firebaseAdmin } from "../../utils/firebase";
+import { Command } from "commander";
+import { ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandSubcommandGroupBuilder } from "discord.js";
 import { FieldValue } from "firebase-admin/firestore";
+import { z } from "zod";
+import { type TextCommand } from '../../discord';
+import { fromZod } from '../../utils/text';
+import { getAllExtensions } from "../../utils/extensions";
+import { firebaseAdmin } from "../../utils/firebase";
+import { getGlobal } from '../../utils/global';
+import { Subcommand } from "../../utils/subcommands";
 
 export const ExtensionCommand = {
     name: "extension",
-    description: "?mod extension {enabled | disable | list} *{name}*",
-    command: {
-        slash: new SlashCommandSubcommandGroupBuilder()
-            .setName("extension")
-            .setDescription("Manage extensions.")
-            .addSubcommand(subcommand =>
-                subcommand 
-                    .setName("enable")
-                    .setDescription("Enable extension.")
-                    .addStringOption(option =>
-                        option
-                            .setName("extension")
-                            .setDescription("Name of extension.")
-                            .setRequired(true)
-                            .setAutocomplete(true)    
-                    )
-            )
-            .addSubcommand(subcommand =>
-                subcommand 
-                    .setName("disable")
-                    .setDescription("Disable extension.")
-                    .addStringOption(option =>
-                        option
-                            .setName("extension")
-                            .setDescription("Name of extension.")
-                            .setRequired(true)
-                            .setAutocomplete(true)    
-                    )
-            )
-            .addSubcommand(subcommand =>
-                subcommand 
-                    .setName("list")
-                    .setDescription("List all enabled and disabled extension.")
-            ),
-        text: {
-            required: [ z.string().min(1).max(100) ],
-            optional: [ z.string().min(1).max(100) ]
-        } satisfies TextCommandArguments
+    subcommand: true,
+
+    slash: new SlashCommandSubcommandGroupBuilder()
+        .setName("extension")
+        .setDescription("Manage extensions.")
+        .addSubcommand(subcommand =>
+            subcommand 
+                .setName("enable")
+                .setDescription("Enable extension.")
+                .addStringOption(option =>
+                    option
+                        .setName("extension")
+                        .setDescription("Name of extension.")
+                        .setRequired(true)
+                        .setAutocomplete(true)    
+                )
+        )
+        .addSubcommand(subcommand =>
+            subcommand 
+                .setName("disable")
+                .setDescription("Disable extension.")
+                .addStringOption(option =>
+                    option
+                        .setName("extension")
+                        .setDescription("Name of extension.")
+                        .setRequired(true)
+                        .setAutocomplete(true)    
+                )
+        )
+        .addSubcommand(subcommand =>
+            subcommand 
+                .setName("list")
+                .setDescription("List all enabled and disabled extension.")
+        ),
+    text: () => {
+        return new Command()
+            .name('extension')
+            .description('manage extensions')
+            .argument('<action>', 'list, enable, disable', fromZod(z.string().min(1).max(100)))
+            .argument('[name]', 'name of extension', fromZod(z.string().min(1).max(100)))
     },
-    execute: async (interaction: Command | ChatInputCommandInteraction) => {
+    
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
         const global = await getGlobal();
 
-        const extension = interaction.type == 'text' ? interaction.arguments[2] as string : interaction.options.getString("extension");
-        const command = interaction.type == 'text' ? interaction.arguments[1] as string : interaction.options.getSubcommand();
+        const extension = interaction.type == 'text' ? interaction.program.processedArgs[1] as string | undefined ?? null : interaction.options.getString("extension");
+        const command = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getSubcommand();
 
         if(command == null) throw new Error("Extension command not specified.");
         if(command != 'list' && extension == null) throw new Error("Extension name not specified.");
 
-        const enabled = extensions.filter(extension => global.extensions.find(enabled => enabled == extension.name));
-        const disabled = extensions.filter(extension => !global.extensions.find(enabled => enabled == extension.name));
+        const enabled = getAllExtensions().filter(extension => global.extensions.find(enabled => enabled == extension.name));
+        const disabled = getAllExtensions().filter(extension => !global.extensions.find(enabled => enabled == extension.name));
 
         if(command == "list" || extension == null) {
+            const list =  getAllExtensions().reduce((previous, current) => previous + "\n\n" + (enabled.find(extension => extension.name == current.name) ? ":white_check_mark: " : "<:cross:1258228069156655259> ") + "**" + current.name + " Extension**\n" + current.description, "");
+
             const embed = new EmbedBuilder()
                 .setTitle("Extensions")
                 .setColor(Colors.Purple)
                 .setDescription(
-                    extensions.reduce((previous, current) => previous + "\n\n" + (enabled.find(extension => extension.name == current.name) ? ":white_check_mark: " : "<:cross:1258228069156655259> ") + "**" + current.name + " Extension**\n" + current.description, "")
+                   list == "" ? "No extensions found." : list
                 )
 
             interaction.reply({ embeds: [embed], ephemeral: true });
@@ -73,7 +81,7 @@ export const ExtensionCommand = {
             
             const enabling = disabled.find(disabledExtension => disabledExtension.name.toLowerCase() == extension.toLowerCase() );
 
-            if(enabling == undefined || enabled.find(enabledExtension => enabledExtension.name.toLowerCase() == extension.toLowerCase() )) throw new Error("Extension already enabled.");
+            if(enabling == undefined || enabled.find(enabledExtension => enabledExtension.name.toLowerCase() == extension.toLowerCase() )) throw new Error("Extension already enabled/not found.");
 
             const voteExtension = enabled.find(extension => extension.priority.includes("onVote"));
             const votesExtension = enabled.find(extension => extension.priority.includes("onVotes"));
@@ -114,4 +122,4 @@ export const ExtensionCommand = {
             }
         }
     }
-}
+} satisfies Subcommand;

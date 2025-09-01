@@ -1,7 +1,10 @@
+import { Command } from "commander";
 import { ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandBuilder } from "discord.js";
-import { Data, Command } from "../discord";
 import { z } from "zod";
-import { getRule, getRules } from "../utils/rules";
+import { Data } from '../discord';
+import { TextCommand } from '../discord';
+import { fromZod } from '../utils/text';
+import { getRule, getRules } from "../utils/mafia/rules";
 
 module.exports = {
     data: [
@@ -29,20 +32,27 @@ module.exports = {
         {
             type: 'text',
             name: 'text-rules',
-            command: {}
+            command: () => {
+                return new Command()
+                    .name('rules')
+                    .description('Show all the rules.')
+            }
         },
         {
             type: 'text',
             name: 'text-rule',
-            command: {
-                required: [ z.coerce.number().min(1).int() ]
+            command: () => {
+                return new Command()
+                    .name('rule')
+                    .description('Show a certain rule.')
+                    .argument('<number>', 'rule number', fromZod(z.coerce.number()));
             }
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction | Command) => {
+    execute: async (interaction: ChatInputCommandInteraction | TextCommand) => {
         const ruleNumber = interaction.type == 'text' ? 
-            (interaction.arguments.length > 0 ? interaction.arguments[0] as number : -1) :
+            (interaction.program.processedArgs.length > 0 ? interaction.program.processedArgs[0] as number : -1) :
             Math.floor(interaction.options.getNumber('number') ?? -1);
 
         if(ruleNumber < 1 && ruleNumber != -1) throw new Error("Invalid rule number!");

@@ -1,7 +1,7 @@
 import { CategoryChannel, ChannelType, Guild, PermissionsBitField, Role, TextChannel } from "discord.js";
-import client from "../discord";
+import { z } from "zod";
+import client from "../discord/client";
 import { firebaseAdmin } from "./firebase";
-import { set, z } from "zod";
 
 const PartialSetup = z.object({
     primary: z.object({

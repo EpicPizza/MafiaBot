@@ -1,28 +1,35 @@
+import { Command } from "commander";
 import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
-import { Command, TextCommandArguments } from "../../discord";
 import { z } from "zod";
-import { endGame, startGame } from "../../utils/main";
+import { type TextCommand } from '../../discord';
+import { fromZod } from '../../utils/text';
 import { firebaseAdmin } from "../../utils/firebase";
+import { Subcommand } from "../../utils/subcommands";
 
 export const HammerCommand = {
     name: "hammer",
-    description: "?mod hammer {on|off}",
-    command: {
-        slash: new SlashCommandSubcommandBuilder()
-            .setName("hammer")
-            .setDescription("Set auto hammer on or off.")
-            .addBooleanOption(option =>
-                option  
-                    .setName('hammer')
-                    .setDescription('To set auto hammer on or off.')
-                    .setRequired(true)
-            ),
-        text: {
-            required: [ z.union([ z.literal('on'), z.literal('off') ]) ]
-        } satisfies TextCommandArguments
+    subcommand: true,
+
+    slash: new SlashCommandSubcommandBuilder()
+        .setName("hammer")
+        .setDescription("Set auto hammer on or off.")
+        .addBooleanOption(option =>
+            option  
+                .setName('hammer')
+                .setDescription('To set auto hammer on or off.')
+                .setRequired(true)
+        ),
+    text: () => {
+        return new Command()
+            .name('hammer')
+            .description('to set auto hammer on or off')
+            .argument('<mode>', 'on or off', fromZod(z.union([ z.literal('on'), z.literal('off') ])));
     },
-    execute: async (interaction: Command | ChatInputCommandInteraction) => {
-        const type = interaction.type == 'text' ? interaction.arguments[1] == 'on' : interaction.options.getBoolean('hammer') ?? false;
+
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+        const type = interaction.type == 'text' ? interaction.program.processedArgs[0] == 'on' : interaction.options.getBoolean('hammer') ?? false;
+
+        console.log(interaction.type == 'text' ? interaction.program.processedArgs : null);
 
         const db = firebaseAdmin.getFirestore();
 
@@ -38,4 +45,4 @@ export const HammerCommand = {
             await interaction.reply("Updated.");
         }
     }
-}
+} satisfies Subcommand;

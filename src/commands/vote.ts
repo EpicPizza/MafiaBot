@@ -1,17 +1,17 @@
-import { ActionRowBuilder, ApplicationCommandType, ApplicationEmoji, AutocompleteInteraction, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, ContextMenuCommandBuilder, ContextMenuCommandInteraction, EmbedBuilder, GuildEmoji, PermissionsBitField, SlashCommandBuilder, SlashCommandSubcommandBuilder, time } from "discord.js";
-import client, { Data, removeReactions } from "../discord";
-import { firebaseAdmin } from "../utils/firebase";
-import { set, z } from "zod";
-import { getGlobal, getGameByName, lockGame, getGameByID, getAllNicknames } from "../utils/main";
-import { User, getUser, getUsers, getUsersArray } from "../utils/user";
-import { Log, Vote, getVotes, flow, TransactionResult, defaultVote, handleHammer } from "../utils/vote";
-import { Setup, getSetup } from "../utils/setup";
-import { Command } from "../discord";
+import { Command } from "commander";
+import { ApplicationCommandType, AutocompleteInteraction, ChatInputCommandInteraction, ContextMenuCommandBuilder, ContextMenuCommandInteraction, PermissionsBitField, SlashCommandBuilder } from "discord.js";
+import { z } from "zod";
+import { Data } from '../discord';
+import { TextCommand } from '../discord';
+import { fromZod } from '../utils/text';
 import { getEnabledExtensions } from "../utils/extensions";
-import { Signups } from "../utils/games";
-import { Global } from "../utils/main";
-import { Transaction } from "firebase-admin/firestore";
-import { capitalize, placeVote, removeVote, retrieveVotes, storeVotes, wipeVotes } from "../utils/fakevotes";
+import { firebaseAdmin } from "../utils/firebase";
+import { getGlobal } from '../utils/global';
+import { capitalize, placeVote, removeVote, retrieveVotes, storeVotes, wipeVotes } from "../utils/mafia/fakevotes";
+import { getGameByID } from "../utils/mafia/games";
+import { getAllNicknames, getUsersArray } from "../utils/mafia/user";
+import { TransactionResult, defaultVote, handleHammer } from "../utils/mafia/vote";
+import { getSetup } from "../utils/setup";
 
 module.exports = {
     data: [
@@ -46,18 +46,25 @@ module.exports = {
         {
             type: 'text',
             name: 'text-vote',
-            command: {
-                optional: [ z.string().min(1).max(100) ]
+            command: () => {
+                return new Command()
+                    .name('vote')
+                    .description('vote for a player')
+                    .argument('[vote]', 'which player to vote for', fromZod(z.string().min(1).max(100)))  
             }
         },
         {
             type: 'text',
             name: 'text-unvote',
-            command: {}
+            command: () => {
+                return new Command()
+                    .name('unvote')
+                    .description('remove your vote');
+            }
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction | ContextMenuCommandInteraction | Command | AutocompleteInteraction) => {
+    execute: async (interaction: ChatInputCommandInteraction | ContextMenuCommandInteraction | TextCommand | AutocompleteInteraction) => {
         const global = await getGlobal();
         
         if(interaction.type != 'text' && interaction.isAutocomplete()) {
@@ -81,8 +88,8 @@ module.exports = {
         }
 
         const player = (() => {
-            if('arguments' in interaction) {
-                return interaction.arguments[0] ?? null;
+            if(interaction.type == 'text') {
+                return interaction.program.processedArgs[0] ?? null;
             } else if (interaction.isChatInputCommand()) {
                 return interaction.options.getString('player');
             } else {
@@ -91,14 +98,14 @@ module.exports = {
         })();
 
         if(global.started == false) {
-            if(!('arguments' in interaction)) throw new Error("Use text command!");
+            if(!(interaction.type == 'text')) throw new Error("Use text command!");
                 
             const votes = await retrieveVotes(interaction.message.channelId);
             
 
             if(interaction.name == 'unvote' || player == null) {
                 removeVote(interaction.user.id, votes);
-            } else if(interaction.arguments[0] == "clear") {
+            } else if(interaction.program.processedArgs[0] == "clear") {
                 if(!interaction.message.guild) throw new Error("not here?");
                 
                 const member = await interaction.message.guild.members.fetch({ user: interaction.user.id, cache: true });
@@ -108,7 +115,7 @@ module.exports = {
                 wipeVotes(votes);
             } else {
                 placeVote({
-                    name: capitalize(interaction.arguments[0] as string),
+                    name: capitalize(interaction.program.processedArgs[0] as string),
                     timestamp: new Date().valueOf(),
                     id: interaction.user.id,
                 }, votes);
@@ -129,7 +136,7 @@ module.exports = {
         const setup = await getSetup();
         const game = await getGameByID(global.game ?? "");
 
-        if('arguments' in interaction) {
+        if(interaction.type == 'text') {
             if(interaction.message.channelId != setup.primary.chat.id) throw new Error("Must vote in main chat.");
         } else {
             if(interaction.channelId != setup.primary.chat.id) throw new Error("Must vote in main chat.");
@@ -137,14 +144,14 @@ module.exports = {
 
         const users = await getUsersArray(game.signups);
 
-        const author = ('arguments' in interaction) ? interaction.message.author : interaction.user;
+        const author = (interaction.type == 'text') ? interaction.message.author : interaction.user;
         const voter = users.find(user => user.id == author.id);
         const voting = users.find(user => (typeof player == 'string' ? user.nickname.toLowerCase() == player.toLowerCase() || user.id == player || (player.startsWith("<@") && player.length > 4 && player.substring(2, player.length - 1) == user.id) : false));
         
         const extensions = await getEnabledExtensions(global);
         const extension = extensions.find(extension => extension.priority.includes("onVote"));
 
-        const type = (!('arguments' in interaction) ? interaction.commandName == "unvote" : (interaction.name == "unvote" || interaction.arguments.length == 0)) ? "unvote" : "vote";
+        const type = (!(interaction.type == 'text') ? interaction.commandName == "unvote" : (interaction.name == "unvote" || interaction.program.args.length == 0)) ? "unvote" : "vote";
     
         if(type == 'vote' && voting == undefined) throw new Error("Player not found!");
         if(voter == undefined) throw new Error("You're not in this game?");

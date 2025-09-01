@@ -1,29 +1,42 @@
-import { ChatInputCommandInteraction, Colors, Embed, EmbedBuilder, SlashCommandBuilder, SlashCommandSubcommandBuilder, SlashCommandSubcommandGroupBuilder } from "discord.js";
-import { Data } from "../discord";
-import { getGlobal } from "../utils/main";
-import { getUser, getUserByName, getUsersArray, User } from "../utils/user";
-import { Command } from "../discord";
-import { firebaseAdmin } from "../utils/firebase";
+import { Command } from "commander";
 import { randomInt } from "crypto";
+import { Colors, EmbedBuilder } from "discord.js";
 import { z } from "zod";
+import { Data } from '../discord';
+import { TextCommand } from '../discord';
+import { simpleJoin } from '../utils/text';
+import { fromZod } from '../utils/text';
+import { getGlobal } from '../utils/global';
+import { getUserByName, getUsersArray, User } from "../utils/mafia/user";
 
 module.exports = {
     data: [
         {
             type: 'text',
             name: 'text-random',
-            command: {
+            /*command: {
                 required: [ z.union([z.literal('pl'), z.literal('number')]), ],
                 optional: [ z.string(), z.union([z.coerce.number(), z.string() ]), "*" ]
+            }*/
+            command: () => {
+                return new Command()
+                    .name('random')
+                    .description('Visit ?help for a useful help description. Since this command does not have real subcommands, this keeps the structure of a pre-revamp text command. Alejandro was too lazy to convert it to a proper subcommand set.')
+                    .argument('<arg1>', 'argument 1', fromZod(z.union([z.literal('pl'), z.literal('number')])))
+                    .argument('[arg2]', 'argument 2')
+                    .argument('[arg3]', 'argument 3', fromZod(z.union([z.coerce.number(), z.string() ])))
+                    .argument('[arg4...]', 'argument 4', simpleJoin)
             }
         }
     ] satisfies Data[],
 
-    execute: async (interaction: Command) => {
-        const arg1 = interaction.arguments[0] as 'pl' | 'number'
-        const arg2 = interaction.arguments[1] as 'list' | 'number' | string;
-        const arg3 = interaction.arguments[2] as number | string;
-        const arg4 = (interaction.arguments.length == 3 ? undefined : interaction.arguments[3]) as undefined | string;
+    execute: async (interaction: TextCommand) => {
+        const arg1 = interaction.program.processedArgs[0] as 'pl' | 'number'
+        const arg2 = interaction.program.processedArgs[1] as 'list' | 'number' | string;
+        const arg3 = interaction.program.processedArgs[2] as number | string;
+        const arg4 = interaction.program.processedArgs[3] as undefined | string;
+
+        console.log(interaction.program.processedArgs);
 
         const subcommand = arg1;
         const min = typeof arg2 == 'string' && arg2.includes("-") && arg2.split("-").length == 2 ? parseFloat(arg2.split("-")[0]) : (typeof arg3 == 'string' && arg3.includes("-") && arg3.split("-").length == 2 ? parseFloat(arg3.split("-")[0]) : undefined);

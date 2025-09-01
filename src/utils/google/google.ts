@@ -1,7 +1,7 @@
-import { randomBytes, createCipheriv, createDecipheriv, createHash } from "node:crypto";
-import { firebaseAdmin } from "./firebase";
+import { randomBytes, createCipheriv, createDecipheriv } from "node:crypto";
+import { firebaseAdmin } from "../firebase";
 import { Credentials, OAuth2Client } from "google-auth-library";
-import { isDisabled } from "../disable";
+import { isDisabled } from "../../disable";
 
 let unsubscribe: undefined | (() => void) = undefined;
 let client: undefined | OAuth2Client = undefined;

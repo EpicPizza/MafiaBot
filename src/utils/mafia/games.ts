@@ -1,12 +1,13 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, ChatInputCommandInteraction, Colors, EmbedBuilder, TextChannel } from "discord.js";
-import { firebaseAdmin } from "./firebase";
-import { getSetup } from "./setup";
-import { getGameByName, getGameID, getGlobal, getPlayerObjects } from "./main";
-import { z } from "zod";
 import { FieldValue } from "firebase-admin/firestore";
-import { User, getUser } from "./user";
-import { register } from "../register";
-import client, { Command } from "../discord";
+import { z } from "zod";
+import type { TextCommand } from '../../discord';
+import client from "../../discord/client";
+import { register } from "../../register";
+import { firebaseAdmin } from "../firebase";
+import { getGlobal } from '../global';
+import { getSetup } from "../setup";
+import { getPlayerObjects, getUser } from "./user";
 
 export interface Signups { 
     name: string, 
@@ -238,7 +239,7 @@ export async function refreshSignup(name: string) {
 }
 
 
-export async function archiveGame(interaction: ChatInputCommandInteraction | Command, name: string) {
+export async function archiveGame(interaction: ChatInputCommandInteraction | TextCommand, name: string) {
     const setup = await getSetup();
     const game = await getGameByName(name);
     const global = await getGlobal();
@@ -264,7 +265,7 @@ export async function archiveGame(interaction: ChatInputCommandInteraction | Com
     await interaction.reply({ ephemeral: true, content: "Game archived." });
 }
 
-export async function createGame(interaction: ChatInputCommandInteraction | Command, name: string) {
+export async function createGame(interaction: ChatInputCommandInteraction | TextCommand, name: string) {
     const setup = await getSetup();
 
     if(typeof setup == 'string') throw new Error("Setup Incomplete");
@@ -277,7 +278,7 @@ export async function createGame(interaction: ChatInputCommandInteraction | Comm
 
     if(exists) throw new Error("Duplicate game names not allowed.");
 
-    const requirements = z.string().min(1, "Minimum 1 character.").max(20, "Max length 20 characters.").regex(/^[a-zA-Z0-9]*$/, "Only letters and numbers allowed, no spaces.");
+    const requirements = z.string().min(1, "Minimum 1 character.").max(20, "Max length 20 characters.").regex(/^[a-zA-Z0-9 ]*$/, "Only letters, numbers, and spaces allowed.");
 
     const check = requirements.safeParse(name);
 
@@ -358,4 +359,39 @@ export async function getGames() {
     };
 
     return games;
+}
+
+export async function getGameByName(name: string) {
+    const db = firebaseAdmin.getFirestore();
+
+    const docs = (await db.collection('settings').doc('game').collection('games').get()).docs;
+    const games = docs.map(doc => doc.data());
+    
+    for(let i = 0; i < games.length; i++) {
+        if(games[i].name.toLowerCase() == name.toLowerCase()) {
+            return { ... games[i], id: docs[i].id } as Signups;
+        }
+    }
+
+    throw new Error("Game not found in database.");
+}
+
+export async function getGameByID(id: string) {
+    const db = firebaseAdmin.getFirestore();
+
+    const ref = db.collection('settings').doc('game').collection('games').doc(id);
+
+    const doc = (await ref.get());
+
+    if(doc.data() == undefined) throw new Error("Game not found in database.");
+
+    return { ... doc.data(), id: doc.id } as Signups;
+}
+
+export async function getGameID(name: string) {
+    const game = await getGameByName(name);
+
+    if(game == null) return null;
+
+    return game.id;
 }

@@ -1,10 +1,11 @@
-import { ActionRow, ActionRowBuilder, ApplicationCommandType, ButtonBuilder, ButtonStyle, Colors, CommandInteraction, ContextMenuCommandBuilder, ContextMenuCommandInteraction, Embed, EmbedBuilder, SlashCommandBuilder, time } from "discord.js";
-import { Data } from "../discord";
+import { Command } from "commander";
+import { ApplicationCommandType, ContextMenuCommandBuilder, ContextMenuCommandInteraction } from "discord.js";
+import { Data } from '../discord';
+import { TextCommand } from '../discord';
 import { firebaseAdmin } from "../utils/firebase";
-import { Command } from "../discord";
+import { getGlobal } from '../utils/global';
 import { checkMod } from "../utils/mod";
 import { getSetup } from "../utils/setup";
-import { getGlobal } from "../utils/main";
 
 module.exports = {
     data: [
@@ -18,11 +19,15 @@ module.exports = {
         {
             type: 'text',
             name: 'text-delete',
-            command: {},
+            command: () => {
+                return new Command()
+                    .name('delete')
+                    .description('reply to message to delete (mod only)')
+            },
         }
     ] satisfies Data[],
 
-    execute: async function(interaction: ContextMenuCommandInteraction | Command) {
+    execute: async function(interaction: ContextMenuCommandInteraction | TextCommand) {
         const setup = await getSetup();
         const global = await getGlobal();
 

@@ -1,12 +1,13 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChannelType, ChatInputCommandInteraction, Collection, Colors, CommandInteraction, EmbedBuilder, PermissionFlagsBits, PermissionOverwriteManager, PermissionOverwriteOptions, PermissionOverwriteResolvable, PermissionOverwrites, PermissionsBitField, SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
-import client, { Data, onjoin } from "../discord";
+import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChannelType, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandBuilder } from "discord.js";
+import { z } from "zod";
+import { Data } from '../discord';
+import client from "../discord/client";
 import { firebaseAdmin } from "../utils/firebase";
-import { set, z } from "zod";
-import { getGlobal } from "../utils/main";
-import { User, getUser, updateUsers } from "../utils/user";
-import { checkSetup, getPartialSetup, getSetup } from "../utils/setup";
-import { refreshSignup } from "../utils/games";
-import { checkMod } from "../utils/mod";
+import { getGlobal } from '../utils/global';
+import { refreshSignup } from "../utils/mafia/games";
+import { onjoin } from "../utils/mafia/invite";
+import { updateUsers } from "../utils/mafia/user";
+import { checkSetup, getSetup } from "../utils/setup";
 
 module.exports = {
     data: [

@@ -1,15 +1,16 @@
-import { ActionRowBuilder, ApplicationEmoji, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandBuilder } from "discord.js";
-import { Data } from "../discord";
-import { getGlobal, getGameByID } from "../utils/main";
-import { getSetup } from "../utils/setup";
-import { getUser, getUsers, User } from "../utils/user";
-import { Log, Vote, getVotes } from "../utils/vote";
+import { Command } from "commander";
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandBuilder } from "discord.js";
 import { z } from "zod";
-import { Command } from "../discord";
+import { Data } from '../discord';
+import { TextCommand } from '../discord';
+import { fromZod } from '../utils/text';
 import { getEnabledExtensions } from "../utils/extensions";
 import { firebaseAdmin } from "../utils/firebase";
-import { Transaction } from "firebase-admin/firestore";
-import { getBoard, retrieveVotes } from "../utils/fakevotes";
+import { getGlobal } from '../utils/global';
+import { getBoard, retrieveVotes } from "../utils/mafia/fakevotes";
+import { getGameByID } from "../utils/mafia/games";
+import { Log } from "../utils/mafia/vote";
+import { getSetup } from "../utils/setup";
 
 module.exports = {
     data: [
@@ -28,8 +29,11 @@ module.exports = {
         {
             type: 'text',
             name: 'text-votes',
-            command: {
-                optional: [ z.coerce.number().min(1).max(100) ]
+            command: () => {
+                return new Command()
+                    .name('votes')
+                    .description('show votes')
+                    .argument("[day]", "which day to show votes form", fromZod(z.coerce.number().min(1).max(100)));
             }
         }
     ] satisfies Data[],
@@ -39,11 +43,11 @@ module.exports = {
     }
 }
 
-async function handleVoteList(interaction: ChatInputCommandInteraction | Command) {
+async function handleVoteList(interaction: ChatInputCommandInteraction | TextCommand) {
     const global = await getGlobal();
     
     if(global.started == false) {
-        if(!('arguments' in interaction)) throw new Error("Use text command!");
+        if(!(interaction.type == 'text')) throw new Error("Use text command!");
 
         const votes = await retrieveVotes(interaction.message.channelId);
 
@@ -64,7 +68,7 @@ async function handleVoteList(interaction: ChatInputCommandInteraction | Command
     if(game == null) throw new Error("Game not found.");
     const setup = await getSetup();
     
-    const day = interaction.type == 'text' ? interaction.arguments[0] as number ?? global.day : Math.round(interaction.options.getNumber("day") ?? global.day);
+    const day = interaction.type == 'text' ? interaction.program.processedArgs[0] as number ?? global.day : Math.round(interaction.options.getNumber("day") ?? global.day);
     if(day > global.day) throw new Error("Not on day " + day + " yet!");
     if(day < 1) throw new Error("Must be at least day 1.");
 

@@ -1,47 +1,21 @@
-import { Transaction, FieldValue, Firestore, CollectionReference, Query, DocumentReference, DocumentSnapshot } from "firebase-admin/firestore";
-import { firebaseAdmin } from "./firebase";
-import client, { Command, removeReactions, onjoin } from "../discord";
-import Discord, { ActionRow, ActionRowComponent, BaseGuildTextChannel, ButtonInteraction, ButtonStyle, ChannelType, ChatInputCommandInteraction, Collection, Colors, CommandInteraction, ComponentEmojiResolvable, FetchMembersOptions, GuildBasedChannel, GuildMember, PermissionsBitField, TextChannel } from "discord.js";
-import { ActionRowBuilder, ButtonBuilder, EmbedBuilder, SelectMenuBuilder, SelectMenuOptionBuilder, StringSelectMenuBuilder } from "@discordjs/builders";
-import { User, getUser, getUsers, getUsersArray } from "./user";
-import { Setup, getSetup } from "./setup";
-import { promise, z } from "zod";
-import { GameSetup, Signups, getGameSetup, refreshSignup } from "./games";
-import { getEnabledExtensions } from "./extensions";
-import { clearFiles } from "./doc";
+import { EmbedBuilder } from "@discordjs/builders";
+import Discord, { ButtonInteraction, ChannelType, ChatInputCommandInteraction, Colors, GuildMember, PermissionsBitField, TextChannel } from "discord.js";
+import { CollectionReference, DocumentSnapshot, Firestore, Query } from "firebase-admin/firestore";
+import client from "../../discord/client";
+import { removeReactions } from "../../discord/helpers";
+import { type TextCommand } from '../../discord';
+import { getEnabledExtensions } from "../extensions";
+import { firebaseAdmin } from "../firebase";
+import { getGlobal, type Global } from '../global';
+import { clearFiles } from "../google/doc";
+import { Setup, getSetup } from "../setup";
+import { GameSetup, Signups, getGameByID, getGameByName, getGameSetup, refreshSignup } from "./games";
+import { onjoin } from "./invite";
+import { User, getPlayerObjects, getUsersArray } from "./user";
 
 const pings = true;
 
-export async function getGlobal(t: Transaction | undefined = undefined) {
-    const db = firebaseAdmin.getFirestore();
-
-    const ref = db.collection('settings').doc('game');
-
-    const doc = t ? await t.get(ref) : await ref.get();
-
-    const data = doc.data();
-
-    if(data) {
-        return data as Global;
-    }
-
-    throw new Error("Could not find game on database.");
-}
-
-export interface Global {
-    started: boolean,
-    locked: boolean,
-    players: Player[]
-    day: number,
-    game: string | null,
-    bulletin: string | null, 
-    extensions: string[],
-    grace: boolean,
-    admin: string[],
-    hammer: boolean,
-}
-
-interface Player {
+export interface Player {
     id: string,
     alignment: 'mafia' | 'neutral' | string | null;
 }
@@ -361,31 +335,6 @@ export async function setupMainPlayer(player: Discord.GuildMember, setup: Setup)
     await player.roles.remove(setup.primary.mod);
 }
 
-export async function getPlayerObjects(id: string, setup: Setup) {
-    const deadPlayer = setup.secondary.guild.members.fetch(id).catch(() => undefined);
-    const userProfile = getUser(id);
-    const player = setup.primary.guild.members.fetch(id).catch(() => undefined);
-    const mafiaPlayer = setup.tertiary.guild.members.fetch(id).catch(() => undefined);
-
-    const results = await Promise.allSettled([ deadPlayer, userProfile, player, mafiaPlayer ]);
-
-    const fails = results.filter(result => result.status == "rejected");
-
-    if(fails.length > 0) {
-        console.log(fails);
-
-        throw new Error("<@" + id + "> not found.");
-    }
-
-    //imma look back at this is say, nonononononononono why was i doing this way or typescript sucked
-    return { 
-        deadPlayer: await deadPlayer, 
-        userProfile: await userProfile as User, 
-        player: await player, 
-        mafiaPlayer: await mafiaPlayer,
-    };
-}
-
 export async function setupMafiaPlayer(mafiaPlayer: GuildMember | undefined, setup: Setup, gameSetup: GameSetup) {
     if(mafiaPlayer?.joinedTimestamp) {
         await mafiaPlayer.roles.remove(setup.tertiary.mod);
@@ -471,42 +420,6 @@ export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup
     }
 }
 
-export async function getAllUsers() {
-    const db = firebaseAdmin.getFirestore();
-
-    const ref = db.collection('users');
-
-    const docs = (await ref.get()).docs;
-    
-    const users = [] as User[];
-
-    for(let j = 0; j < docs.length; j++) {
-        if(docs[j].data().nickname != null) {
-            users.push(docs[j].data() as User);
-        }
-    }
-
-    return users;
-}
-
-export async function getAllNicknames() {
-    const db = firebaseAdmin.getFirestore();
-
-    const ref = db.collection('users');
-
-    const docs = (await ref.get()).docs;
-    
-    const nicknames = [] as string[];
-
-    for(let j = 0; j < docs.length; j++) {
-        if(docs[j].data().nickname != null) {
-            nicknames.push(docs[j].data().nickname);
-        }
-    }
-
-    return nicknames;
-}
-
 export async function startExtensions(global: Global, setup: Setup, game: Signups) {
     const extensions = await getEnabledExtensions(global);
 
@@ -525,7 +438,7 @@ export async function startExtensions(global: Global, setup: Setup, game: Signup
     }
 }
 
-export async function startGame(interaction: ChatInputCommandInteraction | Command | ButtonInteraction, name: string) {
+export async function startGame(interaction: ChatInputCommandInteraction | TextCommand | ButtonInteraction, name: string) {
     if(interaction.type != 'text') {
         await interaction.deferReply({ ephemeral: true });
     } else {
@@ -789,7 +702,7 @@ export async function endExtensions(global: Global, setup: Setup, game: Signups)
     }
 }
 
-export async function endGame(interaction: ChatInputCommandInteraction | Command) {
+export async function endGame(interaction: ChatInputCommandInteraction | TextCommand) {
     if(interaction.type != 'text') {
         await interaction.deferReply({ ephemeral: true });
     } else {
@@ -856,41 +769,6 @@ export async function endGame(interaction: ChatInputCommandInteraction | Command
 
         await interaction.message.react("✅");
     }
-}
-
-export async function getGameID(name: string) {
-    const game = await getGameByName(name);
-
-    if(game == null) return null;
-
-    return game.id;
-}
-
-export async function getGameByName(name: string) {
-    const db = firebaseAdmin.getFirestore();
-
-    const docs = (await db.collection('settings').doc('game').collection('games').get()).docs;
-    const games = docs.map(doc => doc.data());
-    
-    for(let i = 0; i < games.length; i++) {
-        if(games[i].name.toLowerCase() == name.toLowerCase()) {
-            return { ... games[i], id: docs[i].id } as Signups;
-        }
-    }
-
-    throw new Error("Game not found in database.");
-}
-
-export async function getGameByID(id: string) {
-    const db = firebaseAdmin.getFirestore();
-
-    const ref = db.collection('settings').doc('game').collection('games').doc(id);
-
-    const doc = (await ref.get());
-
-    if(doc.data() == undefined) throw new Error("Game not found in database.");
-
-    return { ... doc.data(), id: doc.id } as Signups;
 }
 
 export async function editPlayer(options: { id: string, alignment: 'mafia' | null }) {

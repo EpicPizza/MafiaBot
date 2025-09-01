@@ -1,21 +1,22 @@
+import { Command } from "commander";
 import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
-import { Command, removeReactions, TextCommandArguments } from "../../discord";
-import { z } from "zod";
-import { getGameByID, getGlobal, lockGame, setupPlayer } from "../../utils/main";
-import { getSetup, Setup, } from "../../utils/setup";
-import { getGameSetup, Signups } from "../../utils/games";
-import { getUser, getUserByName, User } from "../../utils/user";
-import { getEnabledExtensions } from "../../utils/extensions";
-import { Global } from "../../utils/main";
-import { firebaseAdmin } from "../../utils/firebase";
 import { FieldValue } from "firebase-admin/firestore";
-
-
+import { z } from "zod";
+import { type TextCommand } from '../../discord';
+import { fromZod } from '../../utils/text';
+import { removeReactions } from "../../discord/helpers";
+import { firebaseAdmin } from "../../utils/firebase";
+import { getGlobal } from '../../utils/global';
+import { getGameByID, getGameSetup } from "../../utils/mafia/games";
+import { setupPlayer } from "../../utils/mafia/main";
+import { getUserByName } from "../../utils/mafia/user";
+import { getSetup } from "../../utils/setup";
+import { Subcommand } from "../../utils/subcommands";
 
 export const AddCommand = {
     name: "add",
-    description: "?adv add {nickname}",
-    command: {
+    subcommand: true,
+
         slash: new SlashCommandSubcommandBuilder()
             .setName("add")
             .setDescription("Add a player midgame.")
@@ -25,12 +26,14 @@ export const AddCommand = {
                     .setDescription("Which player to add.")
                     .setRequired(true)
                     .setAutocomplete(true)),
-        text: {
-            required: [ z.string() ],
-            optional: []
-        } satisfies TextCommandArguments
-    },
-    execute: async (interaction: Command | ChatInputCommandInteraction) => {
+        text: () => {
+            return new Command()
+                .name('add')
+                .description('add a player midgame')
+                .argument('<player>', 'nickname of player', fromZod(z.string().min(1).max(100)));
+        },
+
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
         if(interaction.type != 'text') {
             await interaction.deferReply({ ephemeral: true });
         } else {
@@ -45,7 +48,7 @@ export const AddCommand = {
         const game = await getGameByID(global.game ?? "");
         const gameSetup = await getGameSetup(game, setup);
 
-        const player = interaction.type == 'text' ? interaction.arguments[1] as string : interaction.options.getString('player');
+        const player = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');
 
         if(player == null) throw new Error("Choose a player.");
 
@@ -67,4 +70,4 @@ export const AddCommand = {
             await interaction.message.react("✅");
         }
     }
-}
+} satisfies Subcommand;

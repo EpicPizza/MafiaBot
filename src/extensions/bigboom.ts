@@ -1,14 +1,9 @@
-import { ChannelType, Message } from "discord.js";
-import { Vote } from "../utils/vote";
-import { Command, CommandOptions } from "../discord";
-import { deleteCollection, getGameByID, getGlobal } from "../utils/main";
-import { z } from "zod";
-import { Setup, getSetup } from "../utils/setup";
-import { getUser, getUserByChannel } from "../utils/user";
-import { firebaseAdmin } from "../utils/firebase";
-import { Global } from "../utils/main";
-import { checkMod } from "../utils/mod";
+import { type TextCommand } from '../discord';
 import { Extension, ExtensionInteraction } from "../utils/extensions";
+import { firebaseAdmin } from "../utils/firebase";
+import { type Global } from '../utils/global';
+import { deleteCollection } from "../utils/mafia/main";
+import { Setup } from "../utils/setup";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -41,7 +36,7 @@ module.exports = {
     priority: [ ], //events that need a return can only have one extensions modifying it, this prevents multiple extensions from modifying the same event
     help: help,
     commands: [
-        {
+        /*{
             name: "sponser",
             arguments: {
                 required: [ z.union([ z.literal('on'), z.literal('off') ]) ],
@@ -92,8 +87,8 @@ module.exports = {
             arguments: {
                 required: [ z.union([ z.literal('on'), z.literal('off') ]) ],
             },
-        },
-    ] satisfies CommandOptions[],
+        },*/
+    ],
     interactions: [],
     onStart: async (global, setup, game) => {
         /**
@@ -112,7 +107,7 @@ module.exports = {
     },
     onLock: async (global, setup, game) => {},
     onUnlock: async (global, setup, game, incremented: boolean) => {},
-    onCommand: async (command: Command) => {
+    onCommand: async (command: TextCommand) => {
         /**
          * Text commands only for the forseeable future.
          * 

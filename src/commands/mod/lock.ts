@@ -1,46 +1,59 @@
-import { ActionRowBuilder, APIActionRowComponent, APIButtonComponent, APISelectMenuComponent, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, Component, ComponentType, EmbedBuilder, Interaction, InteractionType, SlashCommandSubcommandBuilder, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
-import { Command, TextCommandArguments } from "../../discord";
-import { getGlobal, lockGame, unlockGame } from "../../utils/main";
+import { Command } from "commander";
+import { ActionRowBuilder, APIActionRowComponent, APIButtonComponent, APISelectMenuComponent, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, ComponentType, EmbedBuilder, Interaction, SlashCommandSubcommandBuilder, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { DateTime } from "luxon";
-import { getFuture, getGrace, setFuture, setGrace } from "../../utils/timing";
-import { getSetup } from "../../utils/setup";
 import { z } from "zod";
+import { type TextCommand } from '../../discord';
+import { fromZod } from '../../utils/text';
 import { firebaseAdmin } from "../../utils/firebase";
+import { getGlobal } from '../../utils/global';
+import { lockGame, unlockGame } from "../../utils/mafia/main";
+import { getFuture, getGrace, setFuture, setGrace } from "../../utils/mafia/timing";
+import { getSetup } from "../../utils/setup";
+import { Subcommand, Subinteraction } from "../../utils/subcommands";
 
 export const LockingSelect = {
     type: "select",
     name: "select-future",
+    subcommand: true,
+
     command: z.object({
         name: z.literal("future"),
         type: z.boolean(),
     }),
+
     execute: handleLockingSelect
-}
+} satisfies Subinteraction;
 
 export const UnlockButton = {
     type: 'button',
     name: 'button-unlock',
+    subcommand: true,
+
     command: z.object({
         name: z.literal("unlock"),
         type: z.boolean(),
         value: z.string(),
         grace: z.boolean(),
     }),
+
     execute: handleUnlockButton
-}
+} satisfies Subinteraction;
 
 export const LockCommand = {
     name: "lock",
-    description: "?mod lock now // use slash command to schedule",
-    command: {
-        slash: new SlashCommandSubcommandBuilder()
-            .setName("lock")
-            .setDescription("Locks the mafia game."),
-        text: {
-            required: [ z.literal('now') ]
-        } satisfies TextCommandArguments
+    subcommand: true,
+    
+    slash: new SlashCommandSubcommandBuilder()
+        .setName("lock")
+        .setDescription("Locks the mafia game."),
+    text: () => {
+        return new Command()
+            .name('lock')
+            .description('locks the mafia game, use slash command to schedule')
+            .argument('<now>', 'now', fromZod(z.literal('now')))
     },
-    execute: async (interaction: Command | ChatInputCommandInteraction) => {
+
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
         const global = await getGlobal();
 
         if(!global.started) throw new Error("Game not started.");
@@ -56,20 +69,24 @@ export const LockCommand = {
 
         await handleLocking(interaction, true);
     }
-}
+} satisfies Subcommand;
 
 export const UnlockCommand = {
     name: "unlock",
-    description: "?mod unlock now {stay|advance} // use slash command to schedule",
-    command: {
-        slash: new SlashCommandSubcommandBuilder()
-            .setName("unlock")
-            .setDescription("Unlocks the mafia game."),
-        text: {
-            required: [ z.literal('now'), z.union([z.literal('stay'), z.literal('advance')]) ]
-        } satisfies TextCommandArguments
+    subcommand: true,
+
+    slash: new SlashCommandSubcommandBuilder()
+        .setName("unlock")
+        .setDescription("Unlocks the mafia game."),
+    text: () => {
+        return new Command()
+            .name('unlock')
+            .description('unlocks the mafia game, use slash command to schedule')
+            .argument('<now>', 'now', fromZod(z.literal('now')))
+            .argument('<type>', 'to advance or stay day (advance, stay)', fromZod(z.union([z.literal('stay'), z.literal('advance')])));
     },
-    execute: async (interaction: Command | ChatInputCommandInteraction) => {
+
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
         const global = await getGlobal();
 
         if(!global.started) throw new Error("Game not started.");
@@ -77,7 +94,7 @@ export const UnlockCommand = {
         if(!global.locked) throw new Error("Game is already unlocked.");
 
         if(interaction.type == 'text') {
-            await unlockGame((interaction.arguments[2] as string) == 'stay' ? false : true);
+            await unlockGame((interaction.program.processedArgs[1] as string) == 'stay' ? false : true);
 
             await interaction.message.react('✅');
 
@@ -86,33 +103,35 @@ export const UnlockCommand = {
 
         await handleLocking(interaction, false);
     }
-}
+} satisfies Subcommand;
 
 export const GraceCommand = {
     name: "grace",
-    description: "?mod grace {on|off} // user slash command to schedule",
-    command: {
-        slash: new SlashCommandSubcommandBuilder()
-            .setName("grace")
-            .setDescription("Sets game on grace.")
-            .addBooleanOption(option =>
-                option
-                    .setName("grace")
-                    .setDescription("Whether or not to set game on grace.")
-                    .setRequired(true)),
-        text: {
-            required: [ z.string() ],
-            optional: []
-        } satisfies TextCommandArguments
+    subcommand: true,
+
+    slash: new SlashCommandSubcommandBuilder()
+        .setName("grace")
+        .setDescription("Sets game on grace.")
+        .addBooleanOption(option =>
+            option
+                .setName("grace")
+                .setDescription("Whether or not to set game on grace.")
+                .setRequired(true)),
+    text: () => {
+        return new Command()
+            .name('grace')
+            .description('sets game on grace, use slash command to schedule')
+            .argument("<type>", "on, off", fromZod(z.union([z.literal('on'), z.literal('off')])));
     },
-    execute: async (interaction: Command | ChatInputCommandInteraction) => {
+
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
         const global = await getGlobal();
 
         if(!global.started) throw new Error("Game not started.");
         
         const db = firebaseAdmin.getFirestore();
 
-        let grace = interaction.type == 'text' ? interaction.arguments[1] == 'on' : interaction.options.getBoolean('grace') ?? false;
+        let grace = interaction.type == 'text' ? interaction.program.processedArgs[0] == 'on' : interaction.options.getBoolean('grace') ?? false;
 
         if(interaction.type == 'text') {
             await db.collection('settings').doc('game').update({
@@ -171,36 +190,45 @@ export const GraceCommand = {
             components: [row, minuteRow]
         })
     }
-}
+} satisfies Subcommand;
 
 export const GraceSelect = {
     type: "select",
     name: "select-grace",
+    subcommand: true,
+
     command: z.object({
         name: z.literal("grace"),
         grace: z.boolean(),
     }),
+
     execute: handleLockingGrace
-}
+} satisfies Subinteraction;
 
 export const GraceButton = {
     type: "button",
     name: "button-set-grace",
+    subcommand: true,
+
     command: z.object({
         name: z.literal("set-grace"),
         grace: z.boolean(),
         value: z.string(),
         type: z.boolean(),
     }),
-    execute: handleGraceButton
-}
 
+    execute: handleGraceButton
+} satisfies Subinteraction;
+ 
 export const Minute = {
     type: "select",
     name: "select-minute",
+    subcommand: true,
+
     command: z.object({
         name: z.literal("minute"),
     }),
+
     execute: async (interaction: StringSelectMenuInteraction) => {
         const value = interaction.values[0];
 
@@ -224,7 +252,7 @@ export const Minute = {
 
         await interaction.update({ components: rowComponents });
     }
-}
+} satisfies Subinteraction;
 
 async function handleLocking(interaction: ChatInputCommandInteraction, type: boolean) {
     const timing = await getFuture();

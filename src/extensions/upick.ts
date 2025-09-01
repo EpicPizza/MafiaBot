@@ -1,15 +1,18 @@
-import { ChannelType, Message, Role } from "discord.js";
-import { Vote } from "../utils/vote";
-import client, { Command, CommandOptions, onjoin, removeReactions } from "../discord";
-import { getGameByName, getGlobal, type Global, getPlayerObjects, setupDeadPlayer, getGameByID, archiveChannels } from "../utils/main";
-import { z } from "zod";
+import { Command } from "commander";
+import { ChannelType, Role } from "discord.js";
+import { FieldValue } from "firebase-admin/firestore";
+import { type TextCommand } from '../discord';
+import client from "../discord/client";
+import { removeReactions } from "../discord/helpers";
 import { Extension, ExtensionInteraction } from "../utils/extensions";
+import { firebaseAdmin } from "../utils/firebase";
+import { getGlobal } from '../utils/global';
+import { closeSignups, GameSetup, getGameByID, getGameByName, getGameSetup } from "../utils/mafia/games";
+import { onjoin } from "../utils/mafia/invite";
+import { archiveChannels, setupDeadPlayer } from "../utils/mafia/main";
+import { getPlayerObjects, getUserByName } from "../utils/mafia/user";
 import { checkMod } from "../utils/mod";
 import { getSetup, Setup } from "../utils/setup";
-import { firebaseAdmin } from "../utils/firebase";
-import { closeSignups, GameSetup, getGameSetup, Signups } from "../utils/games";
-import { getUserByName } from "../utils/user";
-import { FieldValue } from "firebase-admin/firestore";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -36,31 +39,34 @@ module.exports = {
     priority: [], //events that need a return can only have one extensions modifying it, this prevents multiple extensions from modifying the same event
     help: help,
     commands: [
-        {
-            name: "start",
-            arguments: {
-                required: [ z.string() ]
-            }
+        () => {
+            return new Command()
+                .name('start')
+                .description('setup all player dms')
+                .argument('<game>', 'name of game');
         },
-        {
-            name: "revert",
-            arguments: {}
+        () => {
+            return new Command()
+                .name('revert')
+                .description('close all player dms and give back spectator roles as normal');
         },
-        {
-            name: "add",
-            arguments: {
-                required: [ z.string() ]
-            }
+        () => {
+            return new Command()
+                .name('add')
+                .description('add a plyer after pregame has started')
+                .argument('<player>', 'nickname');
         },
-        {
-            name: "setup",
-            arguments: {},
+        () => {
+            return new Command()
+                .name('setup')
+                .description('alejandro uses this to debug/fix')
         },
-        {
-            name: "respec",
-            arguments: {},
-        }
-    ] satisfies CommandOptions[],
+        () => {
+            return new Command()
+                .name('respect')
+                .description('alejandro uses this to debug/fix')
+        },
+    ],
     interactions: [],
     onStart: async (global, setup, game) => {
         /**
@@ -111,7 +117,7 @@ module.exports = {
     },
     onLock: async (global, setup, game) => {},
     onUnlock: async (global, setup, game, incremented) => {},
-    onCommand: async (command: Command) => {
+    onCommand: async (command: TextCommand) => {
         /**
          * Text commands only for the forseeable future.
          * 
@@ -148,7 +154,7 @@ module.exports = {
             const playersRole = await setup.secondary.guild.roles.fetch(playersRoleId);
             if(playersRole == null) throw new Error("Players role not found!");
         } else if(command.name == "start") {
-            const game = await getGameByName(command.arguments[0] as string);
+            const game = await getGameByName(command.program.processedArgs[0] as string);
             if(game == undefined) throw new Error("Game not found.");
             const gameSetup = await getGameSetup(game, setup);
 
@@ -221,7 +227,7 @@ module.exports = {
 
             await archiveChannels(setup);
         } else if(command.name == "add") {
-            const user = await getUserByName(command.arguments[0] as string);
+            const user = await getUserByName(command.program.processedArgs[0] as string);
             if(user == undefined) throw new Error("Player not found!");
 
             const ref = db.collection('upick').doc('settings');

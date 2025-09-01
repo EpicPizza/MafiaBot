@@ -1,32 +1,39 @@
-import { ActionRowBuilder, APIActionRowComponent, APIButtonComponent, APISelectMenuComponent, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, ComponentType, EmbedBuilder, Message, ModalBuilder, ModalSubmitInteraction, SelectMenuBuilder, SelectMenuOptionBuilder, SlashCommandSubcommandBuilder, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
-import { Command, TextCommandArguments } from "../../discord";
+import { Command } from "commander";
+import { ActionRowBuilder, APIActionRowComponent, APIButtonComponent, APISelectMenuComponent, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, ComponentType, EmbedBuilder, Message, ModalBuilder, ModalSubmitInteraction, SelectMenuBuilder, SlashCommandSubcommandBuilder, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
 import { z } from "zod";
-import { getGameByID, getGameByName, getGlobal, startGame } from "../../utils/main";
-import { getUsers, getUsersArray } from "../../utils/user";
-import { getGameSetup } from "../../utils/games";
-import { getSetup } from "../../utils/setup";
+import { type TextCommand } from '../../discord';
+import { fromZod } from '../../utils/text';
 import { firebaseAdmin } from "../../utils/firebase";
+import { getGlobal } from '../../utils/global';
+import { getGameByID, getGameByName, getGameSetup } from "../../utils/mafia/games";
+import { startGame } from "../../utils/mafia/main";
+import { getUsers, getUsersArray } from "../../utils/mafia/user";
+import { getSetup } from "../../utils/setup";
+import { Subinteraction } from "../../utils/subcommands";
 
 export const StartCommand = {
     name: "start",
-    description: "?mod start {name}",
-    command: {
-        slash: new SlashCommandSubcommandBuilder()
-            .setName("start")
-            .setDescription("Starts the mafia game.")
-            .addStringOption(option =>
-                option  
-                    .setName('game')
-                    .setDescription('Name of the game.')
-                    .setRequired(true)
-                    .setAutocomplete(true)
-            ),
-        text: {
-            required: [ z.string().min(1).max(100) ]
-        } satisfies TextCommandArguments
+    subcommand: true,
+
+    slash: new SlashCommandSubcommandBuilder()
+        .setName("start")
+        .setDescription("Starts the mafia game.")
+        .addStringOption(option =>
+            option  
+                .setName('game')
+                .setDescription('Name of the game.')
+                .setRequired(true)
+                .setAutocomplete(true)
+        ),
+    text: () => {
+        return new Command()
+            .name('start')
+            .description('starts the mafia game')
+            .argument('<game>', 'name of game', fromZod(z.string().min(1).max(100)));
     },
-    execute: async (interaction: Command | ChatInputCommandInteraction) => {
-        const name = interaction.type == 'text' ? interaction.arguments[1] as string : interaction.options.getString('game');
+
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+        const name = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
 
         if(name == null) throw new Error("Game needs to be specified.");
 
@@ -78,11 +85,14 @@ export const StartCommand = {
 export const StartButton = {
     type: 'button',
     name: 'button-start',
+    subcommand: true,
+
     command: z.object({
         name: z.literal("start"),
         for: z.string().min(1).max(100),
         game: z.string().min(1).max(100)
     }),
+
     execute: async (interaction: ButtonInteraction) => {
         const id = JSON.parse(interaction.customId);
 
@@ -92,15 +102,18 @@ export const StartButton = {
 
         await setAlignments();
     }
-}
+} satisfies Subinteraction;
 
 export const CancelButton = {
     type: 'button',
     name: 'button-cancel-start',
+    subcommand: true,
+
     command: z.object({
         name: z.literal("cancel-start"),
         for: z.string().min(1).max(100),
     }),
+
     execute: async (interaction: ButtonInteraction) => {
         const id = JSON.parse(interaction.customId);
 
@@ -108,14 +121,17 @@ export const CancelButton = {
 
         await interaction.message.delete();
     }
-}
+} satisfies Subinteraction;
 
 export const DefaultAlignment = {
     type: 'button',
     name: 'button-set-default',
+    subcommand: true,
+
     command: z.object({
         name: z.literal('set-default')
     }),
+
     execute: async (interaction: ButtonInteraction) => {
         const id = JSON.parse(interaction.customId);
 
@@ -145,14 +161,17 @@ export const DefaultAlignment = {
 
         await interaction.update({ components: rows });
     }
-}
-
+} satisfies Subinteraction;
+ 
 export const MafiaAlignment = {
     type: 'button',
     name: 'button-set-mafia',
+    subcommand: true,
+
     command: z.object({
         name: z.literal('set-mafia')
     }),
+
     execute: async (interaction: ButtonInteraction) => {
         const id = JSON.parse(interaction.customId);
 
@@ -182,14 +201,17 @@ export const MafiaAlignment = {
 
         await interaction.update({ components: rows });
     }
-}
+} satisfies Subinteraction;
 
 export const NeutralAlignment = {
     type: 'button',
     name: 'button-set-neutral',
+    subcommand: true,
+
     command: z.object({
         name: z.literal('set-neutral')
     }),
+
     execute: async (interaction: ButtonInteraction) => {
         const id = JSON.parse(interaction.customId);
 
@@ -219,14 +241,17 @@ export const NeutralAlignment = {
 
         await interaction.update({ components: rows });
     }
-}
-
+} satisfies Subinteraction;
+ 
 export const CustomAlignment = {
     type: 'button',
     name: 'button-set-custom',
+    subcommand: true,
+
     command: z.object({
         name: z.literal('set-custom')
     }),
+
     execute: async (interaction: ButtonInteraction) => {
         const id = JSON.parse(interaction.customId);
 
@@ -249,15 +274,18 @@ export const CustomAlignment = {
 
         await interaction.showModal(modal);
     }
-}
+} satisfies Subinteraction;
 
 export const CustomModal = {
     type: 'modal', 
     name: 'modal-custom-alignment',
+    subcommand: true,
+
     command: z.object({
         name: z.literal("custom-alignment"),
         message: z.string(),
     }),
+
     execute: async (interaction: ModalSubmitInteraction) =>{
         const id = JSON.parse(interaction.customId);
 
@@ -301,15 +329,18 @@ export const CustomModal = {
 
         await interaction.reply({ content: "Alignment set.", ephemeral: true });
     }
-}
+} satisfies Subinteraction;
 
 export const AlignmentSelect = {
     type: 'select',
     name: 'select-alignment-player',
+    subcommand: true,
+
     command: z.object({
         name: z.literal("alignment-player"),
         page: z.number(),
     }),
+
     execute: async (interaction: StringSelectMenuInteraction) => {
         const values = interaction.values;
        
@@ -335,10 +366,10 @@ export const AlignmentSelect = {
 
         await interaction.update({ components: rowComponents });
     }
-}
+} satisfies Subinteraction;
 
 function changeSelected(interaction: ButtonInteraction | Message, selected: string[], alignment: string) {
-     const rowComponents = ('message' in interaction ? interaction.message.toJSON() as any : interaction.toJSON() as any).components as APIActionRowComponent<APIButtonComponent | APISelectMenuComponent>[];
+    const rowComponents = ('message' in interaction ? interaction.message.toJSON() as any : interaction.toJSON() as any).components as APIActionRowComponent<APIButtonComponent | APISelectMenuComponent>[];
 
     for(let i = 0; i < rowComponents.length; i++) {
         for(let j = 0; j < rowComponents[i].components.length; j++) {

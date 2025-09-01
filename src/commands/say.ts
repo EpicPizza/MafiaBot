@@ -1,10 +1,12 @@
+import { Command } from "commander";
 import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
-import client, { Data } from "../discord";
-import { getGlobal } from "../utils/main";
-import { getUser, User } from "../utils/user";
-import { Command } from "../discord";
-import { firebaseAdmin } from "../utils/firebase";
 import { z } from "zod";
+import { Data } from '../discord';
+import { TextCommand } from '../discord';
+import { simpleJoin } from '../utils/text';
+import { fromZod } from '../utils/text';
+import client from "../discord/client";
+import { getGlobal } from '../utils/global';
 import { checkMod } from "../utils/mod";
 import { getSetup } from "../utils/setup";
 
@@ -13,9 +15,17 @@ module.exports = {
         {
             type: 'text',
             name: 'text-say',
-            command: {
+            /*command: {
                 required: [ z.string(), z.string() ],
                 optional: [ "*" ]
+            }*/
+            command: () => {
+                return new Command()
+                    .name('say')
+                    .description('have the bot say something in a channel')
+                    .requiredOption('-g, --guild <snowflake>', 'the guild id', fromZod(z.string()))
+                    .requiredOption('-c, --channel <snowflake>', 'the channel id', fromZod(z.string()))
+                    .argument('<message...>', 'the message to send', simpleJoin)
             }
         },
         {
@@ -23,7 +33,7 @@ module.exports = {
             name: 'slash-say',
             command: new SlashCommandBuilder()
                 .setName('say')
-                .setDescription('Has the bot say something in a channel.')
+                .setDescription('Have the bot say something in a channel.')
                 .addStringOption(option =>
                     option.setName('guild')
                         .setDescription('The guild id to send the message in.')
@@ -42,7 +52,7 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: Command | ChatInputCommandInteraction) => {
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
         const setup = await getSetup();
         const global = await getGlobal();
 
@@ -50,13 +60,14 @@ module.exports = {
         let channelId: string;
         let message: string;
 
-        if ('arguments' in interaction) {
-            // Text command
+        if (interaction.type == 'text') {
             await checkMod(setup, global, interaction.user.id, interaction.message?.guild?.id ?? "");
-            if (interaction.arguments.length < 3) throw new Error("No message to send?");
-            guildId = interaction.arguments[0] as string;
-            channelId = interaction.arguments[1] as string;
-            message = interaction.arguments[2] as string;
+
+            if (interaction.program.processedArgs.length < 1) throw new Error("No message to send?");
+
+            guildId = interaction.program.getOptionValue('guild') as string;
+            channelId = interaction.program.getOptionValue('channel') as string;
+            message = interaction.program.processedArgs[0] as string;
         } else {
             // Slash command
             await checkMod(setup, global, interaction.user.id, interaction.guildId ?? "");
@@ -77,7 +88,7 @@ module.exports = {
 
         await channel.send(message);
 
-        if ('arguments' in interaction) {
+        if (interaction.type == 'text') {
             await interaction.message.react("✅");
         } else {
             await interaction.reply({ content: "Message sent.", ephemeral: true });

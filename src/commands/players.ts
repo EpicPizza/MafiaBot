@@ -1,12 +1,15 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, Colors, EmbedBuilder, AutocompleteInteraction, ButtonBuilder, ButtonStyle, ActionRowBuilder, ButtonInteraction } from "discord.js";
-import { Data } from "../discord";
-import { getGameByName, getGlobal } from "../utils/main";
-import { getUser, getUsers, getUsersArray } from "../utils/user";
+import { Command } from "commander";
+import { ActionRowBuilder, AutocompleteInteraction, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandBuilder } from "discord.js";
 import { z } from "zod";
-import { Command } from "../discord";
+import { Data } from '../discord';
+import { TextCommand } from '../discord';
+import { fromZod } from '../utils/text';
 import { firebaseAdmin } from "../utils/firebase";
+import { getGlobal } from '../utils/global';
+import { getGameByName } from "../utils/mafia/games";
+import { getStats } from "../utils/mafia/stats";
+import { getUsersArray } from "../utils/mafia/user";
 import { getSetup } from "../utils/setup";
-import { getStats } from "../utils/stats";
 
 const Format = z.union([ z.literal('complete'), z.literal('gxe'), z.literal('wr'), z.literal('alphabetical') ]);
 
@@ -56,31 +59,37 @@ module.exports = {
         {
             type: 'text',
             name: 'text-players',
-            command: {
-                optional: [
-                    z.union([z.string().min(1).max(100), z.number()]).or(Format),
-                    Format
-                ]
+            command: () => {
+                return new Command()
+                    .name('players')
+                    .description('show players')
+                    .argument('[day]', 'which day to show from (during running game)', fromZod(z.coerce.number().min(1).max(100)))
+                    .option('-g, --game <name>', 'which game to show signups from', fromZod(z.string().min(1).max(100)))
+                    .option('-f, --format <type>', 'types: complete, gxe, wr, alphabetical', fromZod(Format))
             }
         },
         {
             type: 'text',
             name: 'text-signups',
-            command: {
-                optional: [
-                    z.string().min(1).max(100).or(Format),
-                    Format
-                ]
+            command: () => {
+                return new Command()
+                    .name('signups')
+                    .description('show players')
+                    .argument('[day]', 'which day to show from (during running game)', fromZod(z.coerce.number().min(1).max(100)))
+                    .option('-g, --game <name>', 'which game to show signups from', fromZod(z.string().min(1).max(100)))
+                    .option('-f, --format <type>', 'types: complete, gxe, wr, alphabetical', fromZod(Format))
             }
         },
         {
             type: 'text',
             name: 'text-pl',
-            command: {
-                optional: [
-                    z.union([z.coerce.number().min(1).max(100), z.string().min(1).max(100)]).or(Format),
-                    Format
-                ]
+            command: () => {
+                return new Command()
+                    .name('pl')
+                    .description('show players')
+                    .argument('[day]', 'which day to show from (during running game)', fromZod(z.coerce.number().min(1).max(100)))
+                    .option('-g, --game <name>', 'which game to show signups from', fromZod(z.string().min(1).max(100)))
+                    .option('-f, --format <type>', 'types: complete, gxe, wr, alphabetical', fromZod(Format))
             }
         },
         {
@@ -94,7 +103,7 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction | AutocompleteInteraction | Command) => {
+    execute: async (interaction: ChatInputCommandInteraction | AutocompleteInteraction | TextCommand) => {
         if(interaction.type != 'text' && interaction.isAutocomplete()) {
             const focusedValue = interaction.options.getFocused();
 
@@ -113,11 +122,11 @@ module.exports = {
     }
 }
 
-async function handlePlayerList(interaction: ChatInputCommandInteraction | Command | ButtonInteraction) {
+async function handlePlayerList(interaction: ChatInputCommandInteraction | TextCommand | ButtonInteraction) {
     const global = await getGlobal();
 
     const format = 'customId' in interaction ? JSON.parse(interaction.customId).format as ReturnType<typeof checkType> 
-        : interaction.type == 'text' ? checkType(interaction.arguments[1]) ?? checkType(interaction.arguments[0]) 
+        : interaction.type == 'text' ? checkType(interaction.program.getOptionValue('format'))
         : checkType(interaction.options.getString('format'));
 
     console.log("FORMAT", format);
@@ -125,9 +134,9 @@ async function handlePlayerList(interaction: ChatInputCommandInteraction | Comma
     let users = [] as { nickname: string, id: string }[];
 
     let reference = 'customId' in interaction ? JSON.parse(interaction.customId).game as string 
-        : interaction.type == 'text' ? checkType(interaction.arguments[0]) ? null : interaction.arguments[0] as string | number | null ?? null : interaction.options.getString("game");
+        : interaction.type == 'text' ? interaction.program.getOptionValue('game') as string | undefined ?? null : interaction.options.getString("game");
     
-    const day = 'customId' in interaction ? null : interaction.type == 'text' ? (typeof reference == "number" ? reference : null) : interaction.options.getInteger("day");
+    const day = 'customId' in interaction ? null : interaction.type == 'text' ? (interaction.program.args.length > 0 ? interaction.program.processedArgs[0] as number : null) : interaction.options.getInteger("day");
 
     const games = await getGames();
 

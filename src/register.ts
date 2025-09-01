@@ -1,4 +1,4 @@
-import { REST, Routes, SlashCommandBuilder, SlashCommandSubcommandsOnlyBuilder } from 'discord.js';
+import { REST, Routes } from 'discord.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { Data } from './discord';
@@ -12,9 +12,14 @@ export async function register(exit: boolean = false) {
     // Grab the SlashCommandBuilder#toJSON() output of each command's data for deployment
     for (const file of commandFiles) {
         const filePath = path.join(commandsPath, file);
+
+
+        console.log(file);
+
         const command = require(filePath);
 
         const data: Data[] = command.data;
+        
 
         if ('data' in command && 'execute' in command ) {
             for(const command of data) {
@@ -27,7 +32,7 @@ export async function register(exit: boolean = false) {
                 }
             };
         } else {
-            console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+            console.log(`[WARNING] The comand at ${filePath} is missing a required "data" or "execute" property.`);
         }
     }
 

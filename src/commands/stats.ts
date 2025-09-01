@@ -1,11 +1,14 @@
+import { Command } from "commander";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandBuilder } from "discord.js";
-import { Data } from "../discord";
-import { getAllUsers, getGameByID, getGlobal } from "../utils/main";
-import { firebaseAdmin } from "../utils/firebase";
-import { getSetup } from "../utils/setup";
-import { getUser, getUsers, User } from "../utils/user";
 import { z } from "zod";
-import { Command } from "../discord";
+import { Data } from '../discord';
+import { TextCommand } from '../discord';
+import { fromZod } from '../utils/text';
+import { firebaseAdmin } from "../utils/firebase";
+import { getGlobal } from '../utils/global';
+import { getGameByID } from "../utils/mafia/games";
+import { getAllUsers } from "../utils/mafia/user";
+import { getSetup } from "../utils/setup";
 
 module.exports = {
     data: [
@@ -29,8 +32,12 @@ module.exports = {
         {
             type: 'text',
             name: 'text-stats',
-            command: {
-                optional: [ z.coerce.number().min(1).max(100).or(z.literal('total')) ]
+            command: () => {
+                return new Command()
+                    .name('stats')
+                    .description('show stats')
+                    .argument("[day]", "which day to show stats form", fromZod(z.coerce.number().min(1).max(100)))
+                    .option("-t, --total", "to calculate cumalitive stats");
             }
         },
         { 
@@ -48,8 +55,11 @@ module.exports = {
         {
             type: 'text',
             name: 'text-reactions',
-            command: {
-                optional: [ z.coerce.number().min(1).max(100) ]
+            command: () => {
+                return new Command()
+                    .name('stats')
+                    .description('show stats')
+                    .argument("[day]", "which day to show stats form", fromZod(z.coerce.number().min(1).max(100)))
             }
         }
     ] satisfies Data[],
@@ -59,13 +69,13 @@ module.exports = {
     }
 }
 
-async function handleStatsList(interaction: ChatInputCommandInteraction | Command) {
+async function handleStatsList(interaction: ChatInputCommandInteraction | TextCommand) {
     const global = await getGlobal();
     if(global.started == false) throw new Error("Game has not started.");
     const game = await getGameByID(global.game != null ? global.game : "bruh");
     if(game == null) throw new Error("Game not found.");
     
-    if(interaction.type == 'text' ? (interaction.arguments.length > 0 && interaction.arguments[0] === 'total') : (interaction.options.getBoolean('total') === true)) {
+    if(interaction.type == 'text' ? interaction.program.getOptionValue('total') : (interaction.options.getBoolean('total') === true)) {
         const users = await getAllUsers();
         const db = firebaseAdmin.getFirestore();
 
@@ -138,7 +148,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
 
     const setup = await getSetup();
 
-    const day = interaction.type == 'text' ? (typeof interaction.arguments[0] == "number" ? interaction.arguments[0] as number ?? global.day : global.day) : Math.round(interaction.options.getNumber("day") ?? global.day);
+    const day = interaction.type == 'text' ? (interaction.program.processedArgs.length > 0 ? interaction.program.processedArgs[0] as number | undefined ?? global.day : global.day) : Math.round(interaction.options.getNumber("day") ?? global.day);
 
     if(day > global.day) throw new Error("Not on day " + day + " yet!");
     if(day < 1) throw new Error("Must be at least day 1.");
@@ -199,10 +209,10 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
     const id = (await db.collection('graphs').add({ stats: list, day: day, name: game.name, timestamp: interaction.type == 'text' ? interaction.message.createdAt.valueOf() : interaction.createdAt.valueOf() })).id;
 
     const message = (() => {
-        if(("arguments" in interaction) ? interaction.name == "stats" : interaction.commandName == "stats") {
+        if((interaction.type == 'text') ? interaction.name == "stats" : interaction.commandName == "stats") {
             aliveList = aliveList.sort((a, b) => b.messages - a.messages);
             return aliveList.reduce((previous, current) => previous += current.name + " » " + current.messages + " message" + (current.messages== 1 ? "" : "s") + " containing " + current.words + " word" + (current.words== 1 ? "" : "s") + "\n", "");
-        } else if(("arguments" in interaction) ? interaction.name == "reactions" : interaction.commandName == "reactions") {
+        } else if((interaction.type == 'text') ? interaction.name == "reactions" : interaction.commandName == "reactions") {
             list = list.sort((a, b) => b.reactions.length - a.reactions.length);
             const messageCounter = (current) => (new Set(current.reactions.map(reaction => reaction.message).filter(message => message != undefined))).size;
             return list.reduce((previous, current) => previous += current.name + " » " + current.reactions.length + " reaction" + (current.reactions.length== 1 ? "" : "s") + " across " + messageCounter(current) + " message" + (messageCounter(current)== 1 ? "" : "s") + "\n", "");
@@ -212,7 +222,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | Comman
     })();
 
     const embed = new EmbedBuilder()
-        .setTitle(((("arguments" in interaction) ? interaction.name == "reactions" : interaction.commandName == "reactions") ? "Reaction " : "") + "Stats » " + (global.day == day ? "Today (Day " + global.day + ")" : "Day " + day))
+        .setTitle((((interaction.type == 'text') ? interaction.name == "reactions" : interaction.commandName == "reactions") ? "Reaction " : "") + "Stats » " + (global.day == day ? "Today (Day " + global.day + ")" : "Day " + day))
         .setColor(Colors.Gold)
         .setDescription(message == '' ? "No Stats" : message)
 

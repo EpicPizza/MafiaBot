@@ -1,14 +1,10 @@
-import { ActionRow, ActionRowBuilder, ApplicationCommandType, ButtonBuilder, ButtonStyle, Colors, CommandInteraction, ContextMenuCommandBuilder, ContextMenuCommandInteraction, Embed, EmbedBuilder, SlashCommandBuilder } from "discord.js";
-import { Data } from "../discord";
+import { Command } from "commander";
+import { ActionRowBuilder, ApplicationCommandType, ButtonBuilder, ButtonStyle, Colors, ContextMenuCommandBuilder, ContextMenuCommandInteraction, EmbedBuilder } from "discord.js";
+import { Data } from '../discord';
+import { TextCommand } from '../discord';
 import { firebaseAdmin } from "../utils/firebase";
-import dnt from 'date-and-time';
-import meridiem from 'date-and-time/plugin/meridiem'
-import { DateTime } from "luxon";
-import { Command } from "../discord";
+import { snipeMessage } from "../utils/google/doc";
 import { getSetup } from "../utils/setup";
-import { snipeMessage } from "../utils/doc";
-
-dnt.plugin(meridiem);
 
 module.exports = {
     data: [
@@ -22,11 +18,15 @@ module.exports = {
         {
             type: 'text',
             name: 'text-snipe',
-            command: {},
+            command: () => {
+                return new Command()
+                    .name('snipe')
+                    .description('reply this to a message to see it\'s edits');
+            },
         }
     ] satisfies Data[],
 
-    execute: async function(interaction: ContextMenuCommandInteraction | Command) {
+    execute: async function(interaction: ContextMenuCommandInteraction | TextCommand) {
         const setup = await getSetup();
         
         if(interaction.type == 'text' ? interaction.message.guildId != setup.primary.guild.id : interaction.guildId != setup.primary.guild.id) throw new Error("Does not work outside of bag mafia main chat!");

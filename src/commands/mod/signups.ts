@@ -1,30 +1,36 @@
+import { Command } from "commander";
 import { ButtonInteraction, ChatInputCommandInteraction, Colors, CommandInteraction, EmbedBuilder, SlashCommandSubcommandBuilder } from "discord.js";
-import { Command, TextCommandArguments } from "../../discord";
-import { getGameByName, getGlobal } from "../../utils/main";
 import { z } from "zod";
-import { activateSignup, closeSignups, openSignups, refreshSignup } from "../../utils/games";
+import { type TextCommand } from '../../discord';
+import { fromZod } from '../../utils/text';
+import { getGlobal } from '../../utils/global';
+import { activateSignup, closeSignups, getGameByName, openSignups, refreshSignup } from "../../utils/mafia/games";
 import { getSetup } from "../../utils/setup";
+import { Subcommand, Subinteraction } from "../../utils/subcommands";
 
 export const SignupsCommand = {
     name: "signups",
-    description: "?mod signups {game}",
-    command: {
-        slash: new SlashCommandSubcommandBuilder()
-            .setName("signups")
-            .setDescription("Creates sign up button for a new game.")
-            .addStringOption(option =>
-                option  
-                    .setName('game')
-                    .setDescription('Name of the game.')
-                    .setRequired(true)
-                    .setAutocomplete(true)
-            ),
-        text: {
-            required: [ z.string().min(1).max(100) ]
-        } satisfies TextCommandArguments
+    subcommand: true,
+
+    slash: new SlashCommandSubcommandBuilder()
+        .setName("signups")
+        .setDescription("Creates sign up button for a new game.")
+        .addStringOption(option =>
+            option  
+                .setName('game')
+                .setDescription('Name of the game.')
+                .setRequired(true)
+                .setAutocomplete(true)
+        ),
+    text: () => {
+        return new Command()
+            .name('signups')
+            .description('create sign up button')
+            .argument('<game>', 'name of game', fromZod(z.string().min(1).max(100)))
     },
-    execute: async (interaction: Command | ChatInputCommandInteraction) => {
-        const name = interaction.type == 'text' ? interaction.arguments[1] as string : interaction.options.getString('game');
+
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+        const name = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
 
         if(name == null) throw new Error("Game needs to be specified.");
 
@@ -32,28 +38,31 @@ export const SignupsCommand = {
 
         return await createSignups(interaction, name);
     }
-}
+} satisfies Subcommand;
 
 export const CloseCommand = {
     name: "close",
-    description: "?mod close {game}",
-    command: {
-        slash: new SlashCommandSubcommandBuilder()
-            .setName("close")
-            .setDescription("Close signups.")
-            .addStringOption(option =>
-                option  
-                    .setName('game')
-                    .setDescription('Name of the game.')
-                    .setRequired(true)
-                    .setAutocomplete(true)
-            ),
-        text: {
-            required: [ z.string().min(1).max(100) ]
-        } satisfies TextCommandArguments
+    subcommand: true,
+
+    slash: new SlashCommandSubcommandBuilder()
+        .setName("close")
+        .setDescription("Close signups.")
+        .addStringOption(option =>
+            option  
+                .setName('game')
+                .setDescription('Name of the game.')
+                .setRequired(true)
+                .setAutocomplete(true)
+        ),
+    text: () => {
+        return new Command()
+            .name('close')
+            .description('close signups')
+            .argument('<game>', "name of game", fromZod(z.string().min(1).max(100)));
     },
-    execute: async (interaction: Command | ChatInputCommandInteraction) => {
-        const name = interaction.type == 'text' ? interaction.arguments[1] as string : interaction.options.getString('game');
+
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+        const name = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
 
         if(name == null) throw new Error("Game needs to be specified.");
 
@@ -67,28 +76,31 @@ export const CloseCommand = {
             await interaction.reply({ ephemeral: true, content: "Sign ups closed!" });   
         }
     }
-}
+} satisfies Subcommand;
 
 export const OpenCommand = {
     name: "open",
-    description: "?mod open {game}",
-    command: {
-        slash: new SlashCommandSubcommandBuilder()
-            .setName('open')
-            .setDescription('Open signups.')
-            .addStringOption(option =>
-                option  
-                    .setName('game')
-                    .setDescription('Name of the game.')
-                    .setRequired(true)
-                    .setAutocomplete(true)
-            ),
-        text: {
-            required: [ z.string().min(1).max(100) ]
-        } satisfies TextCommandArguments
+    subcommand: true,
+
+    slash: new SlashCommandSubcommandBuilder()
+        .setName('open')
+        .setDescription('Open signups.')
+        .addStringOption(option =>
+            option  
+                .setName('game')
+                .setDescription('Name of the game.')
+                .setRequired(true)
+                .setAutocomplete(true)
+        ),
+    text: () => {
+        return new Command()
+            .name('open')
+            .description('open signups')
+            .argument('<game>', "name of game", fromZod(z.string().min(1).max(100)));
     },
-    execute: async (interaction: Command | ChatInputCommandInteraction) => {
-        const name = interaction.type == 'text' ? interaction.arguments[1] as string : interaction.options.getString('game');
+
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+        const name = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
 
         if(name == null) throw new Error("Game needs to be specified.");
 
@@ -102,23 +114,26 @@ export const OpenCommand = {
             await interaction.reply({ ephemeral: true, content: "Sign ups opened!" });   
         }
     }
-}
+} satisfies Subcommand;
 
 export const ReactivateButton = {
     type: 'button',
     name: 'button-reactivate',
+    subcommand: true,
+
     command: z.object({
         name: z.literal('reactivate'),
         game: z.string().min(1).max(100)
     }),
+
     execute: async (interaction: ButtonInteraction) => {
         const game = JSON.parse(interaction.customId).game;
 
         createSignups(interaction, game);
     }
-}
+} satisfies Subinteraction;
 
-async function createSignups(interaction: CommandInteraction | ButtonInteraction | Command, name: string) {
+async function createSignups(interaction: CommandInteraction | ButtonInteraction | TextCommand, name: string) {
     const global = await getGlobal();
     const game = await getGameByName(name);
     const setup = await getSetup();

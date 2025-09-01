@@ -1,34 +1,41 @@
+import { Command } from "commander";
 import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
-import { Command, TextCommandArguments, removeReactions } from "../../discord";
 import { z } from "zod";
-import { getGameByID, getGameByName, getGlobal, setMafiaSpectator } from "../../utils/main";
-import { firebaseAdmin } from "../../utils/firebase";
-import { Setup, getSetup } from "../../utils/setup";
-import { User, getUser, getUserByName } from "../../utils/user";
-import { Signups, getGameSetup } from "../../utils/games";
+import { type TextCommand } from '../../discord';
+import { fromZod } from '../../utils/text';
+import { removeReactions } from "../../discord/helpers";
 import { getEnabledExtensions } from "../../utils/extensions";
-import { Global } from '../../utils/main';
+import { firebaseAdmin } from "../../utils/firebase";
+import { getGlobal, type Global } from '../../utils/global';
+import { Signups, getGameByID, getGameSetup } from "../../utils/mafia/games";
+import { setMafiaSpectator } from "../../utils/mafia/main";
+import { getUserByName } from "../../utils/mafia/user";
 import { checkMod } from "../../utils/mod";
+import { Setup, getSetup } from "../../utils/setup";
+import { Subcommand } from "../../utils/subcommands";
 
 export const RemoveCommand = {
     name: "remove",
-    description: "?mod remove {nickname}",
-    command: {
-        slash: new SlashCommandSubcommandBuilder()
-            .setName('remove')
-            .setDescription('Remove a player.')
-            .addStringOption(option =>
-                option  
-                    .setName('player')
-                    .setDescription('Which player to remove?')
-                    .setRequired(true)
-                    .setAutocomplete(true)
-            ),
-        text: {
-            required: [ z.string().min(1).max(100) ]
-        } satisfies TextCommandArguments
+    subcommand: true,
+
+    slash: new SlashCommandSubcommandBuilder()
+        .setName('remove')
+        .setDescription('Remove a player.')
+        .addStringOption(option =>
+            option  
+                .setName('player')
+                .setDescription('Which player to remove?')
+                .setRequired(true)
+                .setAutocomplete(true)
+        ),
+    text: () => {
+        return new Command()
+            .name('remove')
+            .description('remove a player')
+            .argument('<player>', 'which player', fromZod(z.string().min(1).max(100)));
     },
-    execute: async (interaction: ChatInputCommandInteraction | Command) => {
+    
+    execute: async (interaction: ChatInputCommandInteraction | TextCommand) => {
         if(interaction.type != 'text') {
             await interaction.deferReply({ ephemeral: true });
         } else {
@@ -40,7 +47,7 @@ export const RemoveCommand = {
 
         checkMod(setup, global, interaction.user.id, 'message' in interaction ? interaction.message?.guild?.id ?? "" : interaction.guildId ?? "");
 
-        const player = interaction.type == 'text' ? interaction.arguments[1] as string : interaction.options.getString('player');
+        const player = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');
         if(player == null) throw new Error("Choose a player.");
 
         await removePlayer(player, global, setup);
@@ -53,7 +60,7 @@ export const RemoveCommand = {
             await interaction.message.react("✅");
         }
     }
-}
+} satisfies Subcommand;
 
 export async function removePlayer(name: string, global: Global, setup: Setup) {
     if(global.started == false) throw new Error("Game has not started.");

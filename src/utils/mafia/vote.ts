@@ -1,15 +1,12 @@
-import { firebaseAdmin } from "./firebase";
-import { ApplicationEmoji, REST, Routes, SlashCommandBuilder, SlashCommandSubcommandsOnlyBuilder } from 'discord.js';
-import fs from 'node:fs';
-import dotenv from 'dotenv';
-import path from 'node:path';
-import { Data } from "../discord";
+import { ApplicationEmoji } from 'discord.js';
 import { Transaction } from "firebase-admin/firestore";
-import { User } from "./user";
+import { getEnabledExtensions } from "../extensions";
+import { firebaseAdmin } from "../firebase";
+import { type Global } from '../global';
+import { Setup } from "../setup";
 import { Signups } from "./games";
-import { Setup } from "./setup";
-import { Global, lockGame } from "./main";
-import { getEnabledExtensions } from "./extensions";
+import { lockGame } from "./main";
+import { User } from "./user";
 
 export interface Vote {
     id: string,

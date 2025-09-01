@@ -1,41 +1,45 @@
+import { Command } from "commander";
 import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
-import { Command, removeReactions, TextCommandArguments } from "../../discord";
 import { z } from "zod";
-import { getGameByID, getGlobal, lockGame, setupPlayer } from "../../utils/main";
-import { getSetup, Setup, } from "../../utils/setup";
-import { getGameSetup, Signups } from "../../utils/games";
-import { getUser, getUserByName, User } from "../../utils/user";
+import { type TextCommand } from '../../discord';
+import { fromZod } from '../../utils/text';
+import { removeReactions } from "../../discord/helpers";
 import { getEnabledExtensions } from "../../utils/extensions";
-import { Global} from "../../utils/main";
 import { firebaseAdmin } from "../../utils/firebase";
-import { FieldValue } from "firebase-admin/firestore";
+import { getGlobal, type Global } from '../../utils/global';
+import { getGameByID, getGameSetup, Signups } from "../../utils/mafia/games";
+import { getUserByName } from "../../utils/mafia/user";
+import { getSetup, Setup, } from "../../utils/setup";
+import { Subcommand } from "../../utils/subcommands";
 
 export const KillCommand = {
     name: "kill",
-    description: "?adv kill {nickname}",
-    command: {
-        slash: new SlashCommandSubcommandBuilder()
-            .setName("kill")
-            .setDescription("Kill a player without giving them spectator.")
-            .addStringOption(option =>
-                option
-                    .setName("player")
-                    .setDescription("Which player to add.")
-                    .setRequired(true)
-                    .setAutocomplete(true)),
-        text: {
-            required: [ z.string() ],
-            optional: []
-        } satisfies TextCommandArguments
+    subcommand: true,
+
+    slash: new SlashCommandSubcommandBuilder()
+        .setName("kill")
+        .setDescription("Kill a player without giving them spectator.")
+        .addStringOption(option =>
+            option
+                .setName("player")
+                .setDescription("Which player to add.")
+                .setRequired(true)
+                .setAutocomplete(true)),
+    text: () => {
+        return new Command()
+            .name('kill')
+            .description('kill a player without giving them spectator')
+            .argument('<player>', 'nickname of player', fromZod(z.string().min(1).max(100)));
     },
-    execute: async (interaction: Command | ChatInputCommandInteraction) => {
+
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
         if(interaction.type != 'text') {
             await interaction.deferReply({ ephemeral: true });
         } else {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
 
-        const playerInput = interaction.type == 'text' ? interaction.arguments[1] as string : interaction.options.getString('player');
+        const playerInput = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');
         if(playerInput == null) throw new Error("Choose a player.");
 
         const global = await getGlobal();
@@ -51,7 +55,7 @@ export const KillCommand = {
             await interaction.message.react("✅");
         }
     }
-}
+} satisfies Subcommand;
 
 export async function onRemove(global: Global, setup: Setup, game: Signups, removed: string) {
     const extensions = await getEnabledExtensions(global);

@@ -1,34 +1,37 @@
+import { Command } from "commander";
 import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
-import { Command, removeReactions, TextCommandArguments } from "../../discord";
 import { z } from "zod";
-import { deleteCollection, getGameByID, getGlobal, lockGame, setupPlayer } from "../../utils/main";
-import { getSetup, Setup, } from "../../utils/setup";
-import { getGameSetup, Signups } from "../../utils/games";
-import { getUser, getUserByName, User } from "../../utils/user";
-import { getEnabledExtensions } from "../../utils/extensions";
-import { Global } from "../../utils/main";
+import { type TextCommand } from '../../discord';
+import { fromZod } from '../../utils/text';
+import { removeReactions } from "../../discord/helpers";
 import { firebaseAdmin } from "../../utils/firebase";
-import { FieldValue } from "firebase-admin/firestore";
+import { getGlobal } from '../../utils/global';
+import { getGameByID } from "../../utils/mafia/games";
+import { deleteCollection } from "../../utils/mafia/main";
+import { getSetup } from "../../utils/setup";
+import { Subcommand } from "../../utils/subcommands";
 
 export const ClearCommand = {
     name: "clear",
-    description: "?adv clear {day}",
-    command: {
-        slash: new SlashCommandSubcommandBuilder()
-            .setName("clear")
-            .setDescription("Clear a day's stats, votes, and stored players.")
-            .addNumberOption(option =>
-                option
-                    .setName("day")
-                    .setDescription("Which day to clear.")
-                    .setRequired(true)
-            ),
-        text: {
-            required: [ z.coerce.number() ],
-            optional: []
-        } satisfies TextCommandArguments
+    subcommand: true,
+
+    slash: new SlashCommandSubcommandBuilder()
+        .setName("clear")
+        .setDescription("Clear a day's stats, votes, and stored players.")
+        .addNumberOption(option =>
+            option
+                .setName("day")
+                .setDescription("Which day to clear.")
+                .setRequired(true)
+        ),
+    text: () => {
+        return new Command()
+            .name('clear')
+            .description('clear a day\'s stats, votes, and stored players')
+            .argument('<day>', 'which day to clear', fromZod(z.coerce.number()));
     },
-    execute: async (interaction: Command | ChatInputCommandInteraction) => {
+
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
         if(interaction.type != 'text') {
             await interaction.deferReply({ ephemeral: true });
         } else {
@@ -40,7 +43,7 @@ export const ClearCommand = {
         
         if(global.started == false) throw new Error("Game has not started.");
 
-        const day = interaction.type == 'text' ? interaction.arguments[1] as number : interaction.options.getNumber("day");
+        const day = interaction.type == 'text' ? interaction.program.processedArgs[0] as number : interaction.options.getNumber("day");
 
         if(day == null) throw new Error("Day not specified.");
 
@@ -60,33 +63,36 @@ export const ClearCommand = {
             await interaction.message.react("✅");
         }
     }
-}
+} satisfies Subcommand;
 
 export const DayCommand = {
     name: "set",
-    description: "?adv set {number} {players: true|false}",
-    command: {
-        slash: new SlashCommandSubcommandBuilder()
-            .setName("set")
-            .setDescription("Set the day in the database.")
-            .addNumberOption(option =>
-                option
-                    .setName("day")
-                    .setDescription("Which day to set it to.")
-                    .setRequired(true)
-            )
-            .addBooleanOption(option =>
-                option
-                    .setName("players")
-                    .setDescription("Whether or not to (re)track players.")
-                    .setRequired(false)
-            ),
-        text: {
-            required: [ z.coerce.number() ],
-            optional: [ z.coerce.boolean() ]
-        } satisfies TextCommandArguments
+    subcommand: true,
+
+    slash: new SlashCommandSubcommandBuilder()
+        .setName("set")
+        .setDescription("Set the day in the database.")
+        .addNumberOption(option =>
+            option
+                .setName("day")
+                .setDescription("Which day to set it to.")
+                .setRequired(true)
+        )
+        .addBooleanOption(option =>
+            option
+                .setName("players")
+                .setDescription("Whether or not to (re)track players.")
+                .setRequired(false)
+        ),
+    text: () => {
+        return new Command()
+            .name('set')
+            .description('set the day in the database')
+            .argument('<day>', 'which day', fromZod(z.coerce.number()))
+            .option('-p, --players', 'whether to or not (re)track players')
     },
-    execute: async (interaction: Command | ChatInputCommandInteraction) => {
+
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
         if(interaction.type != 'text') {
             await interaction.deferReply({ ephemeral: true });
         } else {
@@ -100,8 +106,8 @@ export const DayCommand = {
 
         const game = await getGameByID(global.game ?? "");
 
-        const players = interaction.type == 'text' ? interaction.arguments.length == 2 ? false : interaction.arguments[2] as boolean : interaction.options.getBoolean('players') ?? false;
-        const day = interaction.type == 'text' ? interaction.arguments[1] as number : interaction.options.getNumber("day");
+        const players = interaction.type == 'text' ? interaction.program.getOptionValue('players') === true : interaction.options.getBoolean('players') ?? false;
+        const day = interaction.type == 'text' ? interaction.program.processedArgs[0] as number : interaction.options.getNumber("day");
 
         if(day == null) throw new Error("Day not specified.");
 

@@ -1,25 +1,29 @@
+import { Command } from "commander";
 import { APIActionRowComponent, APIButtonComponent, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandSubcommandBuilder, TextChannel } from "discord.js";
 import { z } from "zod";
-import { getGameByID, getGlobal } from "../../utils/main";
+import { type TextCommand } from '../../discord';
 import { firebaseAdmin } from "../../utils/firebase";
-import { getGameSetup } from "../../utils/games";
+import { getGlobal, type Global } from '../../utils/global';
+import { getGameByID, getGameSetup } from "../../utils/mafia/games";
+import { onjoin } from "../../utils/mafia/invite";
+import { getUser, getUsers } from "../../utils/mafia/user";
 import { Setup, getSetup } from "../../utils/setup";
-import { getUser, getUsers } from "../../utils/user";
-import { Global } from "../../utils/main";
-import { Command, onjoin, TextCommandArguments } from "../../discord";
+import { Subinteraction } from "../../utils/subcommands";
 
 export const ShowAlignments = {
     name: "alignments",
-    description: "?mod alignments",
-    command: {
-        slash: new SlashCommandSubcommandBuilder()
-            .setName("alignments")
-            .setDescription("Shows all alignments."),
-        text: {
+    subcommand: true,
 
-        } satisfies TextCommandArguments
+    slash: new SlashCommandSubcommandBuilder()
+        .setName("alignments")
+        .setDescription("Shows all alignments."),
+    text: () => {
+        return new Command()
+            .name('alignments')
+            .description('show all alignments')
     },
-    execute: async (interaction: Command | ChatInputCommandInteraction) => {
+
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
         const global = await getGlobal();
         if(global.started == false) throw new Error("Game has not started!");
         const game = await getGameByID(global.game ?? "---");
@@ -56,9 +60,12 @@ export const ShowAlignments = {
 export const ConfirmAlignmentsButton = {
     type: 'button',
     name: 'button-confirm-alignments',
+    subcommand: true,
+
     command: z.object({
         name: z.literal('confirm-alignments'),
     }),
+
     execute: async (interaction: ButtonInteraction) => {
         const components = (interaction.message.toJSON() as any).components as APIActionRowComponent<APIButtonComponent>[]
 
@@ -104,7 +111,7 @@ export const ConfirmAlignmentsButton = {
             players: global.players.map((player) => player.id),
         });
     }
-}
+} satisfies Subinteraction;
 
 export async function addMafiaPlayer(player: Global["players"][0], setup: Setup) {
     const mafiaMember = await setup.tertiary.guild.members.fetch(player.id).catch(() => undefined);

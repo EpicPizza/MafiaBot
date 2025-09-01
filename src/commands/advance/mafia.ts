@@ -1,33 +1,38 @@
+import { Command } from "commander";
 import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
-import { Command, removeReactions, TextCommandArguments } from "../../discord";
 import { z } from "zod";
-import { getGameByID, getGlobal, lockGame } from "../../utils/main";
-import { getSetup, Setup, } from "../../utils/setup";
-import { getGameSetup, Signups } from "../../utils/games";
-import { getUser, User } from "../../utils/user";
+import { type TextCommand } from '../../discord';
+import { fromZod } from '../../utils/text';
+import { removeReactions } from "../../discord/helpers";
 import { getEnabledExtensions } from "../../utils/extensions";
-import { Global } from "../../utils/main";
+import { getGlobal, type Global } from '../../utils/global';
+import { getGameByID, getGameSetup, Signups } from "../../utils/mafia/games";
+import { getUser, User } from "../../utils/mafia/user";
+import { getSetup, Setup, } from "../../utils/setup";
+import { Subcommand } from "../../utils/subcommands";
 import { addMafiaPlayer } from "../mod/alignments";
 
 export const MafiaCommand = {
     name: "mafia",
-    description: "?adv mafia {nickname}",
-    command: {
-        slash: new SlashCommandSubcommandBuilder()
-            .setName("mafia")
-            .setDescription("Add an additional mafia player.")
-            .addStringOption(option =>
-                option
-                    .setName("player")
-                    .setDescription("Which player to add to mafia.")
-                    .setRequired(true)
-                    .setAutocomplete(true)),
-        text: {
-            required: [ z.string() ],
-            optional: []
-        } satisfies TextCommandArguments
+    subcommand: true,
+
+    slash: new SlashCommandSubcommandBuilder()
+        .setName("mafia")
+        .setDescription("Add an additional mafia player.")
+        .addStringOption(option =>
+            option
+                .setName("player")
+                .setDescription("Which player to add to mafia.")
+                .setRequired(true)
+                .setAutocomplete(true)),
+    text: () => {
+        return new Command()
+            .name('mafia')
+            .description('add an additional mafia player')
+            .argument('<player>', 'which player', fromZod(z.string().min(1).max(100)));
     },
-    execute: async (interaction: Command | ChatInputCommandInteraction) => {
+
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
         if(interaction.type != 'text') {
             await interaction.deferReply({ ephemeral: true });
         } else {
@@ -42,7 +47,7 @@ export const MafiaCommand = {
         const game = await getGameByID(global.game ?? "");
          const gameSetup = await getGameSetup(game, setup);
 
-        const player = interaction.type == 'text' ? interaction.arguments[1] as string : interaction.options.getString('player');
+        const player = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');
 
         if(player == null) throw new Error("Choose a player.");
 
@@ -74,7 +79,7 @@ export const MafiaCommand = {
             await interaction.message.react("✅");
         }
     }
-}
+} satisfies Subcommand;
 
 async function hammerExtensions(global: Global, setup: Setup, game: Signups, hammered: string) {
     const extensions = await getEnabledExtensions(global);

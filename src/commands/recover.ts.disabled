@@ -4,10 +4,11 @@ import { firebaseAdmin } from "../utils/firebase";
 import dnt from 'date-and-time';
 import meridiem from 'date-and-time/plugin/meridiem'
 import { DateTime } from "luxon";
-import { Command } from "../discord";
+import { TextCommand } from "../discord";
 import { getSetup } from "../utils/setup";
 import { checkMod } from "../utils/mod";
-import { getGlobal } from "../utils/main";
+import { getGlobal, type Global } from '../utils/global';
+import { Command } from "commander";
 
 dnt.plugin(meridiem);
 
@@ -18,11 +19,15 @@ module.exports = {
         {
             type: 'text',
             name: 'text-recover',
-            command: {},
+            command: () => {
+                return new Command()
+                    .name('recover')
+                    .description('recover all old pins by backreading channel')
+            },
         }
     ] satisfies Data[],
 
-    execute: async function(interaction: Command) {
+    execute: async function(interaction: TextCommand) {
         if(ran) return;
 
         ran = true;

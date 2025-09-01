@@ -1,34 +1,41 @@
+import { Command } from "commander";
 import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
-import { Command, removeReactions, TextCommandArguments } from "../../discord";
-import { deleteCollection, getGlobal } from "../../utils/main";
-import { getSetup } from "../../utils/setup";
 import { z } from "zod";
-import { wipe } from "../../utils/vote";
+import { type TextCommand } from '../../discord';
+import { fromZod } from '../../utils/text';
+import { removeReactions } from "../../discord/helpers";
+import { getGlobal } from '../../utils/global';
+import { wipe } from "../../utils/mafia/vote";
+import { getSetup } from "../../utils/setup";
+import { Subcommand } from "../../utils/subcommands";
 
 export const WipeCommand = {
     name: "wipe",
-    description: "?mod wipe {day} {message}",
-    command: {
-        slash: new SlashCommandSubcommandBuilder()
-            .setName("wipe")
-            .setDescription("Clear a day's votes.")
-            .addNumberOption(option =>
-                option
-                    .setName("day")
-                    .setDescription("Which day to clear.")
-                    .setRequired(true)
-            )
-            .addStringOption(option => 
-                option
-                    .setName('message')
-                    .setDescription("Message to put in logs.")
-            ),
-        text: {
-            required: [ z.coerce.number() ],
-            optional: [ "*" ]
-        } satisfies TextCommandArguments
+    subcommand: true,
+
+    slash: new SlashCommandSubcommandBuilder()
+        .setName("wipe")
+        .setDescription("Clear a day's votes.")
+        .addNumberOption(option =>
+            option
+                .setName("day")
+                .setDescription("Which day to clear.")
+                .setRequired(true)
+        )
+        .addStringOption(option => 
+            option
+                .setName('message')
+                .setDescription("Message to put in logs.")
+        ),
+    text: () => {
+        return new Command()
+            .name('wipe')
+            .description('clear a day\'s votes')
+            .argument('<day>', 'which day', fromZod(z.coerce.number()))
+            .argument('[message]', 'message to put in logs')
     },
-    execute: async (interaction: Command | ChatInputCommandInteraction) => {
+
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
         if(interaction.type != 'text') {
             await interaction.deferReply();
         } else {
@@ -41,10 +48,10 @@ export const WipeCommand = {
         if(setup.primary.chat.id != (interaction.type == 'text' ? interaction.message.channelId : interaction.channelId )) throw new Error("Must be in main chat!");
         if(global.started == false) throw new Error("Game has not started.");
 
-        const day = interaction.type == 'text' ? interaction.arguments[1] as number : interaction.options.getNumber("day");
+        const day = interaction.type == 'text' ? interaction.program.processedArgs[0] as number : interaction.options.getNumber("day");
         if(day == null) throw new Error("Day not specified.");
 
-        const message = interaction.type == 'text' ? (interaction.arguments.length > 1 ? interaction.arguments[2] as string ?? "" : "") : interaction.options.getString('message') ?? "";
+        const message = interaction.type == 'text' ? (interaction.program.args.length > 1 ? interaction.program.processedArgs[2] as string ?? "" : "") : interaction.options.getString('message') ?? "";
 
         const setMessage = await wipe(global, message);
 
@@ -60,5 +67,4 @@ export const WipeCommand = {
             await interaction.message.react("✅");
         }
     }
-}
-
+} satisfies Subcommand;

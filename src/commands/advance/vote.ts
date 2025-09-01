@@ -1,50 +1,56 @@
-import { ChatInputCommandInteraction, SlashCommandStringOption, SlashCommandSubcommandBuilder } from "discord.js";
-import { Command, removeReactions, TextCommandArguments } from "../../discord";
+import { Command } from "commander";
+import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
 import { z } from "zod";
-import { getGameByID, getGlobal, lockGame, setupPlayer } from "../../utils/main";
-import { getSetup, Setup, } from "../../utils/setup";
-import { getGameSetup, Signups } from "../../utils/games";
-import { getUser, getUserByName, getUsersArray, User } from "../../utils/user";
+import { type TextCommand } from '../../discord';
+import { fromZod } from '../../utils/text';
+import { removeReactions } from "../../discord/helpers";
 import { getEnabledExtensions } from "../../utils/extensions";
-import { Global } from "../../utils/main";
 import { firebaseAdmin } from "../../utils/firebase";
-import { FieldValue } from "firebase-admin/firestore";
-import { defaultVote, flow, getVotes, handleHammer, TransactionResult } from "../../utils/vote";
+import { getGlobal } from '../../utils/global';
+import { getGameByID, getGameSetup } from "../../utils/mafia/games";
+import { getUserByName, getUsersArray } from "../../utils/mafia/user";
+import { defaultVote, handleHammer, TransactionResult } from "../../utils/mafia/vote";
+import { getSetup } from "../../utils/setup";
+import { Subcommand } from "../../utils/subcommands";
 
 export const VoteCommand = {
     name: "vote",
-    description: "?adv vote {player} {add|remove} {for}",
-    command: {
-        slash: new SlashCommandSubcommandBuilder()
-            .setName("vote")
-            .setDescription("Add a player midgame.")
-            .addStringOption(option =>
-                option
-                    .setName("player")
-                    .setDescription("Which player to vote as.")
-                    .setRequired(true)
-                    .setAutocomplete(true))
-            .addStringOption(option =>
-                option
-                    .setName('type')
-                    .setDescription('What type of vote to do.')
-                    .setRequired(true)
-                    .addChoices(
-                        { name: 'add', value: 'add' },
-                        { name: 'remove', value: 'remove' },
-                    ))
-            .addStringOption(option =>
-                option
-                    .setName("for")
-                    .setDescription("Which player to vote for.")
-                    .setRequired(false)
-                    .setAutocomplete(true)),
-        text: {
-            required: [ z.string(), z.union([ z.literal('add'), z.literal('remove') ]) ],
-            optional: [ z.string() ]
-        } satisfies TextCommandArguments
+    subcommand: true,
+
+    slash: new SlashCommandSubcommandBuilder()
+        .setName("vote")
+        .setDescription("Change a vote.")
+        .addStringOption(option =>
+            option
+                .setName("player")
+                .setDescription("Which player to vote as.")
+                .setRequired(true)
+                .setAutocomplete(true))
+        .addStringOption(option =>
+            option
+                .setName('type')
+                .setDescription('What type of vote to do.')
+                .setRequired(true)
+                .addChoices(
+                    { name: 'add', value: 'add' },
+                    { name: 'remove', value: 'remove' },
+                ))
+        .addStringOption(option =>
+            option
+                .setName("for")
+                .setDescription("Which player to vote for.")
+                .setRequired(false)
+                .setAutocomplete(true)),
+    text: () => {
+        return new Command()
+            .name('vote')
+            .description('change a vote')
+            .argument('<voter>', 'which player to vote as')
+            .argument('<type>', 'add, remove', fromZod(z.union([z.literal('add'), z.literal('remove')])))
+            .argument('[voting]', 'which player to vote');
     },
-    execute: async (interaction: Command | ChatInputCommandInteraction) => {
+
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
         if(interaction.type != 'text') {
             await interaction.deferReply({ ephemeral: true });
         } else {
@@ -59,18 +65,18 @@ export const VoteCommand = {
         const game = await getGameByID(global.game ?? "");
         const gameSetup = await getGameSetup(game, setup);
 
-        const playerInput = interaction.type == 'text' ? interaction.arguments[1] as string : interaction.options.getString('player');
+        const playerInput = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');
         if(playerInput == null) throw new Error("Choose a player.");
         const playerUser = await getUserByName(playerInput);
         if(!playerUser) throw new Error("Player not found.");
         const player = global.players.find(player => player.id == playerUser.id);
         if(!player) throw new Error("Player it not in this game");
 
-        const forInput = interaction.type == 'text' ? (interaction.arguments.length > 3 ? interaction.arguments[3] as string : null) : interaction.options.getString('for');
+        const forInput = interaction.type == 'text' ? (interaction.program.args.length > 2 ? interaction.program.processedArgs[2] as string : null) : interaction.options.getString('for');
         const forUser = forInput ? await getUserByName(forInput) : undefined;
         const forPlayer = forUser ? global.players.find(player => player.id == forUser.id) : undefined;
 
-        const advType = interaction.type == 'text' ? interaction.arguments[2] as string : interaction.options.getString('type');
+        const advType = interaction.type == 'text' ? interaction.program.processedArgs[1] as string : interaction.options.getString('type');
         if(advType == null) throw new Error("Vote type not specified.");
         if(advType == "add" && forPlayer == undefined) throw new Error("Player to vote not found.");
 
@@ -101,7 +107,7 @@ export const VoteCommand = {
 
         await handleHammer(result.hammer, global,setup, game);
         
-        if('arguments' in interaction) {
+        if(interaction.type == 'text') {
             await removeReactions(interaction.message);
 
             await interaction.message.react("✅");
@@ -109,4 +115,4 @@ export const VoteCommand = {
             await interaction.editReply("Vote counted.");
         }
     }
-}
+} satisfies Subcommand;

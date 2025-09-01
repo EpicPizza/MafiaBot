@@ -1,16 +1,18 @@
-import { ChannelType, Colors, EmbedBuilder, GuildTextBasedChannel, Message, TextBasedChannel } from "discord.js";
-import { Vote } from "../utils/vote";
-import client, { Command, CommandOptions } from "../discord";
-import { deleteCollection, getGameByID, getGlobal } from "../utils/main";
-import { set, z } from "zod";
+import { Command } from "commander";
+import { Colors, EmbedBuilder, GuildTextBasedChannel } from "discord.js";
+import { z } from "zod";
+import { type TextCommand } from '../discord';
+import { simpleJoin } from '../utils/text';
+import { fromZod } from '../utils/text';
+import client from "../discord/client";
+import { Extension, ExtensionInteraction } from "../utils/extensions";
 import { firebaseAdmin } from "../utils/firebase";
-import { Setup, getSetup } from "../utils/setup";
-import { getGameSetup, Signups } from "../utils/games";
-import { Global } from "../utils/main";
-import { User, getUser, getUserByChannel, getUserByName } from "../utils/user";
-import { FieldValue } from "firebase-admin/firestore";
+import { getGlobal } from '../utils/global';
+import { getGameByID, getGameSetup } from "../utils/mafia/games";
+import { deleteCollection } from "../utils/mafia/main";
+import { getUser, getUserByChannel, getUserByName } from "../utils/mafia/user";
 import { checkMod } from "../utils/mod";
-import { Extension, ExtensionInteraction, ExtensionInteractions } from "../utils/extensions";
+import { getSetup } from "../utils/setup";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -55,63 +57,63 @@ module.exports = {
     priority: [ ], //events that need a return can only have one extensions modifying it, this prevents multiple extensions from modifying the same event
     help: help,
     commands: [
-        {
-            name: "send",
-            arguments: {
-                required: [ z.string() ],
-                optional: [ "*" ]
-            }
+        () => {
+            return new Command()
+                .name('send')
+                .description('send a message to a player')
+                .argument('[message...]', 'message', simpleJoin);
         },
-        {
-            name: "lock",
-            arguments: {
-                optional: [ z.literal('match') ]
-            }
-        }, 
-        {
-            name: "unlock",
-            arguments: {}
+        () => {
+            return new Command()
+                .name('lock')
+                .description('lock all whispers')
+                .option('--match', 'match lock with main chat lock');
         },
-        {
-            name: "block",
-            arguments: {
-                optional: [ z.union([ z.literal('send'), z.literal('receive'), z.literal('both') ]) ]
-            }
+        () => {
+            return new Command()
+                .name('unlock')
+                .description('unlock all whispers');
         },
-        {
-            name: "unblock",
-            arguments: {
-                optional: [ z.union([ z.literal('send'), z.literal('receive'), z.literal('both') ]) ]
-            }
+        () => {
+            return new Command()
+                .name('block')
+                .description('preven a specific player from sending and/or receiving messages')
+                .argument('[type]', 'send, receive, both', fromZod(z.union([ z.literal('send'), z.literal('receive'), z.literal('both') ]) ));
         },
-        {
-            name: "restrict",
-            arguments: {
-                required: [
-                    z.union([ z.literal('whitelist'), z.literal('blacklist') ]),
-                    z.union([ z.literal('send'), z.literal('receive'), z.literal('both') ]),
-                    z.string()
-                ],
-                optional: [ "*" ]
-            }
+        () => {
+            return new Command()
+                .name('unblock')
+                .description('unblock a specific player from sending and/or receiving messages')
+                .argument('[type]', 'send, receive, both', fromZod(z.union([ z.literal('send'), z.literal('receive'), z.literal('both') ]) ));
         },
-        {
-            name: "unrestrict",
-            arguments: {
-                optional: [ z.union([ z.literal('send'), z.literal('receive'), z.literal('both') ]) ]
-            }
-        }, 
-        {
-            name: "cooldown",
-            arguments: {
-                required: [ z.union([ z.literal('match'), z.literal('clear'), z.coerce.number() ]) ]
-            }
+        () => {
+            return new Command()
+                .name('restrict')
+                .description('restrict a player from sending and/or receiving whispers from certain players, must specify type of restriction')
+                .argument('<restriction>', 'whitelist, blacklist', fromZod(z.union([ z.literal('whitelist'), z.literal('blacklist') ])))
+                .argument('<type>', 'send, receive, both', fromZod(z.union([ z.literal('send'), z.literal('receive'), z.literal('both') ]) ))
+                .argument('<players...>', 'players to restrict', simpleJoin);
         },
-        {
-            name: "overview",
-            arguments: {},
+        () => {
+            return new Command()
+                .name('unrestrict')
+                .description('remove all restrictions from a specific player, default: both.')
+                .argument('[type]', 'send, receive, both', fromZod(z.union([ z.literal('send'), z.literal('receive'), z.literal('both') ]) ))
+        },
+        () => {
+            return new Command()
+                .name('cooldown')
+                .description('set the cooldown for sending whispers, run in spectator chat to change global cooldown, run in specific dm to change specific players cooldown')
+                .argument('[cooldown]', 'cooldowns in milliseconds', fromZod(z.coerce.number()))
+                .option('--match', 'match cooldown to global cooldown if run in dm')
+                .option('--clear', 'clear cooldown')
+        },
+        () => {
+            return new Command()
+                .name('overview')
+                .description('check all settings for whispers: shows player specific settings when in dm, or global settings swhen in spectator chat');
         }
-    ] satisfies CommandOptions[],
+    ],
     interactions: [],
     onStart: async (global, setup, game) => {
         /**
@@ -174,7 +176,7 @@ module.exports = {
             actual: false,
         } satisfies Partial<Settings>);
     },
-    onCommand: async (command: Command) => {
+    onCommand: async (command: TextCommand) => {
         /**
          * Text commands only for the forseeable future.
          * 
@@ -199,7 +201,7 @@ module.exports = {
             const settings = await getSettings();
             if(settings.actual == true) throw new Error("Whispers are locked!");
 
-            const sendingTo = await getUserByName(command.arguments[0] as string);
+            const sendingTo = await getUserByName(command.program.processedArgs[0] as string);
             if(sendingTo == undefined) throw new Error("Player not found");
 
             const fromSettings = await getPlayerSettings(player.id);
@@ -223,7 +225,7 @@ module.exports = {
  
             const embed = new EmbedBuilder()
                 .setAuthor({ name: player.nickname + " whispered to you...", iconURL: member.avatarURL() ?? member.displayAvatarURL() ?? client.user?.displayAvatarURL() ?? "https://cdn.discordapp.com/avatars/1248187665548054588/cc206768cd2ecf8dfe96c1b047caa60f.webp?size=160" })
-                .setDescription(command.arguments.length < 2 ? "*I don't what they whispered to you, but ig they whispered something?*" : command.arguments[1] as string);
+                .setDescription(command.program.args.length < 2 ? "*I don't what they whispered to you, but ig they whispered something?*" : command.program.processedArgs[1] as string);
 
             const channel = await setup.secondary.guild.channels.fetch(sendingTo.channel ?? "") as GuildTextBasedChannel | null;
             if(channel == null) throw new Error("Channel not found.");
@@ -239,7 +241,7 @@ module.exports = {
 
             const ref = db.collection('whispers').doc('settings');
 
-            if(command.arguments.length > 0) {
+            if(command.program.getOptionValue('match') === true) {
                 const global = await getGlobal();
 
                 await ref.update({
@@ -273,7 +275,7 @@ module.exports = {
             
             const userSettings = await getPlayerSettings(user.id);
 
-            const blocking = command.arguments.length > 0 ? command.arguments[0] as 'send' | 'receive' | 'both' : "both";
+            const blocking = command.program.args.length > 0 ? command.program.processedArgs[0] as 'send' | 'receive' | 'both' : "both";
 
             const ref = db.collection('whispers').doc(user.id);
 
@@ -296,7 +298,7 @@ module.exports = {
 
             const userSettings = await getPlayerSettings(user.id);
 
-            const unblocking = command.arguments.length > 0 ? command.arguments[0] as 'send' | 'receive' | 'both' : "both";
+            const unblocking = command.program.args.length > 0 ? command.program.processedArgs[0] as 'send' | 'receive' | 'both' : "both";
 
             const ref = db.collection('whispers').doc(user.id);
 
@@ -321,14 +323,10 @@ module.exports = {
             const user = await getUserByChannel(command.message.channelId);
             if(user == undefined) throw new Error("Not in dm?");
 
-            const type = command.arguments[0] as 'whitelist' | 'blacklist';
-            const blocking = command.arguments[1] as 'send' | 'receive' | 'both';
+            const type = command.program.processedArgs[0] as 'whitelist' | 'blacklist';
+            const blocking = command.program.processedArgs[1] as 'send' | 'receive' | 'both';
 
-            const nicknames = [command.arguments[2] as string];
-
-            if(command.arguments.length > 3) {
-                nicknames.push(... command.arguments.slice(3) as string[]);
-            }
+            const nicknames = (command.program.processedArgs[2] as string).split(" ");
 
             const users = await Promise.all(nicknames.map(async (nickname) => {
                 const fetched = await getUserByName(nickname);
@@ -364,7 +362,7 @@ module.exports = {
             const user = await getUserByChannel(command.message.channelId);
             if(user == undefined) throw new Error("Not in dm?");
 
-            const unblocking = command.arguments[0] as 'send' | 'receive' | 'both';
+            const unblocking = command.program.args.length > 0 ? command.program.processedArgs[0] as 'send' | 'receive' | 'both' : 'both';
 
             const ref = db.collection('whispers').doc(user.id);
 
@@ -383,32 +381,8 @@ module.exports = {
             await command.message.react("✅");
         } else if(command.name == "cooldown") {
             checkMod(setup, global, command.user.id, command.message.guildId ?? "");
-
-            const subcommand = command.arguments[0] as 'match' | 'clear' | number;
-
-            if(typeof subcommand == 'number') {
-                const game = await getGameByID(global.game ?? "");
-                const gameSetup = await getGameSetup(game, setup);
-
-                const user = await getUserByChannel(command.message.channelId);
-                const inSpectatorChat = gameSetup.spec.id == command.message.channelId;
             
-                if(user == undefined && inSpectatorChat == false) throw new Error("Not in dm or spectator chat?");
-
-                if(user) {
-                    const ref = db.collection('whispers').doc(user.id);
-
-                    await ref.update({
-                        cooldown: subcommand,
-                    } satisfies Partial<PlayerSettings>);
-                } else {
-                    const ref = db.collection('whispers').doc('settings');
-
-                    await ref.update({
-                        cooldown: subcommand,
-                    } satisfies Partial<Settings>);
-                }
-            } else if(subcommand == 'clear') {
+            if(command.program.getOptionValue('clear') === true) {
                 const user = await getUserByChannel(command.message.channelId);
 
                 const game = await getGameByID(global.game ?? "");
@@ -439,7 +413,7 @@ module.exports = {
 
                     await batch.commit();
                 }
-            } else if(subcommand == 'match') {
+            } else if(command.program.getOptionValue('match') === true) {
                 const user = await getUserByChannel(command.message.channelId);
                 if(user == undefined) throw new Error("Not in dm?");
 
@@ -448,6 +422,32 @@ module.exports = {
                 await ref.update({
                     cooldown: 'match',
                 } satisfies Partial<PlayerSettings>);
+            } else if(command.program.args.length > 0 ) {
+                const milliseconds = command.program.processedArgs[0] as number;
+
+                const game = await getGameByID(global.game ?? "");
+                const gameSetup = await getGameSetup(game, setup);
+
+                const user = await getUserByChannel(command.message.channelId);
+                const inSpectatorChat = gameSetup.spec.id == command.message.channelId;
+            
+                if(user == undefined && inSpectatorChat == false) throw new Error("Not in dm or spectator chat?");
+
+                if(user) {
+                    const ref = db.collection('whispers').doc(user.id);
+
+                    await ref.update({
+                        cooldown: milliseconds,
+                    } satisfies Partial<PlayerSettings>);
+                } else {
+                    const ref = db.collection('whispers').doc('settings');
+
+                    await ref.update({
+                        cooldown: milliseconds,
+                    } satisfies Partial<Settings>);
+                }
+            } else {
+                throw new Error("Invalid arguments?");
             }
 
             await command.message.react("✅");

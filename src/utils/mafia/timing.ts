@@ -1,8 +1,9 @@
-import { firebaseAdmin } from "./firebase";
-import { getGameByID, getGlobal, lockGame, unlockGame } from "./main";
 import { DateTime } from 'luxon';
-import { getSetup } from "./setup";
-import { getGameSetup } from "./games";
+import { firebaseAdmin } from "../firebase";
+import { getGlobal } from '../global';
+import { getSetup } from "../setup";
+import { getGameByID, getGameSetup } from "./games";
+import { lockGame, unlockGame } from "./main";
 const parseHumanRelativeTime = require('parse-human-relative-time')(DateTime)
 
 //i'll deal with this later; 

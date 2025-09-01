@@ -1,6 +1,5 @@
-import { Guild } from "discord.js";
+import { type Global } from '../utils/global';
 import { Setup } from "./setup";
-import { Global } from "./main";
 
 export async function checkMod(setup: Setup, global: Global, id: string, guild: string) {
     if(!(setup.primary.guild.id == guild || setup.secondary.guild.id == guild || setup.tertiary.guild.id == guild || process.env.DEVGUILD == guild)) throw new Error("You're not a mod!");

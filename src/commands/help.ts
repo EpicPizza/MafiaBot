@@ -1,11 +1,12 @@
-import { ActionRow, ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, EmbedBuilder, Message, PermissionFlagsBits, SlashCommandBuilder, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
-import { Data } from "../discord";
+import { Command } from "commander";
+import { ActionRowBuilder, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandBuilder, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { z } from "zod";
-import { getSetup } from "../utils/setup";
-import { getGlobal } from "../utils/main";
-import { Command } from "../discord";
+import { Data } from '../discord';
+import { TextCommand } from '../discord';
 import { getEnabledExtensions } from "../utils/extensions";
-import { checkMod, isMod } from "../utils/mod";
+import { getGlobal } from '../utils/global';
+import { isMod } from "../utils/mod";
+import { getSetup } from "../utils/setup";
 
 module.exports = {
     data: [
@@ -27,11 +28,15 @@ module.exports = {
         {
             type: 'text',
             name: 'text-help',
-            command: {}
+            command: () => {
+                return new Command()
+                    .name('help')
+                    .description('how to use Mafia Bot and its commands')
+            }
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction | StringSelectMenuInteraction | Command ) => {
+    execute: async (interaction: ChatInputCommandInteraction | StringSelectMenuInteraction | TextCommand ) => {
         const global = await getGlobal();
 
         const extensions = await getEnabledExtensions(global);

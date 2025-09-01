@@ -1,17 +1,17 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
-import { Data, removeReactions } from "../discord";
-import { getGlobal } from "../utils/main";
-import { getUser, User } from "../utils/user";
-import { Command } from "../discord";
-import { firebaseAdmin } from "../utils/firebase";
-import { randomInt } from "crypto";
-import { checkMod } from "../utils/mod";
-import { getSetup } from "../utils/setup";
-import { Readable, Writable } from "stream";
+import { Command } from "commander";
 import csvParser from "csv-parser";
+import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+import { Readable } from "stream";
 import { finished } from "stream/promises";
 import { z } from "zod";
-import { Stat } from "../utils/stats";
+import { Data } from '../discord';
+import { TextCommand } from '../discord';
+import { removeReactions } from "../discord/helpers";
+import { firebaseAdmin } from "../utils/firebase";
+import { getGlobal } from '../utils/global';
+import { Stat } from "../utils/mafia/stats";
+import { checkMod } from "../utils/mod";
+import { getSetup } from "../utils/setup";
 
 module.exports = {
     data: [
@@ -37,11 +37,15 @@ module.exports = {
         {
             type: 'text',
             name: 'text-update',
-            command: {}
+            command: () => {
+                return new Command()
+                    .name('update')
+                    .description("update stats, don't use if you don't know what this is for")
+            }
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction | Command) => {
+    execute: async (interaction: ChatInputCommandInteraction | TextCommand) => {
         if(interaction.type != 'text') {
             await interaction.deferReply();
         } else {

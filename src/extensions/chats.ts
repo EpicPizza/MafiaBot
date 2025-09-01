@@ -1,16 +1,18 @@
-import { ChannelType, Message } from "discord.js";
-import { Vote } from "../utils/vote";
-import { Command, CommandOptions } from "../discord";
-import { deleteCollection, getGameByID, getGlobal } from "../utils/main";
-import { z } from "zod";
-import { firebaseAdmin } from "../utils/firebase";
-import { Setup, getSetup } from "../utils/setup";
-import { Signups } from "../utils/games";
-import { Global } from "../utils/main";
-import { User, getUser, getUserByName } from "../utils/user";
+import { Command } from "commander";
+import { ChannelType } from "discord.js";
 import { FieldValue } from "firebase-admin/firestore";
-import { checkMod } from "../utils/mod";
+import { z } from "zod";
+import { type TextCommand } from '../discord';
+import { simpleJoin } from '../utils/text';
+import { fromZod } from '../utils/text';
 import { Extension, ExtensionInteraction } from "../utils/extensions";
+import { firebaseAdmin } from "../utils/firebase";
+import { getGlobal } from '../utils/global';
+import { getGameByID } from "../utils/mafia/games";
+import { deleteCollection } from "../utils/mafia/main";
+import { getUserByName, User } from "../utils/mafia/user";
+import { checkMod } from "../utils/mod";
+import { getSetup } from "../utils/setup";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -41,40 +43,42 @@ module.exports = {
     priority: [ ], //events that need a return can only have one extensions modifying it, this prevents multiple extensions from modifying the same event
     help: help,
     commands: [
-        {
-            name: "create",
-            arguments: {
-                required: [ z.string().min(1).max(100), z.string().min(1).max(100), z.string().min(1).max(100) ],
-                optional: [ z.string().min(1).max(100), z.string().min(1).max(100), z.string().min(1).max(100), z.string().min(1).max(100), z.string().min(1).max(100), z.string().min(1).max(100) ]
-            },
+        () => {
+            return new Command()
+                .name('create')
+                .description('create a chat between two to eight players, sperate nicknames with a space. players will be pinged when the chat is created. this command can only be run within dms')
+                .argument('<name>', 'name of chat', fromZod(z.string().min(1).max(100)))
+                .argument('<players...>', 'nicknames of players', simpleJoin);
         },
-        {
-            name: "lock",
-            arguments: {
-                optional: [ z.literal("match") ]
-            }
-        }, 
-        {
-            name: "unlock",
-            arguments: {},
+        () => {
+            return new Command()
+                .name('lock')
+                .description('lock a chat, preventing players from messaging but keeping access.')
+                .option('--match', 'match lock with main chat lock');
         },
-        {
-            name: "remove",
-            arguments: {
-                required: [ z.string().min(1).max(100) ]
-            },
+        () => {
+            return new Command()
+                .name('unlock')
+                .description('unlock a chat');
         },
-        {
-            name: "add",
-            arguments: {
-                required: [ z.string().min(1).max(100) ]
-            },
-        }, 
-        {
-            name: "close",
-            arguments: {}
-        }
-    ] satisfies CommandOptions[],
+        () => {
+            return new Command() 
+                .name('remove')
+                .description('add a player to the chat, pinging them once added')
+                .argument('<player>', 'nickname of player')
+        },
+        () => {
+            return new Command() 
+                .name('add')
+                .description('remove a player\'s access to the chat')
+                .argument('<player>', 'nickname of player')
+        },
+        () => {
+            return new Command() 
+                .name('close')
+                .description('close a chat, removing access for all players. cannot be reversed')
+        },
+    ],
     interactions: [],
     onStart: async (global, setup, game) => {
         /**
@@ -133,7 +137,7 @@ module.exports = {
             }
         }
     },
-    onCommand: async (command: Command) => {
+    onCommand: async (command: TextCommand) => {
         /**
          * Text commands only for the forseeable future.
          * 
@@ -156,10 +160,10 @@ module.exports = {
 
             const chats = [] as User[];
 
-            for(let i = 1; i < command.arguments.length; i++) {
-                const user = await getUserByName(command.arguments[i] as string);
+            for(let i = 1; i < command.program.args.length; i++) {
+                const user = await getUserByName(command.program.args[i] as string);
 
-                if(user == undefined) throw new Error(command.arguments[i] + " not found.");
+                if(user == undefined) throw new Error(command.program.args[i] + " not found.");
 
                 chats.push(user);
             }
@@ -174,7 +178,7 @@ module.exports = {
                 await channel.permissionOverwrites.create(member, messageOverwrites());
             }
 
-            await channel.setName("chat-" + command.arguments[0] as string);
+            await channel.setName("chat-" + command.program.processedArgs[0] as string);
 
             await channel.setTopic(game.name + " Mafia");
 
@@ -185,7 +189,7 @@ module.exports = {
                 locked: false,
                 match: false,
             })
-        } else if(command.name == "lock" && command.arguments[0] == "match") {
+        } else if(command.name == "lock" && command.program.getOptionValue('match') === true) {
             const data = (await db.collection('chats').doc(command.message.channel.id).get()).data();
             const global = await getGlobal();
 
@@ -231,9 +235,9 @@ module.exports = {
             const locked = data.locked;
             const channel = command.message.channel;
 
-            const user = await getUserByName(command.arguments[0] as string);
+            const user = await getUserByName(command.program.processedArgs[0] as string);
 
-            if(user == undefined) throw new Error(command.arguments[0] + "not found.");
+            if(user == undefined) throw new Error(command.program.processedArgs[0] + "not found.");
 
             if(command.name == "add" && chats.includes(user.id)) throw new Error("Already added.");
             if(command.name == "remove" && !chats.includes(user.id)) throw new Error("Already not in chat.");

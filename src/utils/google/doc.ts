@@ -1,8 +1,9 @@
-import { Colors, EmbedBuilder, Message, MessageActionRowComponent } from "discord.js";
+import { Colors, EmbedBuilder, Message } from "discord.js";
 import { getClient } from "./google";
 import { google } from "googleapis";
-import { firebaseAdmin } from "./firebase";
-import { Cache, removeReactions } from "../discord";
+import { firebaseAdmin } from "../firebase";
+import type { Cache } from '../../discord/message';
+import { removeReactions } from "../../discord/helpers";
 
 const googleDocIdRegex = /docs\.google\.com\/(?:document|spreadsheets|presentation)\/d\/([a-zA-Z0-9-_]+)/g;
 

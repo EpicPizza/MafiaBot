@@ -1,8 +1,8 @@
 import { ApplicationCommandType, AttachmentBuilder, ChatInputCommandInteraction, ContextMenuCommandBuilder, ContextMenuCommandInteraction, FileBuilder, SlashCommandBuilder } from "discord.js";
-import { Data, removeReactions } from "../discord";
-import { getGlobal } from "../utils/main";
+import { Data } from "../discord";
+import { getGlobal, type Global } from '../utils/global';
 import { getUser, User } from "../utils/user";
-import { Command } from "../discord";
+import { TextCommand } from "../discord";
 import { firebaseAdmin } from "../utils/firebase";
 import { randomInt } from "crypto";
 import { z } from "zod";
@@ -13,6 +13,8 @@ import { spawn } from "child_process";
 import { mkdir, readdir, rm, rmdir, stat } from "fs/promises";
 import { checkMessage } from "../utils/doc";
 import { getSetup } from "../utils/setup";
+import { Command } from "commander";
+import { removeReactions } from "../discord/helpers";
 
 const googleDocIdRegex = /docs\.google\.com\/(?:document|spreadsheets|presentation)\/d\/([a-zA-Z0-9-_]+)/;
 
@@ -21,7 +23,11 @@ module.exports = {
         {
             type: 'text',
             name: 'text-recheck',
-            command: {}
+            command: () => {
+                return new Command()
+                    .name('recheck')
+                    .description('reply to message to check for google doc/slide/sheet')
+            }
         },
         {
             type: 'context',
@@ -32,7 +38,7 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: Command | ContextMenuCommandInteraction) => {
+    execute: async (interaction: TextCommand | ContextMenuCommandInteraction) => {
         const global = await getGlobal();
         const setup = await getSetup();
 

@@ -1,40 +1,45 @@
+import { Command } from "commander";
 import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
-import { Command, removeReactions, TextCommandArguments } from "../../discord";
 import { z } from "zod";
-import { getGameByID, getGlobal, lockGame } from "../../utils/main";
-import { getSetup, Setup, } from "../../utils/setup";
-import { getGameSetup, Signups } from "../../utils/games";
-import { getUser, User } from "../../utils/user";
+import { type TextCommand } from '../../discord';
+import { fromZod } from '../../utils/text';
+import { removeReactions } from "../../discord/helpers";
 import { getEnabledExtensions } from "../../utils/extensions";
-import { Global } from "../../utils/main";
-import { addMafiaPlayer } from "../mod/alignments";
 import { firebaseAdmin } from "../../utils/firebase";
+import { getGlobal, type Global } from '../../utils/global';
+import { getGameByID, getGameSetup, Signups } from "../../utils/mafia/games";
+import { getUser, User } from "../../utils/mafia/user";
+import { getSetup, Setup, } from "../../utils/setup";
+import { Subcommand } from "../../utils/subcommands";
 import { setAlignments } from "../mod/start";
 
 export const AlignmentCommand = {
     name: "alignment",
-    description: "?adv alignment {nickname} {alignment}",
-    command: {
-        slash: new SlashCommandSubcommandBuilder()
-            .setName("alignment")
-            .setDescription("Set a players alignment midgame.")
-            .addStringOption(option =>
-                option
-                    .setName("player")
-                    .setDescription("Which player to set alignment to.")
-                    .setRequired(true)
-                    .setAutocomplete(true))
-            .addStringOption(option =>
-                option
-                    .setName("alignment")
-                    .setDescription("What alignment to set to.")
-                    .setRequired(true)),
-        text: {
-            required: [ z.string(), z.string() ],
-            optional: []
-        } satisfies TextCommandArguments
+    subcommand: true,
+
+    slash: new SlashCommandSubcommandBuilder()
+        .setName("alignment")
+        .setDescription("Set a players alignment midgame.")
+        .addStringOption(option =>
+            option
+                .setName("player")
+                .setDescription("Which player to set alignment to.")
+                .setRequired(true)
+                .setAutocomplete(true))
+        .addStringOption(option =>
+            option
+                .setName("alignment")
+                .setDescription("What alignment to set to.")
+                .setRequired(true)),
+    text: () => {
+        return new Command()
+            .name('alignment')
+            .description('set a player\'s alignment midgame')
+            .argument('<player>', 'nickname of player', fromZod(z.string().min(1).max(100)))
+            .argument('<alignment>', 'alignment to set', fromZod(z.string().min(1).max(100)));
     },
-    execute: async (interaction: Command | ChatInputCommandInteraction) => {
+
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
         if(interaction.type != 'text') {
             await interaction.deferReply({ ephemeral: true });
         } else {
@@ -49,8 +54,8 @@ export const AlignmentCommand = {
         const game = await getGameByID(global.game ?? "");
          const gameSetup = await getGameSetup(game, setup);
 
-        const player = interaction.type == 'text' ? interaction.arguments[1] as string : interaction.options.getString('player');
-        const alignment = interaction.type == 'text' ? interaction.arguments[2] as string : interaction.options.getString('alignment');
+        const player = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');
+        const alignment = interaction.type == 'text' ? interaction.program.processedArgs[1] as string : interaction.options.getString('alignment');
 
         if(player == null) throw new Error("Choose a player.");
         if(alignment == null || alignment == "") throw new Error("Alignment must be specified.");
@@ -95,20 +100,22 @@ export const AlignmentCommand = {
             await interaction.message.react("✅");
         }
     }
-}
+} satisfies Subcommand;
 
 export const InitialCommand = {
     name: "initial",
-    description: "?mod initial",
-    command: {
-        slash: new SlashCommandSubcommandBuilder()
-            .setName("initial")
-            .setDescription("Clear a day's votes."),
-        text: {
-            
-        } satisfies TextCommandArguments
+    subcommand: true,
+
+    slash: new SlashCommandSubcommandBuilder()
+        .setName("initial")
+        .setDescription("Resend alignment picker."),
+    text: () => {
+        return new Command()
+            .name('initial')
+            .description('resend alignment picker');
     },
-    execute: async (interaction: Command | ChatInputCommandInteraction) => {
+
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
         if(interaction.type != 'text') {
             await interaction.deferReply();
         } else {
@@ -125,7 +132,7 @@ export const InitialCommand = {
             await interaction.message.react("✅");
         }
     }
-}
+} satisfies Subcommand;
 
 
 async function hammerExtensions(global: Global, setup: Setup, game: Signups, hammered: string) {

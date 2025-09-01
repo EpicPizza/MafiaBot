@@ -1,8 +1,7 @@
-import admin from 'firebase-admin'
-import FirebaseAdmin from 'firebase-admin';
-const firebaseAuth = FirebaseAdmin.auth;
-import type { Auth, DecodedIdToken, UserRecord } from 'firebase-admin/auth';
+import { default as admin, default as FirebaseAdmin } from 'firebase-admin';
+import type { Auth } from 'firebase-admin/auth';
 import { type Firestore, getFirestore as getFirebaseFirestore } from 'firebase-admin/firestore';
+const firebaseAuth = FirebaseAdmin.auth;
 export let firebaseAdmin = getFirebaseAdmin();
 
 function getFirebaseAdmin() {

@@ -1,9 +1,8 @@
-import { Message } from "discord.js";
-import { flow, Vote } from "../utils/vote";
-import { Command, CommandOptions } from "../discord";
-import { getGlobal } from "../utils/main";
+import { Command } from "commander";
 import { z } from "zod";
-import { Extension, ExtensionInteraction } from "../utils/extensions";
+import { fromZod } from '../utils/text';
+import { Extension } from "../utils/extensions";
+import { flow } from "../utils/mafia/vote";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -15,14 +14,14 @@ module.exports = {
     priority: [ "onVote", "onVotes" ], //events that need a return can only have one extensions modifying it, this prevents multiple extensions from modifying the same event
     help: "help",
     commands: [
-        {
-            name: "list",
-            arguments: {
-                required: [ z.string() ],
-                optional: [ z.coerce.number() ]
-            }
+        () => {
+            return new Command()
+                .name('list')
+                .description('list something')
+                .argument('<string>', 'a string')
+                .argument('<number>', 'a number', fromZod(z.coerce.number()));
         }
-    ] satisfies CommandOptions[],
+    ],
     interactions: [],
     onStart: async (global, setup, game) => {
         /**

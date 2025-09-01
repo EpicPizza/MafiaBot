@@ -4,14 +4,15 @@
   "description": "A mafia bot for #FRCBayAreaGang.",
   "main": "build/discord.js",
   "scripts": {
-    "dev": "ts-node src/setup.ts && nodemon src/discord.ts",
-    "worker": "node build/setup.js && node build/discord.js",
+    "dev": "ts-node src/setup.ts && nodemon src/index.ts",
+    "worker": "node build/setup.js && node build/index.js",
     "build": "tsc"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@types/luxon": "^3.4.2",
+    "commander": "^14.0.0",
     "cross-spawn": "^7.0.6",
     "csv-parse": "^6.1.0",
     "csv-parser": "^3.2.0",
@@ -24,11 +25,22 @@
     "googleapis": "^155.0.1",
     "luxon": "^3.4.4",
     "parse-human-relative-time": "^3.0.2",
+    "string-argv": "^0.3.2",
     "typescript": "^5.4.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "nodemon": "^3.1.2",
     "ts-node": "^10.9.2"
+  },
+  "madge": {
+    "detectiveOptions": {
+      "ts": {
+        "skipTypeImports": true
+      },
+      "tsx": {
+        "skipTypeImports": true
+      }
+    }
   }
 }

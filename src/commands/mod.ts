@@ -1,49 +1,22 @@
-import { APIActionRowComponent, APIButtonComponent, ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChannelType, ChatInputCommandInteraction, Colors, CommandInteraction, ComponentType, EmbedBuilder, Interaction, ModalBuilder, ModalSubmitInteraction, SlashCommandBuilder, SlashCommandSubcommandBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, TextChannel, TextInputBuilder, TextInputStyle } from "discord.js";
-import client, { Command, Data } from "../discord";
-import { firebaseAdmin } from "../utils/firebase";
-import { z } from "zod";
-import { createUser, editUser, getUser } from "../utils/user";
-import { endGame, getGlobal, getGameByID, getGameByName, startGame, unlockGame, lockGame, getAllNicknames } from "../utils/main";
-import { DateTime, SystemZone, Zone } from 'luxon';
-import { getFuture, parse, setFuture } from "../utils/timing";
-import { getSetup } from "../utils/setup";
-import dnt from 'date-and-time';
-import meridiem from 'date-and-time/plugin/meridiem'
-import { activateSignup, archiveGame, closeSignups, createGame, getGameSetup, getGames, openSignups, refreshSignup, removeSignup } from "../utils/games";
-import { ModCommand } from "./mod/mod";
-import { extensions } from "../utils/extensions";
+import { Interaction } from "discord.js";
+import type { Data } from '../discord';
+import type { TextCommand } from '../discord';
+import { getAllExtensions } from "../utils/extensions";
+import { getGlobal } from '../utils/global';
+import { getGames } from "../utils/mafia/games";
+import { getAllNicknames } from "../utils/mafia/user";
 import { checkMod } from "../utils/mod";
-
-dnt.plugin(meridiem);
-
-const mod = ModCommand();
+import { getSetup } from "../utils/setup";
+import { builder } from "./mod/mod";
 
 module.exports = {
     data: [
-        { 
-            type: 'slash',
-            name: 'slash-mod',
-            command: () => {
-                const command = new SlashCommandBuilder()
-                    .setName('mod')
-                    .setDescription('Mod only commands.')
-                
-                mod.getBuilders().forEach(subcommand => {
-                    if('addSubcommand' in subcommand) {
-                        command.addSubcommandGroup(subcommand);
-                    } else {
-                        command.addSubcommand(subcommand);
-                    }
-                })
-
-                return command;
-            }   
-        },
-        mod.getTextCommand(),
-        ...mod.getInteractions()
+        builder.getSlashCommand(),
+        builder.getTextCommand(),
+        ...builder.getInteractions()
     ] satisfies Data[],
 
-    execute: async (interaction: Interaction | Command) => {
+    execute: async (interaction: Interaction | TextCommand) => {
         if(interaction.type != 'text' && interaction.isAutocomplete()) {
             const focusedValue = interaction.options.getFocused(true);
 
@@ -68,7 +41,7 @@ module.exports = {
 
                 const global = await getGlobal();
 
-                let names = extensions.map(extension => extension.name).splice(0, 25);
+                let names = getAllExtensions().map(extension => extension.name).splice(0, 25);
 
                 switch(action) {
                     case 'disable':
@@ -94,9 +67,9 @@ module.exports = {
         await checkMod(setup, global, interaction.user.id, 'message' in interaction ? interaction.message?.guild?.id ?? "" : interaction.guildId ?? "");
 
         if(interaction.type == 'text' || interaction.isChatInputCommand()) {
-            await mod.handleCommand(interaction)
+            await builder.handleCommand(interaction)
         } else if(interaction.isButton() || interaction.isStringSelectMenu() || interaction.isModalSubmit()) {
-            await mod.handleInteraction(interaction);
+            await builder.handleInteraction(interaction);
         }
     }
 }

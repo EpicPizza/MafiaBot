@@ -1,16 +1,18 @@
-import { ChannelType, ChatInputCommandInteraction, Colors, EmbedBuilder, Message } from "discord.js";
-import { CustomLog, flow, getVotes, handleHammer, TransactionResult, Vote } from "../utils/vote";
-import { Command, CommandOptions } from "../discord";
-import { deleteCollection, getGameByID, getGlobal } from "../utils/main";
-import { z } from "zod";
-import { firebaseAdmin } from "../utils/firebase";
-import { Setup, getSetup } from "../utils/setup";
-import { Signups, getGameSetup } from "../utils/games";
-import { Global } from "../utils/main"
-import { User, getUser, getUserByChannel, getUserByName, getUsers, getUsersArray } from "../utils/user";
-import { checkMod } from "../utils/mod";
-import { Extension, ExtensionInteraction } from "../utils/extensions";
+import { Command } from "commander";
+import { ChannelType, Colors, EmbedBuilder } from "discord.js";
 import { Transaction } from "firebase-admin/firestore";
+import { z } from "zod";
+import { type TextCommand } from '../discord';
+import { fromZod } from '../utils/text';
+import { Extension, ExtensionInteraction } from "../utils/extensions";
+import { firebaseAdmin } from "../utils/firebase";
+import { getGlobal, type Global } from '../utils/global';
+import { Signups, getGameByID, getGameSetup } from "../utils/mafia/games";
+import { deleteCollection } from "../utils/mafia/main";
+import { User, getUserByChannel, getUsersArray } from "../utils/mafia/user";
+import { CustomLog, TransactionResult, Vote, flow, getVotes, handleHammer } from "../utils/mafia/vote";
+import { checkMod } from "../utils/mod";
+import { getSetup } from "../utils/setup";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -46,25 +48,34 @@ module.exports = {
         }
     ],
     commands: [
-        {
-            name: "set",
-            arguments: {
-                required: [ z.literal("hidden").or(z.literal("secret")).or(z.literal("classic")).or(z.literal('public')), z.coerce.number().int().min(1), z.coerce.number().int().min(1) ],
-            }
-        }, {
-            name: "clear",
-            arguments: {},
-        }, {
-            name: "check",
-            arguments: {},
-        }, {
-            name: "reveal",
-            arguments: {},
-        }, {
-            name: "votes",
-            arguments: {},
-        }
-    ] satisfies CommandOptions[],
+        () => {
+            return new Command()
+                .name('set')
+                .requiredOption('--type <type>', 'hidden, secret, classic, public', fromZod(z.literal("hidden").or(z.literal("secret")).or(z.literal("classic")).or(z.literal('public'))))
+                .requiredOption('--weight <weight>', 'number of votes', fromZod(z.coerce.number().int().min(1)))
+                .requiredOption('--day <day>', 'which day to be active on', fromZod(z.coerce.number().int().min(1)));
+        },
+        () => {
+            return new Command()
+                .name('clear')
+                .description('clear the current set mayor of a player. must be run by the mod, inside the corresponding dm')
+        },
+        () => {
+            return new Command()
+                .name('check')
+                .description('list out all the mayors set. must be run in dead chat channel')
+        },
+        () => {
+            return new Command()
+                .name('reveal')
+                .description('command used by player to reveal they are mayor')
+        },
+        () => {
+            return new Command()
+                .name('votes')
+                .description('show votes with hidden mayors. must be run in dead chat channel')
+        },
+    ],
     interactions: [],
     onStart: async (global, setup, game) => {
         /**
@@ -83,7 +94,7 @@ module.exports = {
     },
     onLock: async (global, setup, game) => {},
     onUnlock: async (global, setup, game, incremented) => {},
-    onCommand: async (command: Command) => {
+    onCommand: async (command: TextCommand) => {
         /**
          * Text commands only for the forseeable future.
          * 
@@ -108,10 +119,10 @@ module.exports = {
 
             const previous = (await ref.get()).data() as MayorEntry | undefined;
             const newEntry = {
-                type: command.arguments[0] as 'public' | 'classic' | 'secret' | 'hidden',
-                weight: command.arguments[1] as number,
-                reveal: command.arguments[0] == 'public' ? true : false,
-                day: command.arguments[2] as number,
+                type: command.program.getOptionValue('type') as 'public' | 'classic' | 'secret' | 'hidden',
+                weight: command.program.getOptionValue('weight')  as number,
+                reveal: command.program.getOptionValue('type') == 'public' ? true : false,
+                day: command.program.getOptionValue('day')  as number,
             } satisfies MayorEntry;
             
             await ref.set(newEntry);

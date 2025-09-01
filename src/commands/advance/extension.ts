@@ -1,75 +1,85 @@
-import { ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandSubcommandBuilder, SlashCommandSubcommandGroupBuilder } from "discord.js";
-import { Command, TextCommandArguments } from "../../discord";
-import { z } from "zod";
-import { endGame, getGameByID, getGlobal, startGame } from "../../utils/main";
-import { extensions } from "../../utils/extensions";
-import { firebaseAdmin } from "../../utils/firebase";
+import { Command } from "commander";
+import { ChatInputCommandInteraction, SlashCommandSubcommandGroupBuilder } from "discord.js";
 import { FieldValue } from "firebase-admin/firestore";
+import { z } from "zod";
+import { type TextCommand } from '../../discord';
+import { fromZod } from '../../utils/text';
+import { getAllExtensions } from "../../utils/extensions";
+import { firebaseAdmin } from "../../utils/firebase";
+import { getGlobal } from '../../utils/global';
+import { getGameByID } from "../../utils/mafia/games";
 import { getSetup } from "../../utils/setup";
+import { Subcommand } from "../../utils/subcommands";
 
 export const ExtensionCommand = {
     name: "extension",
-    description: "?adv extension {enabled | disable} *{name}* {start/end: true|false}",
-    command: {
-        slash: new SlashCommandSubcommandGroupBuilder()
-            .setName("extension")
-            .setDescription("Manage extensions.")
-            .addSubcommand(subcommand =>
-                subcommand 
-                    .setName("enable")
-                    .setDescription("Enable extension.")
-                    .addStringOption(option =>
-                        option
-                            .setName("extension")
-                            .setDescription("Name of extension.")
-                            .setRequired(true)
-                            .setAutocomplete(true)    
-                    )
-                    .addBooleanOption(option =>
-                        option
-                            .setName('start')
-                            .setDescription("Whether to run start function or not.")
-                            .setRequired(true)
-                    )
-            )
-            .addSubcommand(subcommand =>
-                subcommand 
-                    .setName("disable")
-                    .setDescription("Disable extension.")
-                    .addStringOption(option =>
-                        option
-                            .setName("extension")
-                            .setDescription("Name of extension.")
-                            .setRequired(true)
-                            .setAutocomplete(true)    
-                    )
-                    .addBooleanOption(option =>
-                        option
-                            .setName('end')
-                            .setDescription("Whether to run end function or not.")
-                            .setRequired(true)
-                    )
-            ),
-        text: {
-            required: [ z.string().min(1).max(100), z.string().min(1).max(100), z.coerce.boolean() ],
-        } satisfies TextCommandArguments
+    //description: "?adv extension {enabled | disable} *{name}* {start/end: true|false}",
+    subcommand: true,
+    
+    slash: new SlashCommandSubcommandGroupBuilder()
+        .setName("extension")
+        .setDescription("Manage extensions.")
+        .addSubcommand(subcommand =>
+            subcommand 
+                .setName("enable")
+                .setDescription("Enable extension.")
+                .addStringOption(option =>
+                    option
+                        .setName("extension")
+                        .setDescription("Name of extension.")
+                        .setRequired(true)
+                        .setAutocomplete(true)    
+                )
+                .addBooleanOption(option =>
+                    option
+                        .setName('start')
+                        .setDescription("Whether to run start function or not.")
+                        .setRequired(true)
+                )
+        )
+        .addSubcommand(subcommand =>
+            subcommand 
+                .setName("disable")
+                .setDescription("Disable extension.")
+                .addStringOption(option =>
+                    option
+                        .setName("extension")
+                        .setDescription("Name of extension.")
+                        .setRequired(true)
+                        .setAutocomplete(true)    
+                )
+                .addBooleanOption(option =>
+                    option
+                        .setName('end')
+                        .setDescription("Whether to run end function or not.")
+                        .setRequired(true)
+                )
+        ),
+    text: () => {
+        return new Command()
+            .name('extension')
+            .description('manage extensions')
+            .argument('<action>', 'enable, disable', fromZod(z.string().min(1).max(100)))
+            .argument('<name>', 'name of extension', fromZod(z.string().min(1).max(100)))
+            .option('--setup', 'to run start/end fucntion', fromZod(z.string().min(1).max(100)))
     },
-    execute: async (interaction: Command | ChatInputCommandInteraction) => {
+
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
         const global = await getGlobal();
 
-        const extension = interaction.type == 'text' ? interaction.arguments[2] as string : interaction.options.getString("extension");
-        const command = interaction.type == 'text' ? interaction.arguments[1] as string : interaction.options.getSubcommand();
-        const start = interaction.type == 'text' ? interaction.arguments[3] as boolean : interaction.options.getBoolean("start");
-        const end = interaction.type == 'text' ? interaction.arguments[3] as boolean : interaction.options.getBoolean("end");
+        const extension = interaction.type == 'text' ? interaction.program.processedArgs[1] as string : interaction.options.getString("extension");
+        const command = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getSubcommand();
+        const start = interaction.type == 'text' ? interaction.program.getOptionValue('setup') === true : interaction.options.getBoolean("start");
+        const end = interaction.type == 'text' ? interaction.program.getOptionValue('setup') === true : interaction.options.getBoolean("end");
 
-        console.log(interaction.type == 'text' ? interaction.arguments : []);
+        console.log(interaction.type == 'text' ? interaction.program.args : []);
         console.log(start, end);
 
         if(command == null) throw new Error("Arguments not specified.");
         if(extension == null) throw new Error("Extension name not specified.");
 
-        const enabled = extensions.filter(extension => global.extensions.find(enabled => enabled == extension.name));
-        const disabled = extensions.filter(extension => !global.extensions.find(enabled => enabled == extension.name));
+        const enabled = getAllExtensions().filter(extension => global.extensions.find(enabled => enabled == extension.name));
+        const disabled = getAllExtensions().filter(extension => !global.extensions.find(enabled => enabled == extension.name));
 
         if(command == "enable") {
             //if(global.started) throw new Error("Cannot enable or disable extensions if the game has already started."); ADVANCE?
@@ -133,4 +143,4 @@ export const ExtensionCommand = {
             }
         }
     }
-}
+} satisfies Subcommand;

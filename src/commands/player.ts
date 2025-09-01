@@ -1,10 +1,12 @@
-import { ActionRowBuilder, AutocompleteInteraction, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, EmbedBuilder, ModalBuilder, ModalSubmitInteraction, SlashCommandBuilder, SlashCommandSubcommandBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
-import { Command, Data } from "../discord";
-import { firebaseAdmin } from "../utils/firebase";
+import { Command } from "commander";
+import { ActionRowBuilder, AutocompleteInteraction, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, EmbedBuilder, ModalBuilder, ModalSubmitInteraction, SlashCommandBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
 import { z } from "zod";
-import { User, createUser, editUser, getUser, getUserByName } from "../utils/user";
-import { getAllNicknames, getGameByID, getGlobal } from "../utils/main";
-import { addSignup, refreshSignup } from "../utils/games";
+import { Data } from '../discord';
+import { TextCommand } from '../discord';
+import { fromZod } from '../utils/text';
+import { getGlobal } from '../utils/global';
+import { addSignup, refreshSignup } from "../utils/mafia/games";
+import { User, createUser, editUser, getAllNicknames, getUser, getUserByName } from "../utils/mafia/user";
 import { getSetup } from "../utils/setup";
 
 const setNickname = z.object({
@@ -57,18 +59,26 @@ module.exports = {
         {
             type: 'text',
             name: 'text-nickname',
-            command: {}
+            command: () => {
+                return new Command()
+                    .name('nickname')
+                    .description('set your nickname')
+            }
         }, 
         {
             type: 'text',
             name: 'text-info',
-            command: {
-                optional: [ z.string().regex(/^<@\d+>$/).or(z.string().regex(/^[a-zA-Z]+$/, "Only letters allowed. No spaces.")), z.literal('extra') ]
+            command: () => {
+                return new Command()
+                    .name('info')
+                    .description('get the @ and nickname of a player')
+                    .argument('[@/nickname]', '@/nickname of player', fromZod(z.string().regex(/^<@\d+>$/).or(z.string().regex(/^[a-zA-Z]+$/, "Only letters allowed. No spaces."))))
+                    .option('--extra', 'get the player\'s hex/pfp')
             }
         }
     ] satisfies Data[],
 
-    execute: async (interaction: CommandInteraction | ButtonInteraction | ModalSubmitInteraction | AutocompleteInteraction | Command) => {
+    execute: async (interaction: CommandInteraction | ButtonInteraction | ModalSubmitInteraction | AutocompleteInteraction | TextCommand) => {
         if(interaction.type == 'text' && interaction.name == 'nickname') {
             const embed = new EmbedBuilder()
                 .setTitle("Set a nickname.")
@@ -106,10 +116,10 @@ module.exports = {
 
             await showModal(interaction, id.autoSignUp, id.type ?? "text", id.game);
         } else if(interaction.type != 'text' && (interaction.isChatInputCommand() && interaction.commandName == "info") || (interaction.type == 'text' && interaction.name == "info")) {
-            const userOption = interaction.type == 'text' ? interaction.arguments[0] as string : interaction.options.getUser("user");
-            const nicknameOption = interaction.type == 'text' ? interaction.arguments[0] as string : interaction.options.getString("nickname");
+            const userOption = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getUser("user");
+            const nicknameOption = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString("nickname");
 
-            const extra = interaction.type == 'text' ? interaction.arguments.length > 1 : false;
+            const extra = interaction.type == 'text' ? interaction.program.getOptionValue('extra') === true : false;
 
 
             let user: User | undefined = undefined;
@@ -138,10 +148,10 @@ module.exports = {
 
                 const member = await setup.primary.guild.members.fetch({ user: user?.id, cache: true });
 
-                const pfp = (member.avatarURL() ?? member.displayAvatarURL() ?? member.user?.displayAvatarURL() ?? "https://cdn.discordapp.com/avatars/1248187665548054588/cc206768cd2ecf8dfe96c1b047caa60f.webp?size=160");
+                const pfp = (member.displayAvatarURL({ extension: 'png' }) ?? "https://cdn.discordapp.com/avatars/1248187665548054588/cc206768cd2ecf8dfe96c1b047caa60f.webp");
 
                 const extraEmbed = new EmbedBuilder()
-                    .setDescription('Color: ' + member.displayHexColor + "\nURL: " + pfp.substring(0, pfp.length - 5) + ".png");
+                    .setDescription('Color: ' + member.displayHexColor + "\nURL: " + pfp);
 
                 await interaction.reply({ embeds: [embed, extraEmbed], ephemeral: true });
             } else {

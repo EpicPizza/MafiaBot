@@ -1,18 +1,20 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors, EmbedBuilder, InteractionType, Message } from "discord.js";
-import { Vote } from "../utils/vote";
-import { Command, CommandOptions } from "../discord";
-import { getGameByID, getGlobal, lockGame, unlockGame, type Global } from "../utils/main";
+import { Command } from "commander";
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors, EmbedBuilder } from "discord.js";
 import { z } from "zod";
-import { Extension, ExtensionInteraction } from "../utils/extensions";
-import { getSetup, Setup } from "../utils/setup";
-import { getGameSetup, Signups } from "../utils/games";
-import { firebaseAdmin } from "../utils/firebase";
-import { checkMod } from "../utils/mod";
-import { getUser, getUserByChannel, getUserByName } from "../utils/user";
-import { getFuture } from "../utils/timing";
+import { type TextCommand } from '../discord';
+import { fromZod } from '../utils/text';
 import { killPlayer } from "../commands/advance/kill";
 import { removePlayer } from "../commands/mod/remove";
-import { wipe } from "../utils/vote";
+import { Extension, ExtensionInteraction } from "../utils/extensions";
+import { firebaseAdmin } from "../utils/firebase";
+import { getGlobal } from '../utils/global';
+import { getGameByID, getGameSetup } from "../utils/mafia/games";
+import { lockGame, unlockGame } from "../utils/mafia/main";
+import { getFuture } from "../utils/mafia/timing";
+import { getUser, getUserByChannel, getUserByName } from "../utils/mafia/user";
+import { wipe } from "../utils/mafia/vote";
+import { checkMod } from "../utils/mod";
+import { getSetup } from "../utils/setup";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -48,35 +50,37 @@ module.exports = {
         }
     ],
     commands: [
-        {
-            name: "kill",
-            arguments: {
-                required: [ z.string() ],
-                optional: []
-            }
+        () => {
+            return new Command() 
+                .name('kill')
+                .description('command used by player to day kill')
+                .argument('<player>', 'nickname of player')
         },
-        {
-            name: "set",
-            arguments: {
-                required: [ z.union([z.literal('mute'), z.literal('remove'), z.literal('hammer')]), z.coerce.number() ],
-                optional: []
-            }
+        () => {
+            return new Command()
+                .name('set')
+                .description('used in the corresponding player dm channel. expire is the number of days it expires after the current day')
+                .argument('<type>', 'mute, remove, hammer', fromZod(z.union([z.literal('mute'), z.literal('remove'), z.literal('hammer')])))
+                .argument('<expire>', 'days', fromZod(z.coerce.number()));
         },
-        {
-            name: "list",
-            arguments: {},
+        () => {
+            return new Command() 
+                .name('list')
+                .description('list all set day kills. must be run in spectator chat')
         },
-        {
-            name: "configure",
-            arguments: {
-                required: [ z.union([z.literal('cancel'), z.literal('mod')]), z.coerce.number() ]
-            }
+        () => {
+            return new Command()
+                .name('configure')
+                .description('in the specified number of minutes before EOD, to either not allow day kills (cancel) or to require the mod to reveal and flip (mod)')
+                .argument('<type>', 'cancel, mod', fromZod( z.union([z.literal('cancel'), z.literal('mod')])))
+                .argument('<minutes>', 'specified number of minutes', fromZod(z.coerce.number()))
         },
-        {
-            name: "check",
-            arguments: {}
+        () => {
+            return new Command() 
+                .name('check')
+                .description('show the configured state. default: type mod, 20 minutes')
         }
-    ] satisfies CommandOptions[],
+    ],
     interactions: [
         {
             type: "button",
@@ -135,7 +139,7 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onCommand: async (command: Command) => {
+    onCommand: async (command: TextCommand) => {
         /**
          * Text commands only for the forseeable future.
          * 
@@ -158,7 +162,7 @@ module.exports = {
             const daykill = await getDaykill(command.user.id);
             if(daykill == undefined) throw new Error("You don't have any day kills!");
 
-            const killing = await getUserByName(command.arguments[0] as string);
+            const killing = await getUserByName(command.program.processedArgs[0] as string);
             if(killing == undefined) throw new Error("Player not found!");
             const killingPlayer = global.players.find(player => player.id == killing.id);
             if(killingPlayer == undefined) throw new Error("Not part of this game!");
@@ -246,9 +250,9 @@ module.exports = {
         } else if(command.name == "set") {
             await checkMod(setup, global, command.user.id, command.message.guildId ?? "---");
 
-            const type = command.arguments[0] as string;
+            const type = command.program.processedArgs[0] as string;
             const lock = type == "hammer" ? "hammer" : "pause";
-            const expire = command.arguments[1] as number;
+            const expire = command.program.processedArgs[1] as number;
 
             const user = await getUserByChannel(command.message.channelId);
             if(user == undefined) throw new Error("Command must be run in dead chat dm channel!");
@@ -299,8 +303,8 @@ module.exports = {
         } else if(command.name == "configure") {
             await checkMod(setup, global, command.user.id, command.message.guildId ?? "---");
 
-            const type = command.arguments[0] as string;
-            const minutes = command.arguments[1] as number;
+            const type = command.program.processedArgs[0] as string;
+            const minutes = command.program.processedArgs[1] as number;
 
             await db.collection('daykill').doc('settings').set({
                 type: type,

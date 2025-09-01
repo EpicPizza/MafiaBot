@@ -1,13 +1,15 @@
-import { ActionRowBuilder, AutocompleteInteraction, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, EmbedBuilder, SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
-import { Command, Data, removeReactions } from "../discord";
-import { firebaseAdmin } from "../utils/firebase";
-import { z } from "zod";
-import { getGlobal, getGameByID, getGameByName } from "../utils/main";
-import { User, getUser } from "../utils/user";
-import { getSetup } from "../utils/setup";
-import { getVotes } from "../utils/vote";
-import { addSignup, getGames, refreshSignup, removeSignup } from "../utils/games";
+import { Command } from "commander";
+import { ActionRowBuilder, AutocompleteInteraction, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, EmbedBuilder, SlashCommandBuilder } from "discord.js";
 import { FieldValue } from "firebase-admin/firestore";
+import { z } from "zod";
+import { Data } from '../discord';
+import { TextCommand } from '../discord';
+import { fromZod } from '../utils/text';
+import { removeReactions } from "../discord/helpers";
+import { firebaseAdmin } from "../utils/firebase";
+import { getGlobal } from '../utils/global';
+import { addSignup, getGameByName, getGames, refreshSignup, removeSignup } from "../utils/mafia/games";
+import { getUser } from "../utils/mafia/user";
 
 module.exports = {
     data: [
@@ -28,8 +30,11 @@ module.exports = {
         {
             type: 'text',
             name: 'text-signup',
-            command: {
-                required: [ z.string().min(1).max(100) ],
+            command: () => {
+                return new Command()
+                    .name('signup')
+                    .description('sign up for a mafia game')
+                    .argument('<game>', 'which game to sign up for', fromZod(z.string().min(1).max(100)));
             }
         },
         { 
@@ -49,8 +54,11 @@ module.exports = {
         {
             type: 'text',
             name: 'text-leave',
-            command: {
-                required: [ z.string().min(1).max(100) ],
+            command: () => {
+                return new Command()
+                    .name('leave')
+                    .description('leave a mafia game')
+                    .argument('<game>', 'which game to leave', fromZod(z.string().min(1).max(100)));
             }
         },
         {
@@ -71,7 +79,7 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: CommandInteraction | ButtonInteraction | AutocompleteInteraction | Command) => {
+    execute: async (interaction: CommandInteraction | ButtonInteraction | AutocompleteInteraction | TextCommand) => {
         if(interaction.type != 'text' && interaction.isAutocomplete()) {
             const focusedValue = interaction.options.getFocused();
 
@@ -87,7 +95,7 @@ module.exports = {
         } else if(interaction.type == 'text' || interaction.isChatInputCommand()) {
             const commandName = interaction.type == 'text' ? interaction.name : interaction.commandName;
 
-            const name = interaction.type == 'text' ? interaction.arguments[0] as string : interaction.options.getString('game');
+            const name = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
 
             if(name == null) throw new Error("Game needs to be specified.");
 
@@ -121,7 +129,7 @@ module.exports = {
     } 
 }
 
-async function leaveSignup(interaction: ButtonInteraction | ChatInputCommandInteraction | Command, name: string) {
+async function leaveSignup(interaction: ButtonInteraction | ChatInputCommandInteraction | TextCommand, name: string) {
     if(interaction.type != 'text') {
         if(!interaction.deferred && interaction.isChatInputCommand()) await interaction.deferReply({ ephemeral: true });
     } else {
@@ -163,7 +171,7 @@ async function leaveSignup(interaction: ButtonInteraction | ChatInputCommandInte
     await refreshSignup(game.name);
 }
 
-async function handleSignup(interaction: ChatInputCommandInteraction | Command, name: string, action: boolean | null = null) {
+async function handleSignup(interaction: ChatInputCommandInteraction | TextCommand, name: string, action: boolean | null = null) {
     if(interaction.type != 'text') {
         await interaction.deferReply({ ephemeral: true });
     } else {

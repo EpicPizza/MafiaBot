@@ -1,18 +1,14 @@
-import { ActionRow, ActionRowBuilder, ApplicationCommandType, ButtonBuilder, ButtonStyle, ChannelType, Colors, CommandInteraction, ContextMenuCommandBuilder, ContextMenuCommandInteraction, Embed, EmbedBuilder, InteractionType, SlashCommandBuilder, SlashCommandStringOption, TextChannel, WebhookClient } from "discord.js";
-import { Data, ReactionCommand } from "../discord";
-import { firebaseAdmin } from "../utils/firebase";
-import dnt from 'date-and-time';
-import meridiem from 'date-and-time/plugin/meridiem'
-import { DateTime } from "luxon";
-import { Command } from "../discord";
-import { getSetup } from "../utils/setup";
-import { getGameByID, getGlobal } from "../utils/main";
-import { getUser } from "../utils/user";
+import { Command } from "commander";
+import { ApplicationCommandType, ChannelType, CommandInteraction, ContextMenuCommandBuilder, ContextMenuCommandInteraction, SlashCommandBuilder, SlashCommandStringOption, WebhookClient } from "discord.js";
+import { Data } from '../discord';
+import { ReactionCommand } from '../discord';
+import { TextCommand } from '../discord';
 import { archiveMessage } from "../utils/archive";
-import { z } from "zod";
-import { getGameSetup } from "../utils/games";
-
-dnt.plugin(meridiem);
+import { firebaseAdmin } from "../utils/firebase";
+import { getGlobal } from '../utils/global';
+import { getGameByID, getGameSetup } from "../utils/mafia/games";
+import { getUser } from "../utils/mafia/user";
+import { getSetup } from "../utils/setup";
 
 module.exports = {
     data: [
@@ -26,9 +22,12 @@ module.exports = {
         {
             type: 'text',
             name: 'text-note',
-            command: {
-                optional: [ z.literal('send'), z.string() ]
-            },
+            command: () => {
+                return new Command()
+                    .name('note')
+                    .description('reply to message to note (main chat) OR choose where to send (runs in dm)')
+                    .option('-s, --send <where>', 'where to send dm (mafia, DM)');
+            }
         },
         {   
             type: 'slash',
@@ -53,14 +52,12 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async function(interaction: ContextMenuCommandInteraction | Command | CommandInteraction | ReactionCommand) {
+    execute: async function(interaction: ContextMenuCommandInteraction | TextCommand | CommandInteraction | ReactionCommand) {
         const global = await getGlobal();
         const setup = await getSetup();
         
         if(interaction.type == 'reaction' && interaction.message.guild?.id != setup.primary.guild.id) return;
-        
         if(interaction.type == 'reaction') await interaction.reaction.remove();
-
         if(interaction.type != "text" && interaction.type != 'reaction') await interaction.deferReply({ ephemeral: true });
 
         const user = await getUser(interaction.user.id);
@@ -68,12 +65,12 @@ module.exports = {
 
         const db = firebaseAdmin.getFirestore();
 
-        if((interaction.type != 'text' && interaction.type != 'reaction' && interaction.isChatInputCommand()) || (interaction.type == 'text' && interaction.arguments.length > 0)) {
+        if((interaction.type != 'text' && interaction.type != 'reaction' && interaction.isChatInputCommand()) || (interaction.type == 'text' && interaction.program.getOptionValue('send'))) {
             const channelId = (interaction.type != 'text' && interaction.isChatInputCommand()) ? interaction.channelId :  interaction.message.channelId;
 
             if(channelId != user.channel) throw new Error("Must be run in dead chat!");
             
-            let sendTo = (interaction.type != 'text' && interaction.isChatInputCommand())  ? interaction.options.getString('send') : interaction.arguments[1] as string;
+            let sendTo = (interaction.type != 'text' && interaction.isChatInputCommand())  ? interaction.options.getString('send') : interaction.program.getOptionValue('send') as string;
 
             if(sendTo == null) throw new Error("Where to send not received.");
 

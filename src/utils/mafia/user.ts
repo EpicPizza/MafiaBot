@@ -1,4 +1,5 @@
-import { firebaseAdmin } from "./firebase";
+import { firebaseAdmin } from "../firebase";
+import type { Setup } from "../setup";
 
 export interface User {
     id: string,
@@ -161,3 +162,62 @@ export async function getUser(id: string): Promise<User | undefined> {
         return data as User;
     }
 }
+
+export async function getPlayerObjects(id: string, setup: Setup) {
+    const deadPlayer = setup.secondary.guild.members.fetch(id).catch(() => undefined);
+    const userProfile = getUser(id);
+    const player = setup.primary.guild.members.fetch(id).catch(() => undefined);
+    const mafiaPlayer = setup.tertiary.guild.members.fetch(id).catch(() => undefined);
+
+    const results = await Promise.allSettled([ deadPlayer, userProfile, player, mafiaPlayer ]);
+
+    const fails = results.filter(result => result.status == "rejected");
+
+    if(fails.length > 0) {
+        console.log(fails);
+
+        throw new Error("<@" + id + "> not found.");
+    }
+
+    //imma look back at this is say, nonononononononono why was i doing this way or typescript sucked
+    return { 
+        deadPlayer: await deadPlayer, 
+        userProfile: await userProfile as User, 
+        player: await player, 
+        mafiaPlayer: await mafiaPlayer,
+    };
+}
+export async function getAllUsers() {
+    const db = firebaseAdmin.getFirestore();
+
+    const ref = db.collection('users');
+
+    const docs = (await ref.get()).docs;
+
+    const users = [] as User[];
+
+    for (let j = 0; j < docs.length; j++) {
+        if (docs[j].data().nickname != null) {
+            users.push(docs[j].data() as User);
+        }
+    }
+
+    return users;
+}export async function getAllNicknames() {
+    const db = firebaseAdmin.getFirestore();
+
+    const ref = db.collection('users');
+
+    const docs = (await ref.get()).docs;
+
+    const nicknames = [] as string[];
+
+    for (let j = 0; j < docs.length; j++) {
+        if (docs[j].data().nickname != null) {
+            nicknames.push(docs[j].data().nickname);
+        }
+    }
+
+    return nicknames;
+}
+
