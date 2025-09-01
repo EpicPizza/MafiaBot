@@ -4,16 +4,6 @@ import { getGlobal } from '../global';
 import { getSetup } from "../setup";
 import { getGameByID, getGameSetup } from "./games";
 import { lockGame, unlockGame } from "./main";
-const parseHumanRelativeTime = require('parse-human-relative-time')(DateTime)
-
-//i'll deal with this later; 
-
-export function parse(input: string): Date {
-    const tz = 'America/Los_Angeles'
-    const dt = DateTime.fromJSDate(new Date()).setZone(tz);
-
-    return (parseHumanRelativeTime(input, dt) as DateTime).toJSDate();
-} 
 
 export async function setFuture(date: Date, increment: boolean, locking: boolean, grace: boolean) {
     const db = firebaseAdmin.getFirestore();
