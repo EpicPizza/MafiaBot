@@ -6,13 +6,13 @@ import { initCommands } from './discord';
 import { channelCreateHandler, channelUpdateHandler } from './discord/channel';
 import client from './discord/client';
 import { interactionCreateHandler } from './discord/interaction';
-import { guildMemberAddHanlder, guildMemberRemoveHanlder, guildMemberUpdateHandler } from './discord/member';
+import { guildMemberAddHanlder, guildMemberRemoveHandler, guildMemberUpdateHandler } from './discord/member';
 import { messageCreateHandler, messageDeleteHandler, messageReactionAddHandler, messageUpdateHandler } from './discord/message';
-import { clientReadyHander } from './discord/ready';
+import { clientReadyHandler } from './discord/ready';
 
 initCommands();
 
-client.on(Events.ClientReady, clientReadyHander);
+client.on(Events.ClientReady, clientReadyHandler);
 
 client.on(Events.MessageCreate, messageCreateHandler);
 client.on(Events.MessageUpdate, messageUpdateHandler);
@@ -21,7 +21,7 @@ client.on(Events.MessageReactionAdd, messageReactionAddHandler);
 
 client.on(Events.GuildMemberAdd, guildMemberAddHanlder);
 client.on(Events.GuildMemberUpdate, guildMemberUpdateHandler);
-client.on(Events.GuildMemberRemove, guildMemberRemoveHanlder);
+client.on(Events.GuildMemberRemove, guildMemberRemoveHandler);
 
 client.on(Events.ChannelCreate, channelCreateHandler);
 client.on(Events.ChannelUpdate, channelUpdateHandler);

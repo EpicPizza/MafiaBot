@@ -136,7 +136,7 @@ export async function guildMemberAddHanlder(...[member]: ClientEvents[Events.Gui
     }
 }
 
-export async function guildMemberRemoveHanlder(...[member]: ClientEvents[Events.GuildMemberRemove]) {
+export async function guildMemberRemoveHandler(...[member]: ClientEvents[Events.GuildMemberRemove]) {
     try {
         const global = await getGlobal();
         if(!global.started) return;

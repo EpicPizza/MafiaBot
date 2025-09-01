@@ -3,7 +3,7 @@ import client from "./client";
 import { checkFutureGrace, checkFutureLock } from "../utils/mafia/timing";
 import { updateCache } from "./message";
 
-export async function clientReadyHander(...[]: ClientEvents[Events.ClientReady]) {
+export async function clientReadyHandler(...[]: ClientEvents[Events.ClientReady]) {
     console.log("Bot is ready!");
 
     client.user?.setActivity({ type: ActivityType.Watching, name: "/games", });
