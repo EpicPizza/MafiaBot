@@ -4,7 +4,7 @@
   "description": "A mafia bot for #FRCBayAreaGang.",
   "main": "build/discord.js",
   "scripts": {
-    "dev": "ts-node src/setup.ts && nodemon src/index.ts",
+    "dev": "sucrase-node src/setup.ts && nodemon src/index.ts",
     "worker": "node build/setup.js && node build/index.js",
     "build": "tsc"
   },
@@ -26,6 +26,7 @@
     "luxon": "^3.4.4",
     "parse-human-relative-time": "^3.0.2",
     "string-argv": "^0.3.2",
+    "sucrase": "^3.35.0",
     "typescript": "^5.4.5",
     "zod": "^3.23.8"
   },
