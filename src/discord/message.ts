@@ -78,8 +78,12 @@ export async function messageCreateHandler(...[message]: ClientEvents[Events.Mes
         program.exitOverride();
         const values = stringArgv(message.content.slice(1)).slice(1);
 
+        program.option('--root', 'to run as owner');
+
         try {
             await program.parseAsync(values, { from: 'user' });
+
+            console.log('root', program.getOptionValue('root'));
         } catch (e: any) {
             if (e.code === 'commander.helpDisplayed' || e.code === 'commander.version' || e.code === 'commander.help') {
                 // Help or version is displayed.
