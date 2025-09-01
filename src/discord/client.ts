@@ -2,6 +2,9 @@ import { Client, Collection, GatewayIntentBits, Partials } from "discord.js";
 import { isDisabled } from "../disable";
 import { Command } from "commander";
 import { ZodObject } from "zod";
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const client: ExtendedClient = new Client({
     intents: [

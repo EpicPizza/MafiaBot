@@ -4,33 +4,29 @@
   "description": "A mafia bot for #FRCBayAreaGang.",
   "main": "build/discord.js",
   "scripts": {
-    "dev": "sucrase-node src/setup.ts && nodemon src/index.ts",
+    "dev": "ts-node src/setup.ts && nodemon src/index.ts",
     "worker": "node build/setup.js && node build/index.js",
     "build": "tsc"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@types/luxon": "^3.4.2",
     "commander": "^14.0.0",
-    "cross-spawn": "^7.0.6",
-    "csv-parse": "^6.1.0",
     "csv-parser": "^3.2.0",
     "date-and-time": "^3.3.0",
     "discord.js": "^14.21.0",
     "dotenv": "^16.4.5",
-    "express": "^4.19.2",
     "firebase-admin": "^12.1.1",
     "google-auth-library": "^10.2.1",
     "googleapis": "^155.0.1",
     "luxon": "^3.4.4",
-    "parse-human-relative-time": "^3.0.2",
     "string-argv": "^0.3.2",
-    "sucrase": "^3.35.0",
     "typescript": "^5.4.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@swc/core": "^1.13.5",
+    "@types/luxon": "^3.7.1",
     "nodemon": "^3.1.2",
     "ts-node": "^10.9.2"
   },

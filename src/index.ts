@@ -1,6 +1,3 @@
-import dotenv from 'dotenv';
-dotenv.config();
-
 import { Events } from "discord.js";
 import { initCommands } from './discord';
 import { channelCreateHandler, channelUpdateHandler } from './discord/channel';
