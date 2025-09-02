@@ -62,8 +62,8 @@ module.exports = {
             command: () => {
                 return new Command()
                     .name('players')
-                    .alias('signups')
                     .alias('pl')
+                    .alias('signups')
                     .description('show players')
                     .argument('[day]', 'which day to show from (during running game)', fromZod(z.coerce.number().min(1).max(100)))
                     .option('-g, --game <name>', 'which game to show signups from', fromZod(z.string().min(1).max(100)))

@@ -93,15 +93,18 @@ export async function messageCreateHandler(...[message]: ClientEvents[Events.Mes
             if (e.code === 'commander.helpDisplayed' || e.code === 'commander.version' || e.code === 'commander.help') {
                 // Help or version is displayed.
 
-                let helpMessage: string;
-                let name: string;
-                if (program.args.length > 0 && program.commands.some(c => c.name() === program.args[0])) {
-                    const subcommand = program.commands.find(c => c.name() === program.args[0]);
-                    helpMessage = subcommand?.helpInformation() ?? program.helpInformation();
-                    name = subcommand?.name() ?? program.name();
-                } else {
-                    helpMessage = program.helpInformation();
-                    name = program.name();
+                let helpMessage: string = "not found";
+                let name: string = "unknown";
+
+                const command = program.commands.find(c => c.name() === program.args[0] || c.aliases().includes(program.args[0]));
+
+                if (program.args.length > 1 && command) {
+                    const subcommand = command.commands.find(c => c.name() === program.args[1] || c.aliases().includes(program.args[1]));
+                    helpMessage = subcommand?.helpInformation() ?? command.helpInformation();
+                    name = subcommand?.name() ?? command.name();
+                } else if(command) {
+                    helpMessage = command.helpInformation();
+                    name = command.name();
                 }
 
                 await message.reply({
