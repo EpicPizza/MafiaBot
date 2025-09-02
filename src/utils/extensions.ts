@@ -116,7 +116,7 @@ export function getExtensionTextCommands() {
 
                 const name = interaction.program.args[0] as string;
 
-                const command = interaction.program.commands.find(command => command.name() == name);
+                const command = interaction.program.commands.find(command => command.name() == name || command.aliases().includes(name));
 
                 if(command == undefined) return await interaction.reply("Subcommand not found.");
 

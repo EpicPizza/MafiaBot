@@ -54,7 +54,7 @@ export async function messageCreateHandler(...[message]: ClientEvents[Events.Mes
 
         if (message.author.bot) return;
 
-        /*let name = message.content.substring(1, message.content.indexOf(" ") == -1 ? message.content.length : message.content.indexOf(" "));
+        const name = message.content.substring(1, message.content.indexOf(" ") == -1 ? message.content.length : message.content.indexOf(" "));
 
         getAllExtensions().find(extension => {
             if (extension.commandName == name) return true;
@@ -65,7 +65,6 @@ export async function messageCreateHandler(...[message]: ClientEvents[Events.Mes
                 if (!subcommand) return false;
 
                 message.content = message.content.replace(name, extension.commandName + " " + subcommand.to);
-                name = extension.commandName;
 
                 return true;
             }
