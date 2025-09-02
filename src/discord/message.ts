@@ -40,7 +40,7 @@ export async function updateCache() {
     cache.extensions = global.extensions;
 }
 
-export async function messageCreateHandler(...[message]: ClientEvents[Events.MessageCreate]) {
+export async function messageCreateHandler(...[message, throws]: [...ClientEvents[Events.MessageCreate], throws?: boolean]) {
     try {
         if (!message.content.startsWith("?") || message.content.length < 2 || message.content.replace(/\?/g, "").length == 0) {
             await trackMessage(message, cache);
@@ -97,8 +97,12 @@ export async function messageCreateHandler(...[message]: ClientEvents[Events.Mes
 
                 const command = program.commands.find(c => c.name() === program.args[0] || c.aliases().includes(program.args[0]));
 
-                if (program.args.length > 1 && command) {
+                if (program.args[0] == "help") {
+                    helpMessage = program.helpInformation();
+                    name = "help";
+                } else if (program.args.length > 1 && command) {
                     const subcommand = command.commands.find(c => c.name() === program.args[1] || c.aliases().includes(program.args[1]));
+                    
                     helpMessage = subcommand?.helpInformation() ?? command.helpInformation();
                     name = subcommand?.name() ?? command.name();
                 } else if(command) {
@@ -137,6 +141,8 @@ export async function messageCreateHandler(...[message]: ClientEvents[Events.Mes
                 user: message.author,
             } satisfies TextCommand);
         } catch (e: any) {
+            if(throws) throw e;
+
             await removeReactions(message);
 
             await message.reply({ content: e.message });
@@ -167,6 +173,8 @@ export async function messageCreateHandler(...[message]: ClientEvents[Events.Mes
             }
         });*/
     } catch (e: any) {
+        if(throws) throw e;
+
         if (message.content.startsWith("?") && message.content.length > 1) {
             let errorMessage = e.message as string;
             if (errorMessage.includes("\n")) errorMessage = errorMessage.slice(0, errorMessage.indexOf("\n")) + " ... trimmed";
