@@ -11,6 +11,7 @@ import { DocumentReference, FieldValue } from "firebase-admin/firestore";
 import { getSetup } from "../utils/setup";
 import { archiveMessage } from "../utils/archive";
 import { getGlobal } from "../utils/global";
+import { Command } from "commander";
 
 export interface Cache {
     day: number;
@@ -53,7 +54,7 @@ export async function messageCreateHandler(...[message]: ClientEvents[Events.Mes
 
         if (message.author.bot) return;
 
-        let name = message.content.substring(1, message.content.indexOf(" ") == -1 ? message.content.length : message.content.indexOf(" "));
+        /*let name = message.content.substring(1, message.content.indexOf(" ") == -1 ? message.content.length : message.content.indexOf(" "));
 
         getAllExtensions().find(extension => {
             if (extension.commandName == name) return true;
@@ -68,32 +69,39 @@ export async function messageCreateHandler(...[message]: ClientEvents[Events.Mes
 
                 return true;
             }
-        }); //just using find to short circuit once shorthand found
+        }); //just using find to short circuit once shorthand found*/
 
+        const commands = Array.from(client.commands.values()).filter(command => command.type == "text");
+        let program: Command = new Command().name('mafiabot');
 
-        let command = client.commands.get(`text-${name}`);
-        if (command == undefined || command.type != 'text') return;
+        commands.forEach(text => { 
+            const command = text.command(); 
+            command.exitOverride(); 
+            program.addCommand(command); 
+        });
 
-        const program = command.command();
+        /*let command = client.commands.get(`text-${name}`);
+        if (command == undefined || command.type != 'text') return;*/
+
+        //const program = command.command();
         program.exitOverride();
-        const values = stringArgv(message.content.slice(1)).slice(1);
-
-        program.option('--root', 'to run as owner');
+        const values = stringArgv(message.content.slice(1));
 
         try {
             await program.parseAsync(values, { from: 'user' });
-
-            console.log('root', program.getOptionValue('root'));
         } catch (e: any) {
             if (e.code === 'commander.helpDisplayed' || e.code === 'commander.version' || e.code === 'commander.help') {
                 // Help or version is displayed.
 
                 let helpMessage: string;
+                let name: string;
                 if (program.args.length > 0 && program.commands.some(c => c.name() === program.args[0])) {
                     const subcommand = program.commands.find(c => c.name() === program.args[0]);
                     helpMessage = subcommand?.helpInformation() ?? program.helpInformation();
+                    name = subcommand?.name() ?? program.name();
                 } else {
                     helpMessage = program.helpInformation();
+                    name = program.name();
                 }
 
                 await message.reply({
@@ -112,10 +120,15 @@ export async function messageCreateHandler(...[message]: ClientEvents[Events.Mes
             throw e;
         }
 
+        const parsedCommand = program.commands.find(c => c.name() === program.args[0] || c.aliases().includes(program.args[0]));
+        if(parsedCommand == undefined) throw new Error("Command not found!");
+        const command = client.commands.get(`text-${parsedCommand.name()}`);
+        if(command == undefined) throw new Error("Command not found!");
+
         try {
             await command.execute({
-                name: name,
-                program: program,
+                name: parsedCommand.name(),
+                program: parsedCommand,
                 message: message,
                 type: 'text',
                 reply: (options: MessageReplyOptions) => { return message.reply(options); }, //for consistency with interactions

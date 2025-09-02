@@ -31,6 +31,7 @@ export const RemoveCommand = {
     text: () => {
         return new Command()
             .name('remove')
+            .alias('kill')
             .description('remove a player')
             .argument('<player>', 'which player', fromZod(z.string().min(1).max(100)));
     },

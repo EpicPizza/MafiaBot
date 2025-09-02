@@ -11,6 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@sapphire/snowflake": "^3.5.5",
     "commander": "^14.0.0",
     "csv-parser": "^3.2.0",
     "date-and-time": "^3.3.0",

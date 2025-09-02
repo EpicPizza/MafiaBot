@@ -86,17 +86,21 @@ export function subcommandBuilder(subcommandsPath: string, name: string, descrip
     async function handleCommand(interaction: TextCommand | ChatInputCommandInteraction) {
         const name = interaction.type == 'text' ? interaction.program.args[0] as string : interaction.options.getSubcommandGroup() ?? interaction.options.getSubcommand();
 
-        const command = commands.find(command => command.name == name);
-
-        if(command == undefined) return await interaction.reply("Subcommand not found.");
+        let command: Subcommand | undefined;
 
         if(interaction.type == 'text') {
-            const subcommand = interaction.program.commands.find(command => command.name() == name);
+            const subcommand = interaction.program.commands.find(command => command.name() == name || command.aliases().includes(name));
 
             if(subcommand == undefined) return await interaction.reply("Subcommand not found. [of parser]");
 
             interaction.program = subcommand;
+
+            command = commands.find(command => command.name == subcommand.name());
+        } else {
+            command = commands.find(command => command.name == name);
         }
+
+        if(command == undefined) return await interaction.reply("Subcommand not found.");
 
         await command.execute(interaction);
     }

@@ -25,15 +25,6 @@ module.exports = {
                 id: z.string(),
             })
         },
-        {
-            type: 'text',
-            name: 'text-help',
-            command: () => {
-                return new Command()
-                    .name('help')
-                    .description('how to use Mafia Bot and its commands')
-            }
-        }
     ] satisfies Data[],
 
     execute: async (interaction: ChatInputCommandInteraction | StringSelectMenuInteraction | TextCommand ) => {

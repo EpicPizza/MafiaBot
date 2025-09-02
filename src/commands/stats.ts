@@ -57,9 +57,9 @@ module.exports = {
             name: 'text-reactions',
             command: () => {
                 return new Command()
-                    .name('stats')
-                    .description('show stats')
-                    .argument("[day]", "which day to show stats form", fromZod(z.coerce.number().min(1).max(100)))
+                    .name('reactions')
+                    .description('show reactions')
+                    .argument("[day]", "which day to show reactions form", fromZod(z.coerce.number().min(1).max(100)))
             }
         }
     ] satisfies Data[],
