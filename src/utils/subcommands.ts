@@ -1,9 +1,12 @@
-import { ButtonInteraction, ChatInputCommandInteraction, ModalSubmitInteraction, SlashCommandBuilder, SlashCommandSubcommandBuilder, SlashCommandSubcommandGroupBuilder, StringSelectMenuInteraction } from "discord.js";
-import type { TextCommand } from '../discord';
-import { ZodObject } from "zod";
+import { AutocompleteInteraction, ButtonInteraction, ChatInputCommandInteraction, Interaction, ModalSubmitInteraction, SlashCommandBuilder, SlashCommandSubcommandBuilder, SlashCommandSubcommandGroupBuilder, StringSelectMenuInteraction } from "discord.js";
+import type { Data, TextCommand } from '../discord';
+import { unknown, ZodObject } from "zod";
 import { Command } from "commander";
 import path from 'node:path';
 import fs from 'node:fs';
+import { getSetup } from "./setup";
+import { getGlobal } from "./global";
+import { checkMod } from "./mod";
 
 export interface Subcommand { 
     name: string, 
@@ -122,4 +125,34 @@ export function subcommandBuilder(subcommandsPath: string, name: string, descrip
         getInteractions,
         handleInteraction
     }
+}
+
+export function subcommandHandler(builder: ReturnType<typeof subcommandBuilder>, autocomplete: (interaction: AutocompleteInteraction) => unknown, mod: boolean = false) {
+    return {
+        data: [
+            builder.getSlashCommand(),
+            builder.getTextCommand(),
+            ...builder.getInteractions()
+        ] satisfies Data[],
+    
+        execute: async (interaction: Interaction | TextCommand) => {
+            if(interaction.type != 'text' && interaction.isAutocomplete()) {
+                await autocomplete(interaction);
+
+                return;
+            } 
+    
+            const setup  = await getSetup();
+            const global = await getGlobal();
+            if(typeof setup == 'string') throw new Error("Setup Incomplete");
+    
+            if(mod) await checkMod(setup, global, interaction.user.id, 'message' in interaction ? interaction.message?.guild?.id ?? "" : interaction.guildId ?? "");
+    
+            if(interaction.type == 'text' || interaction.isChatInputCommand()) {
+                await builder.handleCommand(interaction)
+            } else if(interaction.isButton() || interaction.isStringSelectMenu() || interaction.isModalSubmit()) {
+                await builder.handleInteraction(interaction);
+            }
+        }
+    };
 }

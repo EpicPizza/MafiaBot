@@ -143,18 +143,7 @@ async function createSignups(interaction: CommandInteraction | ButtonInteraction
 
     if(setup.primary.chat.id != (interaction.type == 'text' ? interaction.message.channelId : interaction.channelId)) throw new Error("Cannot create signups in this channel.");
 
-    if(global.started) {
-        if(interaction.type == 'text') {
-            await interaction.reply({
-                content: "You cannot create signups while a game is underway.",
-            })
-        } else {
-            await interaction.reply({
-                content: "You cannot create signups while a game is underway.",
-                ephemeral: true,
-            })
-        }
-    }
+    if(global.started) throw new Error("You cannot create signups while a game is underway.");
     
     const embed = new EmbedBuilder()
         .setTitle("Sign ups for " + game.name + (game.closed ? " are closed" : "") + "!")

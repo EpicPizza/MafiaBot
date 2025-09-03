@@ -76,7 +76,7 @@ module.exports = {
             command: z.object({
                 name: z.literal('players'),
                 game: z.string(),
-                complete: z.boolean(),
+                format: z.string().optional(),
             })
         }
     ] satisfies Data[],

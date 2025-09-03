@@ -1,7 +1,83 @@
-import { ActionRow, ActionRowBuilder, BitField, ButtonBuilder, ButtonStyle, ChannelSelectMenuBuilder, Client, Collection, ComponentType, EmojiIdentifierResolvable, MentionableSelectMenuBuilder, Message, MessageEditOptions, MessageMentions, MessagePayload, MessageReplyOptions, MessageType, RoleSelectMenuBuilder, StringSelectMenuBuilder, User, UserSelectMenuBuilder } from "discord.js";
-import { Setup } from "../utils/setup";
 import { DiscordSnowflake } from "@sapphire/snowflake";
+import { ActionRowBuilder, AttachmentPayload, BitField, ButtonBuilder, ButtonStyle, ChannelSelectMenuBuilder, Client, ClientUser, Collection, ComponentType, EmojiIdentifierResolvable, MentionableSelectMenuBuilder, Message, MessageEditOptions, MessageMentions, MessagePayload, MessageReplyOptions, MessageType, RoleSelectMenuBuilder, StringSelectMenuBuilder, User, UserSelectMenuBuilder } from "discord.js";
 import client from "../discord/client";
+import { messageCreateHandler } from "../discord/message";
+import { getSetup, Setup } from "../utils/setup";
+
+export type ExportableEmbed = {
+    title: string | null,
+    description: string | null,
+    url: string | null,
+    image: string | null,
+    color: string | null,
+    footer: {
+        text: string,
+        url: string | null,
+    } | null,
+    author: {
+        name: string,
+        url: string | null,
+        icon_url: string | null,
+    } | null,
+    fields: {
+        name: string,
+        value: string,
+        inline: boolean,
+    }[] | null
+}
+
+type ExportableBaseButton = {
+    label: string | null,
+    emoji: string | null,
+    style: number,
+}
+
+export type ExportableButton = ExportableBaseButton & ({
+    customId: string | null,
+    type: "customId",
+} | {
+    url: string | null,
+    type: "url",
+});
+
+export type Transform = ReturnType<typeof transform>;
+
+export type CommandResult = Transform | { reaction: EmojiIdentifierResolvable } | { content: string };
+
+export async function runCommand(content: string, setup: Setup | undefined = undefined) {
+    if(setup == undefined) setup = await getSetup();
+
+    const user = client.user;
+
+    if(user == null) throw new Error("Client user not defined!");
+    
+    return new Promise<CommandResult>(async (resolve) => {
+        const message = await createMessage(setup, { ...user, bot: false, id: process.env.OWNER } as ClientUser, content, {
+            onReact: (emoji) => {
+                console.log(emoji)
+
+                if(emoji == "<a:loading:1256150236112621578>") return;
+
+                resolve({
+                    reaction: emoji,
+                });
+            },
+            onReply: (options) => {
+                const data = transform(options);
+
+                resolve(data);
+            }
+        })
+
+        try {
+            await messageCreateHandler(message, true);
+        } catch(e: any) {
+            resolve({
+                content: e.message as string,
+            })
+        }
+    });
+}
 
 export async function createMessage(setup: Setup, user: User, content: string, hooks: { 
     onDelete?: () => Promise<unknown> | unknown, 
@@ -115,8 +191,9 @@ export async function createMessage(setup: Setup, user: User, content: string, h
 
 export function transform(options: string | MessagePayload | MessageEditOptions | MessageReplyOptions): {
     content: string | null,
-    embeds: any[],
-    components: any[]
+    embeds: ExportableEmbed[],
+    components: ExportableButton[]
+    json?: undefined | unknown,
 } {
     if(typeof options == 'string') {
         return {
@@ -124,10 +201,10 @@ export function transform(options: string | MessagePayload | MessageEditOptions 
             embeds: [],
             components: [],
         }
-    } else if('content' in options || 'embeds' in options || 'components' in options) {
-        const components = [] as any[];
+    } else if('content' in options || 'embeds' in options || 'components' in options || 'files' in options) {
+        const components = [] as ExportableButton[];
 
-        const rows = (options.components ?? []) as unknown as ActionRowBuilder<ButtonBuilder | StringSelectMenuBuilder | ChannelSelectMenuBuilder | MentionableSelectMenuBuilder | UserSelectMenuBuilder | RoleSelectMenuBuilder>[];
+        const rows = ('components' in options && options.components ? options.components ?? [] : []) as unknown as ActionRowBuilder<ButtonBuilder | StringSelectMenuBuilder | ChannelSelectMenuBuilder | MentionableSelectMenuBuilder | UserSelectMenuBuilder | RoleSelectMenuBuilder>[];
         
         rows.forEach(row => {
             row.components.map(component => component.data).forEach(component => {
@@ -137,15 +214,16 @@ export function transform(options: string | MessagePayload | MessageEditOptions 
                             components.push({
                                 label: component.label ?? null,
                                 url: component.url ?? null,
-                                emoji: component.emoji  ?? null,
+                                emoji: component.emoji as string ?? null,
+                                style: component.style,
                                 type: "url"
                             });
                         } else if('custom_id' in component) {
                             components.push({
                                 label: component.label ?? null,
-                                emoji: component.emoji ?? null,
+                                emoji: component.emoji as string ?? null,
                                 customId: component.custom_id ?? null,
-                                style: component.style,
+                                style: component.style ?? 1,
                                 type: "customId",
                             });
                         }
@@ -157,16 +235,21 @@ export function transform(options: string | MessagePayload | MessageEditOptions 
             })
         });
 
+        const files = options.files?.filter(file => typeof file == 'object' && 'name' in file && file.name == 'result.json');
+        const file = files && files.length > 0 ? files[0] as AttachmentPayload : undefined;
+
+        console.log(options.files, file);
+
         return {
-            content: options.content ?? null,
-            embeds: (options.embeds ?? []).map(embed => {
+            content: 'content' in options && options.content ? options.content ?? null : null,
+            embeds: ('embeds' in options && options.embeds ? options.embeds ?? [] : []).map(embed => {
                 if('toJSON' in embed) embed = embed.toJSON();
 
-                return {
+                const exportableEmbed: ExportableEmbed = {
                     title: embed.title ?? null,
                     description: embed.description ?? null,
                     url: embed.url ?? null,
-                    image: embed.image ?? null,
+                    image: embed.image?.url ?? null,
                     color: embed.color ? "#" + embed.color.toString(16) : null,
                     footer: embed.footer ? {
                         text: embed.footer.text,
@@ -177,14 +260,18 @@ export function transform(options: string | MessagePayload | MessageEditOptions 
                         url: embed.author.url ?? null,
                         icon_url: embed.author.icon_url ?? null,
                     } : null,
-                    fields: (embed.fields ?? []).forEach(field => ({
+                    fields: (embed.fields ?? []).map(field => ({
                         name: field.name,
                         value: field.value,
                         inline: field.inline ?? false,
-                    }))
-                }
+                    })) ?? null,
+                };
+
+                return exportableEmbed;
             }),
+
             components: components,
+            json: (file && Buffer.isBuffer(file.attachment) ? JSON.parse(file.attachment.toString()) : undefined)
         }
     }
 
@@ -193,4 +280,13 @@ export function transform(options: string | MessagePayload | MessageEditOptions 
         embeds: [],
         components: [],
     }
+}
+
+export function fromJSON(result: unknown) {
+    const buffer = Buffer.from(JSON.stringify(result, null, 2), 'utf-8');
+
+    return [{
+        attachment: buffer,
+        name: 'result.json'
+    }];
 }
