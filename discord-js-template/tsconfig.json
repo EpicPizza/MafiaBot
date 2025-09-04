@@ -1,0 +1,19 @@
+{
+    "compilerOptions": {
+        "target": "es2023",
+        "module": "commonjs",
+        "sourceMap": true,
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true,
+        "removeComments": false,
+        "esModuleInterop": true,
+        "noImplicitAny": false,
+        "strict": true,
+        "outDir": "./build",
+        "skipLibCheck": true
+    },
+    "include": ["src"],
+    "ts-node": {
+        "swc": true
+    }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "discord-js-template",
+  "version": "1.0.0",
+  "description": "A template for a discord.js bot.",
+  "main": "build/index.js",
+  "scripts": {
+    "start": "node .",
+    "dev": "nodemon src/index.ts",
+    "build": "tsc",
+    "register": "ts-node src/setup.ts"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.3.1",
+    "zod": "^3.22.4",
+    "commander": "^11.1.0",
+    "string-argv": "^0.3.2"
+  },
+  "devDependencies": {
+    "@swc/core": "^1.13.5",
+    "typescript": "^5.3.3",
+    "ts-node": "^10.9.2",
+    "nodemon": "^3.0.2"
+  }
+}
