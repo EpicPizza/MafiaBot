@@ -1,0 +1,72 @@
+name: Build and Deploy
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@master
+      - name: Install Dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Archive Production Build Artifact
+        uses: actions/upload-artifact@master
+        with:
+          name: build
+          path: |
+            build
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@master
+      - name: Download Artifact
+        uses: actions/download-artifact@master
+        with:
+          name: build
+          path: build
+      - name: Stop Production Server
+        uses: appleboy/ssh-action@v1
+        with:
+            host: ${{ secrets.HOST }}
+            username: ${{ secrets.USERNAME }}
+            key: ${{ secrets.SSH_PRIVATE_KEY }}
+            port: ${{ secrets.PORT }}
+            fingerprint: ${{ secrets.FINGERPRINT }}
+            script: |
+                pm2 stop mafia-bot-bag
+      - name: Transfer Build to Production Server
+        uses: appleboy/scp-action@v1
+        with:
+            host: ${{ secrets.HOST }}
+            username: ${{ secrets.USERNAME }}
+            key: ${{ secrets.SSH_PRIVATE_KEY }}
+            port: ${{ secrets.PORT }}
+            fingerprint: ${{ secrets.FINGERPRINT }}
+            source: ./build/.
+            target: ~/MafiaBot/build
+            rm: true
+      - name: Start Production Server
+        uses: appleboy/ssh-action@v1
+        with:
+            host: ${{ secrets.HOST }}
+            username: ${{ secrets.USERNAME }}
+            key: ${{ secrets.SSH_PRIVATE_KEY }}
+            port: ${{ secrets.PORT }}
+            fingerprint: ${{ secrets.FINGERPRINT }}
+            script: |
+                cd MafiaBot
+                git restore .
+                git pull origin main
+                npm i
+                pm2 restart mafia-bot-bag
+
+
