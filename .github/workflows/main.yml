@@ -40,7 +40,6 @@ jobs:
             username: ${{ secrets.USERNAME }}
             key: ${{ secrets.SSH_PRIVATE_KEY }}
             port: ${{ secrets.PORT }}
-            fingerprint: ${{ secrets.FINGERPRINT }}
             script: |
                 pm2 stop mafia-bot-bag
       - name: Transfer Build to Production Server
@@ -50,7 +49,6 @@ jobs:
             username: ${{ secrets.USERNAME }}
             key: ${{ secrets.SSH_PRIVATE_KEY }}
             port: ${{ secrets.PORT }}
-            fingerprint: ${{ secrets.FINGERPRINT }}
             source: ./build/.
             target: ~/MafiaBot/build
             rm: true
@@ -61,7 +59,6 @@ jobs:
             username: ${{ secrets.USERNAME }}
             key: ${{ secrets.SSH_PRIVATE_KEY }}
             port: ${{ secrets.PORT }}
-            fingerprint: ${{ secrets.FINGERPRINT }}
             script: |
                 cd MafiaBot
                 git restore .
