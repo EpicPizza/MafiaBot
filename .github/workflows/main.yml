@@ -41,6 +41,7 @@ jobs:
             key: ${{ secrets.SSH_PRIVATE_KEY }}
             port: ${{ secrets.PORT }}
             script: |
+                pm2 list
                 pm2 stop mafia-bot-bag
       - name: Transfer Build to Production Server
         uses: appleboy/scp-action@v1
