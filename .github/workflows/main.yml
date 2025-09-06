@@ -43,6 +43,8 @@ jobs:
             script: |
                 pm2 list
                 pm2 stop mafia-bot-bag
+                cd MafiaBot
+                rm -rf build
       - name: Transfer Build to Production Server
         uses: appleboy/scp-action@v1
         with:
@@ -52,7 +54,6 @@ jobs:
             port: ${{ secrets.PORT }}
             source: ./build/.
             target: ~/MafiaBot
-            rm: true
       - name: Start Production Server
         uses: appleboy/ssh-action@v1
         with:
