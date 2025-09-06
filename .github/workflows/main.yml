@@ -51,7 +51,7 @@ jobs:
             key: ${{ secrets.SSH_PRIVATE_KEY }}
             port: ${{ secrets.PORT }}
             source: ./build/.
-            target: ~/MafiaBot/build
+            target: ~/MafiaBot
             rm: true
       - name: Start Production Server
         uses: appleboy/ssh-action@v1
