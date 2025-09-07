@@ -53,7 +53,8 @@ export const RoleCommand = {
             .argument('<player>', 'which player', fromZod(z.string().min(1).max(100)))
             .requiredOption('--role <name>', 'which role to add', fromZod(z.string().min(1).max(100)))
             .requiredOption('--server <name>', 'which server to add role', fromZod(z.union([z.literal('primary'), z.literal('secondary'), z.literal('tertiary')])))
-            .option('--remove', 'whether to remove this role instead');
+            .option('--remove', 'whether to remove this role instead')
+            .option('--bypass', 'bypass role hierarchy protections');
     },
 
     execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
@@ -87,7 +88,10 @@ export const RoleCommand = {
         const botRole = setup[server].guild.roles.botRoleFor(client.user?.id ?? "---");
         if(botRole == null) throw new Error("Cannot adjust roles on this server!");
 
-        if(role.position > botRole.position) throw new Error("Cannot add/remove roles higher than bot role!");
+        const bypass = interaction.type == 'text' ? interaction.program.getOptionValue("bypass") === true : false;
+        if(bypass && !(global.admin.includes(interaction.user.id))) throw new Error("Bypass not allowed!");
+
+        if(role.position > botRole.position && !bypass) throw new Error("Cannot add/remove roles higher than bot role!");
 
         if(remove) {
             await member.roles.remove(role);
