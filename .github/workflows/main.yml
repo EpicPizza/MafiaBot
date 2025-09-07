@@ -25,6 +25,9 @@ jobs:
     name: Deploy
     needs: build
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        host: [BAG_HOST, UCSC_HOST]
     steps:
       - name: Checkout Repo
         uses: actions/checkout@master
@@ -36,19 +39,19 @@ jobs:
       - name: Stop Production Server
         uses: appleboy/ssh-action@v1
         with:
-            host: ${{ secrets.HOST }}
+            host: ${{ secrets[matrix.host] }}
             username: ${{ secrets.USERNAME }}
             key: ${{ secrets.SSH_PRIVATE_KEY }}
             port: ${{ secrets.PORT }}
             script: |
                 pm2 list
-                pm2 stop mafia-bot-bag
+                pm2 stop mafia-bot
                 cd MafiaBot
                 rm -rf build
       - name: Transfer Build to Production Server
         uses: appleboy/scp-action@v1
         with:
-            host: ${{ secrets.HOST }}
+            host: ${{ secrets[matrix.host] }}
             username: ${{ secrets.USERNAME }}
             key: ${{ secrets.SSH_PRIVATE_KEY }}
             port: ${{ secrets.PORT }}
@@ -57,7 +60,7 @@ jobs:
       - name: Start Production Server
         uses: appleboy/ssh-action@v1
         with:
-            host: ${{ secrets.HOST }}
+            host: ${{ secrets[matrix.host] }}
             username: ${{ secrets.USERNAME }}
             key: ${{ secrets.SSH_PRIVATE_KEY }}
             port: ${{ secrets.PORT }}
@@ -66,6 +69,6 @@ jobs:
                 git restore .
                 git pull origin main
                 npm i
-                pm2 restart mafia-bot-bag
+                pm2 restart mafia-bot
 
 
