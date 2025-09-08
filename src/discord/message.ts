@@ -89,6 +89,8 @@ export async function messageCreateHandler(...[message, throws]: [...ClientEvent
         try {
             await program.parseAsync(values, { from: 'user' });
         } catch (e: any) {
+            if (e.code === 'commander.unknownCommand') return;
+
             if (e.code === 'commander.helpDisplayed' || e.code === 'commander.version' || e.code === 'commander.help') {
                 // Help or version is displayed.
 
