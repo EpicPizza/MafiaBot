@@ -10,6 +10,52 @@ import { getUserByName } from "../../utils/mafia/user";
 import { getSetup } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
 
+export const CreateCommand = {
+    name: "createrole",
+    subcommand: true,
+
+    slash: new SlashCommandSubcommandBuilder()
+        .setName('createrole')
+        .setDescription('This command is ignored.'),
+    text: () => {
+        return new Command()
+            .name("createrole")
+            .description('create a role')
+            .requiredOption('--role <name>', 'which role to add', fromZod(z.string().min(1).max(100)))
+            .requiredOption('--server <name>', 'which server to add role', fromZod(z.union([z.literal('primary'), z.literal('secondary'), z.literal('tertiary')])))
+            .option('--position <position>', 'which position to set this role to', fromZod(z.coerce.number().min(1).int()))
+            .option('--color <hex>', 'which color to set this role to');
+    },
+
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+        if(interaction.type != 'text') return;
+
+        const global = await getGlobal();
+        const setup = await getSetup();
+
+        if(!global.admin.includes(interaction.user.id)) throw new Error("You don't have permission to do this!");
+
+        const server =interaction.program.getOptionValue("server") as string;
+        if(server == null || !(server == 'primary' || server == 'secondary' || server == 'tertiary')) throw new Error("Must specify server.");
+        const guild = setup[server].guild;
+
+        const name = interaction.program.getOptionValue("role") as string;
+        const position = interaction.program.getOptionValue("position") as number | undefined;
+        const color = interaction.program.getOptionValue("color") as string | undefined;
+
+        console.log(guild, name, position, color);
+
+        await guild.roles.create({
+            name: name,
+            color: color ? `#${color}` : undefined,
+            position: position,
+        });
+
+        await interaction.reply(`Created role ${name} on ${server}.`);
+    }
+    
+} satisfies Subcommand;
+
 export const RoleCommand = {
     name: "role",
     subcommand: true,
