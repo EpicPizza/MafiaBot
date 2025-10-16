@@ -203,6 +203,39 @@ module.exports = {
             }
         }
 
+        if(message.content.toLowerCase().includes("big harold") && message.author.bot == false  && message.guildId != "569988266657316884") {
+            const index = message.content.toLowerCase().indexOf("big harold");
+
+            let numberString = "";
+
+            for(let i = index - 2; i >= 0; i--) {
+                if(!isNaN(parseInt(message.content.charAt(i)))) {
+                    numberString = message.content.charAt(i) + numberString;
+                } else {
+                    break;
+                }
+            }
+
+            let number = parseInt(numberString);
+
+            if(!(number <= 10 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 10;
+
+            for(let i = 0; i < number; i++) {
+                await new Promise((resolve) => {
+                    setTimeout(() => {
+                        resolve(true);
+                    }, 1000);
+                });
+
+                if(freeze) {
+                    return;
+                }
+
+                 //@ts-ignore
+                await message.channel.send("<:harold:1387316012684410880> <:harold:1387316012684410880> <:harold:1387316012684410880>");
+            }
+        }
+
         if(message.content.toLowerCase().includes("big chomp") && message.author.bot == false  && message.guildId != "569988266657316884") {
             const index = message.content.toLowerCase().indexOf("big chomp");
 
