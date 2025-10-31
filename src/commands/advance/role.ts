@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
+import { ChatInputCommandInteraction, Guild, GuildMember, SlashCommandSubcommandBuilder } from "discord.js";
 import { z } from "zod";
 import { type TextCommand } from '../../discord';
 import { fromZod } from '../../utils/text';
@@ -119,8 +119,15 @@ export const RoleCommand = {
         if(!user) throw new Error("Player not found.");
 
         const server = interaction.type == 'text' ? interaction.program.getOptionValue("server") as string : interaction.options.getString('server');
-        if(server == null || !(server == 'primary' || server == 'secondary' || server == 'tertiary')) throw new Error("Must specify server.");
-        const guild = setup[server].guild;
+        if(server == null) throw new Error("Must specify server.");
+        
+        let guild: Guild | undefined;
+        if(server == 'primary' || server == 'secondary' || server == 'tertiary') {
+            guild = setup[server].guild;
+        } else {
+            guild = client.guilds.cache.get(server);
+        }
+        if(guild == undefined) throw new Error("Guild not found.");
 
         const member = await guild.members.fetch(user.id);
 
