@@ -125,7 +125,7 @@ export const RoleCommand = {
         if(server == 'primary' || server == 'secondary' || server == 'tertiary') {
             guild = setup[server].guild;
         } else {
-            guild = client.guilds.cache.get(server);
+            guild = await client.guilds.fetch(server);
         }
         if(guild == undefined) throw new Error("Guild not found.");
 
