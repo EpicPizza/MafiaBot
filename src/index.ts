@@ -6,6 +6,7 @@ import { interactionCreateHandler } from './discord/interaction';
 import { guildMemberAddHanlder, guildMemberRemoveHandler, guildMemberUpdateHandler } from './discord/member';
 import { messageCreateHandler, messageDeleteHandler, messageReactionAddHandler, messageUpdateHandler } from './discord/message';
 import { clientReadyHandler } from './discord/ready';
+import { isDisabled } from "./disable";
 
 initCommands();
 
@@ -24,3 +25,5 @@ client.on(Events.ChannelCreate, channelCreateHandler);
 client.on(Events.ChannelUpdate, channelUpdateHandler);
 
 client.on(Events.InteractionCreate, interactionCreateHandler);
+
+if(!isDisabled()) client.login(process.env.DEV == "TRUE" ? process.env.DEVTOKEN : process.env.TOKEN);

@@ -23,8 +23,8 @@ module.exports = {
                 return new Command()
                     .name('say')
                     .description('have the bot say something in a channel')
-                    .requiredOption('-g, --guild <snowflake>', 'the guild id', fromZod(z.string()))
-                    .requiredOption('-c, --channel <snowflake>', 'the channel id', fromZod(z.string()))
+                    .requiredOption('-g, --guild <snowflake>', 'the guild id ** **', fromZod(z.string()))
+                    .requiredOption('-c, --channel <snowflake>', 'the channel id ** **', fromZod(z.string()))
                     .argument('<message...>', 'the message to send', simpleJoin)
             }
         },

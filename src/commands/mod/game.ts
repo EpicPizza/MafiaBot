@@ -93,7 +93,7 @@ export const ResendConfirmationsCommand = {
     text: () => {
         return new Command()
             .name('resend')
-            .description('resends confirmations of all players or one in a game')
+            .description('resends confirmations of all players or one')
             .argument('<game>', 'name of game', fromZod(z.string().min(1).max(100)))
             .option('-p, --player <name>', 'nickname of specific player', fromZod(z.string().min(1).max(100)));
     },

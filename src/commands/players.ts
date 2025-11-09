@@ -20,7 +20,7 @@ module.exports = {
             name: 'slash-players',
             command: new SlashCommandBuilder()
                 .setName("players")
-                .setDescription("Show players.")
+                .setDescription("Show signups for a game, current game players, or game players from a day.")
                 .addStringOption(option =>
                     option  
                         .setName('game')

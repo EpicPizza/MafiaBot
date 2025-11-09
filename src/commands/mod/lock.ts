@@ -49,7 +49,7 @@ export const LockCommand = {
     text: () => {
         return new Command()
             .name('lock')
-            .description('locks the mafia game, use slash command to schedule')
+            .description('locks game, use slash command to schedule')
             .argument('<now>', 'now', fromZod(z.literal('now')))
     },
 
@@ -81,7 +81,7 @@ export const UnlockCommand = {
     text: () => {
         return new Command()
             .name('unlock')
-            .description('unlocks the mafia game, use slash command to schedule')
+            .description('unlocks game, use slash command to schedule')
             .argument('<now>', 'now', fromZod(z.literal('now')))
             .argument('<type>', 'to advance or stay day (advance, stay)', fromZod(z.union([z.literal('stay'), z.literal('advance')])));
     },

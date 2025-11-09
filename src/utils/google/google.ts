@@ -29,7 +29,7 @@ export async function init() {
         const tokens = JSON.parse((await decrypt(data.value, data.iv)).value) as Credentials;
         const keys = JSON.parse(process.env.GOOGLE_CLIENT as string);
 
-        console.log("INIT", tokens);
+        //console.log("INIT", tokens);
 
         const client = new OAuth2Client({
             clientId: keys.web.client_id,
@@ -53,8 +53,8 @@ export async function init() {
             if(newTokens.refresh_token) currentTokens.refresh_token = newTokens.refresh_token;
             if(newTokens.expiry_date) currentTokens.expiry_date = newTokens.expiry_date;
 
-            console.log("NEW", newTokens);
-            console.log("CURRENT", currentTokens);
+            //console.log("NEW", newTokens);
+            //console.log("CURRENT", currentTokens);
 
             const encrypted = await encrypt(JSON.stringify(currentTokens));
 

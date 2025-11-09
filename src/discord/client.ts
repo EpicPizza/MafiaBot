@@ -1,5 +1,4 @@
 import { Client, Collection, GatewayIntentBits, Partials } from "discord.js";
-import { isDisabled } from "../disable";
 import { Command } from "commander";
 import { ZodObject } from "zod";
 import dotenv from 'dotenv';
@@ -32,10 +31,16 @@ export interface ExtendedClient extends Client {
         { execute: Function, command: () => Command, type: 'text' } | 
         { execute: Function, name: string, type: 'reaction' }
     >,
-}
-
-if(!isDisabled()) {
-    client.login(process.env.DEV == "TRUE" ? process.env.DEVTOKEN : process.env.TOKEN);
+    help: Collection<string,
+        { 
+            name: string,
+            shorthand: string,
+            slash?: string,
+            text?: string,
+            description: string,
+            arguments: { name: string, description: string, type: 'slash' | 'text' }[],
+        }
+    >
 }
 
 export default client;
