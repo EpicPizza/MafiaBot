@@ -24,11 +24,7 @@ export async function register(exit: boolean = false) {
         if ('data' in command && 'execute' in command ) {
             for(const command of data) {
                 if(command.type == 'slash' || command.type == 'context') { 
-                    if(typeof command.command == 'function') {
-                        commands.push((await command.command()).toJSON()); 
-                    } else {
-                        commands.push(command.command.toJSON()); 
-                    }
+                    commands.push(command.command.toJSON()); 
                 }
             };
         } else {
