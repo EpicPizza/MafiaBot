@@ -8,6 +8,7 @@ import { getGlobal } from '../utils/global';
 import { isMod } from "../utils/mod";
 import { getSetup } from "../utils/setup";
 import { fromZod } from "../utils/text";
+import { getHelpEmbed } from "../discord/help";
 
 module.exports = {
     data: [
@@ -34,17 +35,7 @@ module.exports = {
 
         if(command == null) throw new Error("Must declare command.");
 
-        const help = client.help.get('help-' + command);
-
-        if(help == undefined) throw new Error("Command (or help description) not found.");
-        
-        const formattedArgumentsText = help.arguments.filter(argument => argument.type == 'text').reduce((acc: string, arg: { name: string, description: string }) => `${acc}　　\`${arg.name}\` - ${arg.description}\n`, '');
-        const formattedArgumentsSlash = help.arguments.filter(argument => argument.type == 'slash').reduce((acc: string, arg: { name: string, description: string }) => `${acc}　　\`${arg.name}\` - ${arg.description}\n`, '');
-
-        const embed = new EmbedBuilder()
-            .setTitle(help.shorthand)
-            .setDescription(help.description + "\n\n`" + help.text?.trim() + '`\n' + (formattedArgumentsText == "" ? "　　No Additional Arguments\n" : formattedArgumentsText) + "\n`" + help.slash?.trim() + "`\n" + (formattedArgumentsSlash == "" ? "　　No Additional Arguments\n" : formattedArgumentsSlash))
-            .setColor(Colors.Yellow);
+        const embed = getHelpEmbed(command);
 
         interaction.reply({ embeds: [embed] });
     }

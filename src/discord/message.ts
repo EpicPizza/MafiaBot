@@ -12,6 +12,7 @@ import { getSetup } from "../utils/setup";
 import { archiveMessage } from "../utils/archive";
 import { getGlobal } from "../utils/global";
 import { Command } from "commander";
+import { getHelpEmbed } from "./help";
 
 export interface Cache {
     day: number;
@@ -94,32 +95,22 @@ export async function messageCreateHandler(...[message, throws]: [...ClientEvent
             if (e.code === 'commander.helpDisplayed' || e.code === 'commander.version' || e.code === 'commander.help') {
                 // Help or version is displayed.
 
-                let helpMessage: string = "not found";
                 let name: string = "unknown";
 
                 const command = program.commands.find(c => c.name() === program.args[0] || c.aliases().includes(program.args[0]));
 
                 if (program.args[0] == "help") {
-                    helpMessage = program.helpInformation();
                     name = "help";
                 } else if (program.args.length > 1 && command) {
                     const subcommand = command.commands.find(c => c.name() === program.args[1] || c.aliases().includes(program.args[1]));
-                    
-                    helpMessage = subcommand?.helpInformation() ?? command.helpInformation();
-                    name = subcommand?.name() ?? command.name();
+                    name = subcommand?.name() ? command.name() + "-" + subcommand?.name() : command.name();
                 } else if(command) {
-                    helpMessage = command.helpInformation();
                     name = command.name();
                 }
 
-                await message.reply({
-                    embeds: [
-                        new EmbedBuilder()
-                            .setTitle(`Help for ?${name}`)
-                            .setDescription('```' + helpMessage + '```')
-                            .setColor(Colors.Yellow)
-                    ]
-                });
+                const embed = getHelpEmbed(name);
+
+                await message.reply({ embeds: [embed] });
 
                 return;
             }
