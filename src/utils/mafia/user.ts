@@ -123,6 +123,8 @@ export async function editUser(id: string, options: { nickname?: string, emoji?:
 
     const ref = db.collection('users').doc(id);
 
+    if(options.nickname?.toLowerCase().includes("yama")) throw new Error("alert");
+
     await ref.update({
         ...(options.nickname ? { nickname: options.nickname, lName: options.nickname.toLowerCase() } : {}),
         ...(options.emoji ? { emoji: options.emoji } : {})
