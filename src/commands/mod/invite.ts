@@ -156,11 +156,11 @@ export const SpectatorCommand = {
             await removeReactions(interaction.message);
            
             if(remove) {
-                await interaction.reply("Spectator kicked.");
+                await interaction.message.react('✅');
             } else if(!(sendDM && dm)) {
-                await interaction.reply({ content: message + "\n\nSpectator has been added. You may need to rerun this command after a game starts (since invites reset)." });
+                await interaction.reply({ content: message });
             } else {
-                await interaction.reply({ content: "Spectator has been added. You may need to rerun this command after a game starts (since invites reset)." });
+                await interaction.message.react('✅');
             }
         } else {
             if(remove) {
