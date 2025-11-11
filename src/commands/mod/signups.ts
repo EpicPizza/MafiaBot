@@ -146,7 +146,7 @@ async function createSignups(interaction: CommandInteraction | ButtonInteraction
     if(global.started) throw new Error("You cannot create signups while a game is underway.");
     
     const embed = new EmbedBuilder()
-        .setTitle("Sign ups for " + game.name + (game.closed ? " are closed" : "") + "!")
+        .setTitle("Sign ups for " + game.name + (game.closed ? " are closed" : "") + "\nSign up by using the **/signup** command" + (game.signups.length > 1 ? ", " + game.signups.length + " players have signed up already" : (game.signups.length == 1 ? ", 1 player has signed up already" : "")) + "!")
         .setColor(game.closed ? Colors.DarkRed : Colors.Blue)
         .setDescription("Loading sign ups...");
 
