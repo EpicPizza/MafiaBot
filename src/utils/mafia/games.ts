@@ -228,7 +228,8 @@ export async function refreshSignup(name: string) {
     const embed = new EmbedBuilder()
         .setTitle("Sign ups for " + game.name + (game.closed ? " are closed" : "") + "!")
         .setColor(game.closed ? Colors.DarkRed : Colors.Blue)
-        .setDescription((game.signups.length == 0 ? "No sign ups.\n" : list ) + "\nSign up by using the **/signup** command!");
+        .setDescription((game.signups.length == 0 ? "No sign ups.\n" : list ) + "\nSign up by using the **/signup** command")
+        .setFooter({ text: (game.signups.length > 1 ? ", " + game.signups.length + " players have signed up already" : (game.signups.length == 1 ? ", 1 player has signed up already" : "")) + "!" });
 
     await message.suppressEmbeds(false); // in case embeds were suppressed
 
