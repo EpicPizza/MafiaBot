@@ -16,10 +16,10 @@ import { getSetup, Setup } from "../utils/setup";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
-//                   Ongoing Chat            Archived Chats        DM Storage             Old Player DMs         Old Mafia
-const categoryIds = ["1281884365994856524", "1281884411448660009", "1281884474312884266"]; //prod
+//                   Ongoing Chat          Archived Chats        DM Storage             Old Player DMs         Old Mafia
+const categoryIds = ["723651039693373454", "723636076811386923", "1244509911098851452", "1363452733885255812", "1266670814082633828"]; //prod
 //const categoryIds = ["1247776492029481081"];
-export const playersRoleId = "1413736283083247677"; //prod
+export const playersRoleId = "1390130766842695681"; //prod
 //export const playersRoleId = "1390188023529996400";
 
 const help = `Upick Extension assumes that all players have signed up. While players may be added afterwards, there are no checks in place to see if they had already saw other channels.

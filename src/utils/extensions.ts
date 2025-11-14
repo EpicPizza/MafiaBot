@@ -13,6 +13,7 @@ import type { Signups } from './mafia/games';
 import type { User } from './mafia/user';
 import type { TransactionResult } from './mafia/vote';
 import type { Setup } from './setup';
+import { initHelp } from '../discord/help';
 
 const extensions = [] as Extension[]; 
 const extensionsPath = path.join(__dirname, '../extensions');
@@ -134,6 +135,13 @@ export function setExtensionTextCommands(commands: ExtendedClient["commands"]) {
 
     extensionCommands.forEach(command => {
         commands.set(command.name, command);
+
+        initHelp([{
+            type: command.type,
+            description: undefined,
+            name: command.name,
+            command: command.command,
+        }]);
     });
 }
 
