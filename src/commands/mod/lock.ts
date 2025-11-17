@@ -49,7 +49,7 @@ export const LockCommand = {
     text: () => {
         return new Command()
             .name('lock')
-            .description('locks game, use slash command to schedule')
+            .description('Locks the game, use slash command to schedule.')
             .argument('<now>', 'now', fromZod(z.literal('now')))
     },
 
@@ -81,7 +81,7 @@ export const UnlockCommand = {
     text: () => {
         return new Command()
             .name('unlock')
-            .description('unlocks game, use slash command to schedule')
+            .description('Unlocks the game, and asks if you want to advance day. Use slash command to schedule.')
             .argument('<now>', 'now', fromZod(z.literal('now')))
             .argument('<type>', 'to advance or stay day (advance, stay)', fromZod(z.union([z.literal('stay'), z.literal('advance')])));
     },
@@ -120,7 +120,7 @@ export const GraceCommand = {
     text: () => {
         return new Command()
             .name('grace')
-            .description('sets game on grace, use slash command to schedule')
+            .description('Sets the grace of the game on or off. Grace is when players cannot vote.')
             .argument("<type>", "on, off", fromZod(z.union([z.literal('on'), z.literal('off')])));
     },
 

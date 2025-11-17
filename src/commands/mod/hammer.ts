@@ -22,7 +22,7 @@ export const HammerCommand = {
     text: () => {
         return new Command()
             .name('hammer')
-            .description('to set auto hammer on or off')
+            .description('To set auto hammer on or off.')
             .argument('<mode>', 'on or off', fromZod(z.union([ z.literal('on'), z.literal('off') ])));
     },
 

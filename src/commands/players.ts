@@ -64,7 +64,7 @@ module.exports = {
                     .name('players')
                     .alias('pl')
                     .alias('signups')
-                    .description('show players')
+                    .description('Show players of a current game or signups by specifying a game.')
                     .argument('[day]', 'which day to show from (during running game)', fromZod(z.coerce.number().min(1).max(100)))
                     .option('-g, --game <name>', 'which game to show signups from', fromZod(z.string().min(1).max(100)))
                     .option('-f, --format <type>', 'types: complete, gxe, wr, alphabetical', fromZod(Format))

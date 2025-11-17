@@ -20,7 +20,7 @@ module.exports = {
             command: () => {
                 return new Command()
                     .name('games')
-                    .description('see all games')
+                    .description('See all games currently happening.')
             }
         }
     ] satisfies Data[],

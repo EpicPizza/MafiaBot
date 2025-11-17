@@ -114,7 +114,7 @@ module.exports = {
                 .addSubcommand(subcommand =>
                     subcommand
                         .setName("database")
-                        .setDescription("Setup database.")
+                        .setDescription("Setup database (or resets it if already setup, so DO NOT RUN IF GAME HAS ALREADY STARTED).")
                 )
                 .addSubcommand(subcommand =>
                     subcommand

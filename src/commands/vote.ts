@@ -49,7 +49,7 @@ module.exports = {
             command: () => {
                 return new Command()
                     .name('vote')
-                    .description('vote for a player')
+                    .description('Vote for a player.')
                     .argument('[vote]', 'which player to vote for', fromZod(z.string().min(1).max(100)))  
             }
         },
@@ -59,7 +59,7 @@ module.exports = {
             command: () => {
                 return new Command()
                     .name('unvote')
-                    .description('remove your vote');
+                    .description('Remove your vote.');
             }
         }
     ] satisfies Data[],

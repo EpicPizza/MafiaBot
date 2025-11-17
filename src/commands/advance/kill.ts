@@ -28,7 +28,7 @@ export const KillCommand = {
     text: () => {
         return new Command()
             .name('kill')
-            .description('kill a player without giving them spectator')
+            .description('Does not add spectator roles immediently after removing. Will kick player out of the mafia server if they are mafia. Use /mod spectator or ?mod spectator to add spectator roles to them later or ending the game will add spectator roles as well.')
             .argument('<player>', 'nickname of player', fromZod(z.string().min(1).max(100)));
     },
 

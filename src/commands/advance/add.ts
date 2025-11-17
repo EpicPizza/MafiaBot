@@ -29,7 +29,7 @@ export const AddCommand = {
         text: () => {
             return new Command()
                 .name('add')
-                .description('add a player midgame')
+                .description('Add a player midgame. Only requirement is that the player must have set a nickname.')
                 .argument('<player>', 'nickname of player', fromZod(z.string().min(1).max(100)));
         },
 

@@ -32,7 +32,7 @@ module.exports = {
             command: () => {
                 return new Command()
                     .name('votes')
-                    .description('show votes')
+                    .description('View current votes or votes from a certain day.')
                     .argument("[day]", "which day to show votes form", fromZod(z.coerce.number().min(1).max(100)));
             }
         }

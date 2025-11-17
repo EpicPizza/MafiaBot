@@ -34,7 +34,7 @@ export const AlignmentCommand = {
     text: () => {
         return new Command()
             .name('alignment')
-            .description('set a player\'s alignment midgame')
+            .description('Set the alignment of a player midgame. (This is only changes alignment in database, it does not invite to mafia server if alignment is set to mafia).')
             .argument('<player>', 'nickname of player', fromZod(z.string().min(1).max(100)))
             .argument('<alignment>', 'alignment to set', fromZod(z.string().min(1).max(100)));
     },

@@ -28,7 +28,7 @@ export const StartCommand = {
     text: () => {
         return new Command()
             .name('start')
-            .description('starts the mafia game')
+            .description('Starts the game. Locks the channel. Setups player dms. Kicks everyone from mafia server. Sends message in spectator chat to setup alignments (which will invite mafia to mafia server after confirming).')
             .argument('<game>', 'name of game', fromZod(z.string().min(1).max(100)));
     },
 

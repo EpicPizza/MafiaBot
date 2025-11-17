@@ -22,7 +22,7 @@ module.exports = {
             command: () => {
                 return new Command()
                     .name('delete')
-                    .description('reply to message to delete (mod only)')
+                    .description('Deletes message without triggering bot delete logger. Can be accessed in the apps section of message options, or replying ?delete to the wanted message.')
             },
         }
     ] satisfies Data[],

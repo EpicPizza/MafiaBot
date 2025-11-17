@@ -27,7 +27,7 @@ export const CreateCommand = {
     text: () => {
         return new Command()
             .name('create')
-            .description('create a mafia game')
+            .description('Creates a new game. Also makes spectator and mafia channels for that game.')
             .argument('<name>', 'name of game', fromZod(z.string().min(1).max(100)));
     },
 
@@ -50,7 +50,7 @@ export const ArchiveCommand = {
         .addStringOption(option =>
             option  
                 .setName('game')
-                .setDescription('Name of the game.')
+                .setDescription('Removes the game from database and moves channels to archived category.')
                 .setRequired(true)
                 .setAutocomplete(true)
         ),
@@ -177,7 +177,7 @@ export const ConfirmationsCommand = {
     text: () => {
         return new Command()
             .name('confirmations')
-            .description('shows confirmations of all players in a game')
+            .description('Shows confirmations of all players in a game. Must have all player confirmations to start game.')
             .argument('<game>', 'name of game', fromZod(z.string().min(1).max(100)));
     },
 

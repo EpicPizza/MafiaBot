@@ -20,7 +20,7 @@ export const ShowAlignments = {
     text: () => {
         return new Command()
             .name('alignments')
-            .description('show all alignments')
+            .description('Shows alignments of all players, must be run in spectator chat.')
     },
 
     execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {

@@ -95,7 +95,7 @@ export const RoleCommand = {
     text: () => {
         return new Command()
             .name('role')
-            .description('add a role to a player')
+            .description('Add a role to a player.')
             .argument('<player>', 'which player', fromZod(z.string().min(1).max(100)))
             .requiredOption('--role <name>', 'which role to add', fromZod(z.string().min(1).max(100)))
             .requiredOption('--server <name>', 'which server to add role', fromZod(z.string()))

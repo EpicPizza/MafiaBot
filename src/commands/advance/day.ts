@@ -27,7 +27,7 @@ export const ClearCommand = {
     text: () => {
         return new Command()
             .name('clear')
-            .description('clear a day\'s stats, votes, and stored players')
+            .description('Clear stats, votes, and tracked players from selected day. To retrack players, use /advance set or ?adv set on the same day with players true.')
             .argument('<day>', 'which day to clear', fromZod(z.coerce.number()));
     },
 
@@ -87,7 +87,7 @@ export const DayCommand = {
     text: () => {
         return new Command()
             .name('set')
-            .description('set the day in the database')
+            .description('Set the current day. Setting players to true will retrack the current players on the selected day.')
             .argument('<day>', 'which day', fromZod(z.coerce.number()))
             .option('-p, --players', 'whether to or not (re)track players')
     },

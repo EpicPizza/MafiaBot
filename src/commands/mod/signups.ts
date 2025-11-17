@@ -25,7 +25,7 @@ export const SignupsCommand = {
     text: () => {
         return new Command()
             .name('signups')
-            .description('create sign up button')
+            .description('Creates signups for a new game. You can only have one signup button for each game, old buttons can be reactivated however.')
             .argument('<game>', 'name of game', fromZod(z.string().min(1).max(100)))
     },
 
@@ -57,7 +57,7 @@ export const CloseCommand = {
     text: () => {
         return new Command()
             .name('close')
-            .description('close signups')
+            .description('Closes signups for a game.')
             .argument('<game>', "name of game", fromZod(z.string().min(1).max(100)));
     },
 
@@ -95,7 +95,7 @@ export const OpenCommand = {
     text: () => {
         return new Command()
             .name('open')
-            .description('open signups')
+            .description('Reopens signups for a game whose signups have been closed.')
             .argument('<game>', "name of game", fromZod(z.string().min(1).max(100)));
     },
 

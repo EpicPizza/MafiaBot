@@ -14,7 +14,7 @@ export const EndCommand = {
     text: () => {
         return new Command()
             .name('end')
-            .description('ends the mafia game')
+            .description('Ends the game. Gives spectator perms to everyone, and invites to mafia server if they are not already in mafia server.')
     },
 
     execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {

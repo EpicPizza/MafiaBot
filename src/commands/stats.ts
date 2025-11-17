@@ -35,7 +35,7 @@ module.exports = {
             command: () => {
                 return new Command()
                     .name('stats')
-                    .description('show stats')
+                    .description('View message and word count for each player.')
                     .argument("[day]", "which day to show stats form", fromZod(z.coerce.number().min(1).max(100)))
                     .option("-t, --total", "to calculate cumalitive stats");
             }
@@ -45,7 +45,7 @@ module.exports = {
             name: 'slash-reactions',
             command: new SlashCommandBuilder()
                 .setName("reactions")
-                .setDescription("Show reaction stats.")
+                .setDescription("View reaction and message count for each player.")
                 .addNumberOption(option =>
                     option
                         .setName('day')

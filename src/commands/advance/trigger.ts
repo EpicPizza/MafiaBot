@@ -28,7 +28,7 @@ export const TriggerCommand = {
     text: () => {
         return new Command()
             .name('trigger')
-            .description('trigger a hammer on a player')
+            .description('Trigger a hammer on a player as if they were actually hammered. Will call hammer extensions accordingly.')
             .argument('<player>', 'nickname of player', fromZod(z.string().min(1).max(100)));
     },
 

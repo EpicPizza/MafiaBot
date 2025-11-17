@@ -58,7 +58,7 @@ export const ExtensionCommand = {
     text: () => {
         return new Command()
             .name('extension')
-            .description('manage extensions')
+            .description('Manage extensions midgame.')
             .argument('<action>', 'enable, disable', fromZod(z.string().min(1).max(100)))
             .argument('<name>', 'name of extension', fromZod(z.string().min(1).max(100)))
             .option('--setup', 'to run start/end fucntion', fromZod(z.string().min(1).max(100)))

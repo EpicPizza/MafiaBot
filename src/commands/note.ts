@@ -25,7 +25,7 @@ module.exports = {
             command: () => {
                 return new Command()
                     .name('note')
-                    .description('reply to message to note (main chat) OR choose where to send (runs in dm)')
+                    .description('Note a message to send to your DM or mafia chat. Can be accessed in the apps section of message options. Set whether to send a note to your DM channel or mafia chat. Must be run in your dead chat DM.')
                     .option('-s, --send <where>', 'where to send dm (mafia, DM)');
             }
         },

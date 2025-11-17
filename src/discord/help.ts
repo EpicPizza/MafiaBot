@@ -73,8 +73,8 @@ export function initHelp(data: Data[]) {
         const textCommand = data.find(part => part.name.substring(part.name.indexOf("-") + 1) == commandName && part.type == 'text');
         if(slashCommand && slashCommand.type != 'slash' || textCommand && textCommand.type != 'text') return;
 
-        if(slashCommand == undefined && textCommand == undefined) return;
-        const description = command.description ? command.description : slashCommand ? slashCommand.command.toJSON().description : textCommand?.description ?? "No description found.";
+        if(slashCommand == undefined && textCommand == undefined) return;     
+        const description = command.description ? command.description : (textCommand ? textCommand.command().helpInformation().substring(textCommand.command().helpInformation().indexOf("\n\n") + 2, textCommand.command().helpInformation().indexOf("\n\n", textCommand.command().helpInformation().indexOf("\n\n") + 3)) : (slashCommand?.command.toJSON().description ?? "No description found."));
 
         if(textCommand && command.text) {
             const commandInstance = textCommand.command();
@@ -215,7 +215,7 @@ export function initHelp(data: Data[]) {
             });  
         }
 
-        client.help.set(command.name, { ...command, arguments: commandArguments, description: description, shorthand: (command.text ? "?" + commandName : "") + (command.slash && command.text ? " • " : "") + (command.slash ? "/" + commandName : ""), slash: command.slash == undefined ? "Unable to generate sturcture." : command.slash.toString(), text: command.text == undefined ? "Unable to generate sturcture." : command.text.toString() });
+        client.help.set(command.name, { ...command, arguments: commandArguments, description: description, shorthand: (command.text ? "?" + commandName : "") + (command.slash && command.text ? " • " : "") + (command.slash ? "/" + commandName : ""), slash: command.slash == undefined ? undefined : command.slash.toString(), text: command.text == undefined ? undefined : command.text.toString() });
     });
 }
 

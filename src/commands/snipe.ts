@@ -21,7 +21,7 @@ module.exports = {
             command: () => {
                 return new Command()
                     .name('snipe')
-                    .description('reply this to a message to see it\'s edits');
+                    .description('Check edits for a message. Can be accessed in the apps section of message options.');
             },
         }
     ] satisfies Data[],

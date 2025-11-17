@@ -33,7 +33,7 @@ export const NicknameCommmand = {
     text: () => {
         return new Command()
             .name('nickname')
-            .description('set nickname of a member')
+            .description('Set a nickname of a player.')
             .argument('<@member>', '@ to invite', fromZod(z.string().regex(/^<@\d+>$/, "Not a valid @!")))
             .argument('<nickname>', 'nickname to set', fromZod(requirements));
     },

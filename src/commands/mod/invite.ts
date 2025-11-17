@@ -41,7 +41,7 @@ export const SpectatorCommand = {
     text: () => {
         return new Command()
             .name('spectator')
-            .description('invite a spectator')
+            .description('Invites a spectator to dead and mafia server to spectate.')
             .argument('[@member]', '@ to invite', fromZod(z.string().regex(/^<@\d+>$/, "Not a valid @!")))
             .option('-r, --remove', 'to remove exisiting spectator')
             .option('-i, --invite', 'to send invite back to you instead of dm');
@@ -200,7 +200,7 @@ export const KickCommand = {
     text: () => {
         return new Command()
             .name('kick')
-            .description('remove a signup')
+            .description('Kicks a player from signups.')
             .argument('<player>', 'nickname of player', fromZod(z.string().min(1).max(100)))
             .argument('<game>', 'name of game', fromZod(z.string().min(1).max(100)))
     },

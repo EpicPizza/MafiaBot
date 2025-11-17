@@ -44,7 +44,7 @@ export const VoteCommand = {
     text: () => {
         return new Command()
             .name('vote')
-            .description('change a vote')
+            .description('Add/remove a vote as if the player was voting themselves. Will send a message in main chat notifying players about the vote. History will point to this main chat message.')
             .argument('<voter>', 'which player to vote as')
             .argument('<type>', 'add, remove', fromZod(z.union([z.literal('add'), z.literal('remove')])))
             .argument('[voting]', 'which player to vote');

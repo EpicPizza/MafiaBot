@@ -62,7 +62,7 @@ module.exports = {
             command: () => {
                 return new Command()
                     .name('nickname')
-                    .description('set your nickname')
+                    .description('Add/edit your nickname. You\'ll be also asked to add a nickname on signup if you\'re a new player.')
             }
         }, 
         {
@@ -71,7 +71,7 @@ module.exports = {
             command: () => {
                 return new Command()
                     .name('info')
-                    .description('get the @ and nickname of a player')
+                    .description('Check the nickname or @ of a player with their nickname or @.')
                     .argument('[@/nickname]', '@/nickname of player', fromZod(z.string().regex(/^<@\d+>$/).or(z.string().regex(/^[a-zA-Z]+$/, "Only letters allowed. No spaces."))))
                     .option('--extra', 'get the player\'s hex/pfp')
             }

@@ -28,7 +28,7 @@ export const MafiaCommand = {
     text: () => {
         return new Command()
             .name('mafia')
-            .description('add an additional mafia player')
+            .description('Convert a player to mafia. Creates an invite to send to the player and updates alignment accordingly.')
             .argument('<player>', 'which player', fromZod(z.string().min(1).max(100)));
     },
 

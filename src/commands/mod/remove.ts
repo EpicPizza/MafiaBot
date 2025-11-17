@@ -32,7 +32,7 @@ export const RemoveCommand = {
         return new Command()
             .name('remove')
             .alias('kill')
-            .description('remove a player')
+            .description('Removes a player from the game. Gives them access to spectator channel and removes their alive role.')
             .argument('<player>', 'which player', fromZod(z.string().min(1).max(100)));
     },
     

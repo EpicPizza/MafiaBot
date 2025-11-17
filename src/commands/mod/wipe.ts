@@ -30,7 +30,7 @@ export const WipeCommand = {
     text: () => {
         return new Command()
             .name('wipe')
-            .description('clear a day\'s votes')
+            .description('Wipe all votes in a day, message is what appears in vote history (optional).')
             .argument('<day>', 'which day', fromZod(z.coerce.number()))
             .argument('[message]', 'message to put in logs')
     },
