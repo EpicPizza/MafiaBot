@@ -156,6 +156,8 @@ module.exports = {
         if(type == 'vote' && voting == undefined) throw new Error("Player not found!");
         if(voter == undefined) throw new Error("You're not in this game?");
 
+        if(voting && !global.players.find(player => player.id == voting.id)) throw new Error("Player not found!");
+
         const db = firebaseAdmin.getFirestore();
 
         const result = await db.runTransaction(async t => {
