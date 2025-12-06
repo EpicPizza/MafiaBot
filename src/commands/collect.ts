@@ -111,7 +111,7 @@ async function getMessages(channel: TextChannel, messageId: string | null, callb
                 reactions: await getReactions(message),
             }
 
-            batch.set(ref.doc(), saving);
+            batch.set(ref.doc(message.id), saving);
 
             messageArray.push({id: message.id, pin: pinning, sent: Math.floor(((Date.now().valueOf() - message.createdTimestamp) / (1000 * 3600 * 24))), timestamp: message.createdTimestamp, author: message.author.id });
         }));
