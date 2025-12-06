@@ -9,7 +9,7 @@ import { getSetup } from "../utils/setup";
 import { checkMod } from "../utils/mod";
 import { getGlobal, type Global } from '../utils/global';
 import { Command } from "commander";
-import { getReactionsString } from "../utils/archive";
+import { getReactions, getReactionsString } from "../utils/archive";
 
 dnt.plugin(meridiem);
 
@@ -108,7 +108,7 @@ async function getMessages(channel: TextChannel, messageId: string | null, callb
                 mentions: mentions,
                 reference: message.reference?.messageId ?? null,
                 poll: message.poll ? true : false,
-                reactions: await getReactionsString(message),
+                reactions: await getReactions(message),
             }
 
             batch.set(ref.doc(), saving);

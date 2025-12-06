@@ -161,7 +161,7 @@ interface Reaction {
     emoji: string | null;
 }
 
-async function getReactions(message: Message): Promise<Reaction[]> {
+export async function getReactions(message: Message): Promise<Reaction[]> {
     return new Promise(async (resolve) => {
         var index = 0;
         var fetchreactions = new Array();
