@@ -71,12 +71,15 @@ async function getMessages(channel: TextChannel, messageId: string | null, callb
 
     const ref = db.collection('channels').doc(channel.id).collection('messages');
 
+    const docs = await ref.listDocuments();
+
     while(true) {
         var options = { limit: 100, before: message == null ? undefined : message, cache: false }; //cache only stores 200 messages max, so pointless in this case
 
         const batch = db.batch();
 
         var messages = await channel.messages.fetch(options);
+
         await Promise.allSettled(messages.map(async (message: Message) => {
             let pinning: string | undefined = undefined;
 
@@ -111,7 +114,11 @@ async function getMessages(channel: TextChannel, messageId: string | null, callb
                 reactions: await getReactions(message),
             }
 
-            batch.set(ref.doc(message.id), saving);
+            if(!docs.find(ref => ref.id == message.id.toString())) {
+                batch.set(ref.doc(message.id), saving);
+            } else {
+                console.log("skipped");
+            }
 
             messageArray.push({id: message.id, pin: pinning, sent: Math.floor(((Date.now().valueOf() - message.createdTimestamp) / (1000 * 3600 * 24))), timestamp: message.createdTimestamp, author: message.author.id });
         }));

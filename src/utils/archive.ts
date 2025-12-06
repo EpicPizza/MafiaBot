@@ -166,29 +166,36 @@ export async function getReactions(message: Message): Promise<Reaction[]> {
         var index = 0;
         var fetchreactions = new Array();
         message.reactions.cache.map(async function reactionLister(reaction) {
-            var emoji = await reaction.fetch();
-            var user = await emoji.users.fetch();
-            var emojiUrl;
-            if(emoji.emoji.animated == null || emoji.emoji.animated == false) {
-                if(emoji.emoji.id == null) {
-                    emojiUrl = emoji.emoji.name;
+            try {
+                var emoji = await reaction.fetch();
+                var user = await emoji.users.fetch();
+
+                var emojiUrl;
+                if(emoji.emoji.animated == null || emoji.emoji.animated == false) {
+                    if(emoji.emoji.id == null) {
+                        emojiUrl = emoji.emoji.name;
+                    } else {
+                        emojiUrl = "<:" + emoji.emoji.name + ":" + emoji.emoji.id + ">"
+                    }
                 } else {
-                    emojiUrl = "<:" + emoji.emoji.name + ":" + emoji.emoji.id + ">"
+                    emojiUrl = "<a:" + emoji.emoji.name + ":" + emoji.emoji.id + ">"
                 }
-            } else {
-                emojiUrl = "<a:" + emoji.emoji.name + ":" + emoji.emoji.id + ">"
+                var reactors = new Array();
+                user.forEach(function userLister(reactor) {
+                    reactors.push(reactor.id);
+                });
+                fetchreactions.push({id: reactors, emoji: emojiUrl});
+            } catch(e) {
+                console.log(e);
             }
-            var reactors = new Array();
-            user.forEach(function userLister(reactor) {
-                reactors.push(reactor.id);
-            });
-            fetchreactions.push({id: reactors, emoji: emojiUrl})
+
             index++;
             if(index == message.reactions.cache.size) {
                 resolve(fetchreactions);
             }
         });
         await sleep(500); //plz do not remove... for some reason this breaks without, could be possible issues with accessing discord api too quickly, idk...
+        //two years later... i know why and this code is stupid, but im too lazy to fix it rn
         if(message.reactions.cache.size == 0) {
             resolve([{id: null, emoji: null}]);
         }
