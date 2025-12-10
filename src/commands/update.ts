@@ -77,7 +77,7 @@ module.exports = {
         });
 
         const db = firebaseAdmin.getFirestore();
-        const ref = db.collection('settings').doc('stats');
+        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('stats');
         await ref.set({
             overall
         });
