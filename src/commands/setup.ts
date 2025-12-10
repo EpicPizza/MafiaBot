@@ -144,9 +144,13 @@ module.exports = {
     ] satisfies Data[],
 
     execute: async (interaction: ChatInputCommandInteraction | ButtonInteraction) => {
-        const global = await getGlobal();
+        try {
+            const global = await getGlobal();
         
-        if(!(global.admin.includes(interaction.user.id))) throw new Error("You're not a mod!");
+            if(!(global.admin.includes(interaction.user.id))) throw new Error("You're not a mod!");
+        } catch(e) {
+            if(interaction.user.id != process.env.OWNER) throw new Error("You're not a mod!");
+        }
 
         if(interaction.isChatInputCommand() && interaction.options.getSubcommand() == "database") {
             const db = firebaseAdmin.getFirestore();
