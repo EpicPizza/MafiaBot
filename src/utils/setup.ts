@@ -35,7 +35,7 @@ const PartialSetup = z.object({
 export async function getPartialSetup() {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('settings').doc('setup')
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('setup');
 
     const data = (await ref.get()).data();
 
@@ -61,7 +61,7 @@ export async function getSetup() {
 export async function checkSetup() {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('settings').doc('setup')
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('setup')
 
     const data = (await ref.get()).data();
 
@@ -95,7 +95,7 @@ export async function checkSetup() {
     const tertiaryArchive = fetchCategory(setup.tertiary.archive, setup.tertiary.guild, "Tertiary archive category");
     const tertiaryAccess = fetchRole(setup.tertiary.access, setup.tertiary.guild, "Tertiary access role");
 
-    const results = await Promise.allSettled([primary, secondary, tertiary, alive, primaryMod, gang, chat, secondaryMod, secondarySpec, dms, archivedDms, seocndaryOngoing, secondaryArchive, tertiaryMod, tertiarySpec, tertiaryOngoing, tertiaryArchive, tertiaryAccess, secondaryAccess]);
+    const results = await Promise.allSettled([ primary, secondary, tertiary, alive, primaryMod, gang, chat, secondaryMod, secondarySpec, dms, archivedDms, seocndaryOngoing, secondaryArchive, tertiaryMod, tertiarySpec, tertiaryOngoing, tertiaryArchive, tertiaryAccess, secondaryAccess, logs ]);
     
     const fails = results.filter(result => result.status == "rejected");
 

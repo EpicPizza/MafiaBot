@@ -4,3 +4,5 @@ build
 app.yaml
 src/utils/random.ts
 coverage
+messages.json
+src/testing.ts

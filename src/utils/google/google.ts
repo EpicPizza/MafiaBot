@@ -89,4 +89,4 @@ export async function decrypt(encryptedValue: string, iv: string) {
 	return { value };
 }
 
-if(!isDisabled()) init();
+//if(!isDisabled()) init();

@@ -96,7 +96,7 @@ export const ExtensionCommand = {
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('settings').doc('game');
+            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
 
             await ref.update({
                 extensions: FieldValue.arrayUnion(extension.substring(0, 1).toUpperCase() + extension.substring(1, extension.length).toLowerCase())
@@ -123,7 +123,7 @@ export const ExtensionCommand = {
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('settings').doc('game');
+            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
 
             await ref.update({
                 extensions: FieldValue.arrayRemove(extension.substring(0, 1).toUpperCase() + extension.substring(1, extension.length).toLowerCase())

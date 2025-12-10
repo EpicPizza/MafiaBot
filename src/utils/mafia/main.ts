@@ -114,7 +114,7 @@ export async function unlockGame(increment: boolean = false, ping: boolean = tru
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('settings').doc('game');
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
 
     await ref.update({
         started: true,
@@ -189,7 +189,7 @@ export async function lockGame() {
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('settings').doc('game');
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
 
     await ref.update({
         started: true,
@@ -249,7 +249,7 @@ export async function deleteInvites(setup: Setup) {
 export async function prepareGame(game: Signups) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('settings').doc('game');
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
 
     await ref.update({
         started: true,
@@ -263,7 +263,7 @@ export async function prepareGame(game: Signups) {
 export async function finishSignups(game: Signups) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('settings').doc('game').collection('games').doc(game.id);
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games').doc(game.id);
 
     await ref.update({
         closed: true,
@@ -592,7 +592,7 @@ export async function startLog(setup: Setup, global: Global, game: Signups) {
 export async function clearGame() {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('settings').doc('game');
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
 
     await ref.update({
         started: false,
@@ -774,7 +774,7 @@ export async function endGame(interaction: ChatInputCommandInteraction | TextCom
 export async function editPlayer(options: { id: string, alignment: 'mafia' | null }) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('settings').doc('game');
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
 
     await db.runTransaction(async t => {
         const global = await getGlobal(t);

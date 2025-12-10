@@ -134,7 +134,7 @@ export const GraceCommand = {
         let grace = interaction.type == 'text' ? interaction.program.processedArgs[0] == 'on' : interaction.options.getBoolean('grace') ?? false;
 
         if(interaction.type == 'text') {
-            await db.collection('settings').doc('game').update({
+            await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').update({
                 grace: grace
             });
 
@@ -414,7 +414,7 @@ async function handleGraceButton(interaction: ButtonInteraction) {
         if(date == "now") {
             await lockGame();
 
-            await db.collection('settings').doc('game').update({
+            db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').update({
                 grace: id.grace
             });
 
@@ -448,7 +448,7 @@ async function handleUnlockButton(interaction: ButtonInteraction) {
     if(date == "now") {
         await unlockGame(id.type);
 
-        await db.collection('settings').doc('game').update({
+        db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').update({
             grace: id.grace
         });
 
@@ -484,7 +484,7 @@ async function handleLockingGrace(interaction: StringSelectMenuInteraction) {
     const date = value == "now" ? "now" : new Date(parseInt((value ?? new Date().valueOf())) + minuteOffset);
 
     if(date == "now") {
-        await db.collection('settings').doc('game').update({
+        await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').update({
             grace: id.grace
         });
 

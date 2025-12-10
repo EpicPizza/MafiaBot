@@ -33,7 +33,7 @@ export async function addSignup(options: { id: string, game: string }) {
 
     if(game == null) return false;
 
-    const ref = db.collection('settings').doc('game').collection('games').doc(game.id);
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games').doc(game.id);
 
     const confirmed = await db.runTransaction(async t => {
         const doc = await t.get(ref);
@@ -104,7 +104,7 @@ export async function removeSignup(options: { id: string, game: string }) {
 
     if(id == null) return false;
 
-    const ref = db.collection('settings').doc('game').collection('games').doc(id);
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games').doc(id);
 
     await db.runTransaction(async t => {
         const doc = await t.get(ref);
@@ -130,7 +130,7 @@ export async function openSignups(name: string) {
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('settings').doc('game').collection('games').doc(game.id);
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games').doc(game.id);
 
     await ref.update({
         closed: false,
@@ -146,7 +146,7 @@ export async function closeSignups(name: string) {
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('settings').doc('game').collection('games').doc(game.id);
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games').doc(game.id);
 
     await ref.update({
         closed: true,
@@ -160,7 +160,7 @@ export async function activateSignup(options: { id: string, name: string }) {
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('settings').doc('game').collection('games').doc(game.id);
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games').doc(game.id);
 
     const signup = game.message;
 
@@ -257,7 +257,7 @@ export async function archiveGame(interaction: ChatInputCommandInteraction | Tex
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('settings').doc('game').collection('games').doc(game.id);
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games').doc(game.id);
 
     await ref.delete();
 
@@ -273,7 +273,7 @@ export async function createGame(interaction: ChatInputCommandInteraction | Text
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('settings').doc('game').collection('games');
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games');
 
     const exists = await getGameByName(name).catch(() => { return undefined; });
 
@@ -342,7 +342,7 @@ function getRandom(min: number, max: number) {
 export async function getGames() {    
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('settings').doc('game').collection('games');
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games');
 
     const docs = (await ref.get()).docs;
 
@@ -365,7 +365,7 @@ export async function getGames() {
 export async function getGameByName(name: string) {
     const db = firebaseAdmin.getFirestore();
 
-    const docs = (await db.collection('settings').doc('game').collection('games').get()).docs;
+    const docs = (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games').get()).docs;
     const games = docs.map(doc => doc.data());
     
     for(let i = 0; i < games.length; i++) {
@@ -380,7 +380,9 @@ export async function getGameByName(name: string) {
 export async function getGameByID(id: string) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('settings').doc('game').collection('games').doc(id);
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games').doc(id);
+
+    console.log(id)
 
     const doc = (await ref.get());
 

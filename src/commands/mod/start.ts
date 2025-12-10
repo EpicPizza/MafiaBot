@@ -141,7 +141,7 @@ export const DefaultAlignment = {
 
         await getUsers(selected);
 
-        const ref = db.collection('settings').doc('game');
+        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
 
         await db.runTransaction(async t => {
             const global = await getGlobal(t);
@@ -181,7 +181,7 @@ export const MafiaAlignment = {
 
         await getUsers(selected);
 
-        const ref = db.collection('settings').doc('game');
+        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
 
         await db.runTransaction(async t => {
             const global = await getGlobal(t);
@@ -221,7 +221,7 @@ export const NeutralAlignment = {
 
         await getUsers(selected);
 
-        const ref = db.collection('settings').doc('game');
+        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
 
         await db.runTransaction(async t => {
             const global = await getGlobal(t);
@@ -307,7 +307,7 @@ export const CustomModal = {
 
         await getUsers(selected);
 
-        const ref = db.collection('settings').doc('game');
+        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
 
         await db.runTransaction(async t => {
             const global = await getGlobal(t);

@@ -8,7 +8,7 @@ export interface Stat {
 
 export async function getStats() {
     const db = firebaseAdmin.getFirestore();
-    const ref = db.collection('settings').doc('stats');
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('stats');
     const doc = await ref.get();
     const data = doc.data();
 

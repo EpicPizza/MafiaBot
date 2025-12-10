@@ -226,7 +226,7 @@ async function getGames() {
 
     const setup = await getSetup();
         
-    const ref = db.collection('settings').doc('game').collection('games');        
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games');        
     const docs = (await ref.get()).docs;
     
     const games = [] as { name: string, id: string, url: string | null }[];

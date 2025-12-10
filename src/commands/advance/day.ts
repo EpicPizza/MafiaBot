@@ -113,7 +113,7 @@ export const DayCommand = {
 
         const db = firebaseAdmin.getFirestore();
 
-        await db.collection('settings').doc('game').update({
+        await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').update({
             day: day,
         });
 

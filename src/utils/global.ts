@@ -5,7 +5,7 @@ import type { Player } from "./mafia/main";
 export async function getGlobal(t: Transaction | undefined = undefined) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('settings').doc('game');
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
 
     const doc = t ? await t.get(ref) : await ref.get();
 

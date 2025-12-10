@@ -87,7 +87,7 @@ export async function removePlayer(name: string, global: Global, setup: Setup) {
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('settings').doc('game');
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
 
     await db.runTransaction(async t => {
         const global = await getGlobal(t);

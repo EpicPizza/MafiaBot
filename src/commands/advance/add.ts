@@ -59,8 +59,8 @@ export const AddCommand = {
         await setupPlayer(user.id, setup, gameSetup);
 
         const db = firebaseAdmin.getFirestore();
-        await db.collection('settings').doc('game').update({ players: FieldValue.arrayUnion({ id: user.id, alignment: null }) });
-        await db.collection('settings').doc('game').collection('games').doc(game.id).update({ signups: FieldValue.arrayUnion(user.id) });
+        await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').update({ players: FieldValue.arrayUnion({ id: user.id, alignment: null }) });
+        await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games').doc(game.id).update({ signups: FieldValue.arrayUnion(user.id) });
 
         if(interaction.type != 'text') {
             await interaction.editReply({ content: "Player added."});

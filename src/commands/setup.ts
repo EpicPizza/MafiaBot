@@ -151,7 +151,7 @@ module.exports = {
         if(interaction.isChatInputCommand() && interaction.options.getSubcommand() == "database") {
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('settings');
+            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings');
 
             await ref.doc('lock').set({
                 increment: false,
@@ -212,7 +212,7 @@ module.exports = {
         
         const db = firebaseAdmin.getFirestore();
 
-        const ref = db.collection('settings').doc('setup');
+        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('setup');
 
         /*if(subcommand == "role") {
             const role = interaction.options.getRole("role");
@@ -335,7 +335,7 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
                 if(interaction.isButton()) {
                     await interaction.update({ embeds: [embed], components: [row] })
                 } else {
-                    await interaction.reply({ ephemeral: true, components: [row], embeds: [embed] })
+                    await interaction.reply({ components: [row], embeds: [embed] })
                 }
             }
         } 

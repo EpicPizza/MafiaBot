@@ -33,7 +33,7 @@ export const HammerCommand = {
 
         const db = firebaseAdmin.getFirestore();
 
-        const ref = db.collection('settings').doc('game');
+        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
 
         await ref.update({
             hammer: type,
