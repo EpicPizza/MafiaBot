@@ -295,7 +295,7 @@ module.exports = {
                 if(interaction.isButton()) {
                     await interaction.update({ components: [row], embeds: [embed] })
                 } else {
-                    await interaction.reply({ ephemeral: true, components: [row], embeds: [embed] })
+                    await interaction.reply({ components: [row], embeds: [embed] })
                 }
             } else {
                 const embed = new EmbedBuilder()
