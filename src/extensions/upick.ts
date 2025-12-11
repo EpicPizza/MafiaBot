@@ -9,7 +9,7 @@ import { firebaseAdmin } from "../utils/firebase";
 import { getGlobal } from '../utils/global';
 import { closeSignups, GameSetup, getGameByID, getGameByName, getGameSetup } from "../utils/mafia/games";
 import { onjoin } from "../utils/mafia/invite";
-import { archiveChannels, setupDeadPlayer } from "../utils/mafia/main";
+import { archiveChannels, deleteInvites, setupDeadPlayer } from "../utils/mafia/main";
 import { getPlayerObjects, getUserByName } from "../utils/mafia/user";
 import { checkMod } from "../utils/mod";
 import { getSetup, Setup } from "../utils/setup";
@@ -160,6 +160,7 @@ module.exports = {
 
             if(global.started) throw new Error("Game has already started.");
 
+            await deleteInvites(setup);
             await closeSignups(game.name);
 
             const ref = db.collection('upick').doc('settings');
