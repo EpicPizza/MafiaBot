@@ -36,7 +36,7 @@ module.exports = {
         url.searchParams.set("token", token);
 
         await interaction.reply({
-            content: url.toString(),
+            content: "<" + url.toString() + ">",
             ephemeral: true,
         })
     }
