@@ -199,7 +199,7 @@ async function handlePlayerList(interaction: ChatInputCommandInteraction | TextC
         .setTitle(typeof reference == 'string' || day == null ? "Players - " + users.length : "Players » Day " + day ) 
         .setColor(Colors.Purple)
         .setDescription(users.length == 0 ? "No Players" : users.reduce((previous, current) => previous += ((user) => {
-            const stat = !stats ? undefined : stats.find(stat => stat.player.toLowerCase() == current.nickname.toLowerCase());
+            const stat = !stats ? undefined : stats.find(stat => stat.player.toLowerCase() == current.nickname?.toLowerCase());
 
             switch(format) {
                 case 'complete':
