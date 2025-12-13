@@ -72,7 +72,7 @@ export async function guildMemberAddHanlder(...[member]: ClientEvents[Events.Gui
             ]});
         }
 
-        const ref = db.collection('roles').where('id', '==', member.id).where('server', '==', name);
+        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('roles').where('id', '==', member.id).where('server', '==', name);
         const docs = (await ref.get()).docs
         const roles = docs.map(doc => doc.data()) as RoleQueue[];
 

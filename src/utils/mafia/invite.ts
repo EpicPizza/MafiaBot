@@ -19,7 +19,7 @@ export interface RoleQueue {
 export async function onjoin(queue: RoleQueue) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('roles');
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('roles');
 
     await ref.add(queue);
 }

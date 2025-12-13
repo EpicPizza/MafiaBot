@@ -480,9 +480,9 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
         }  
     })());
 
-    promises.push(deleteCollection(db, db.collection("notes"), 20));
+    promises.push(deleteCollection(db, db.collection('instances').doc(process.env.INSTANCE ?? "---").collection("notes"), 20));
     promises.push(deleteCollection(db, db.collection("edits"), 20));
-    promises.push(deleteCollection(db, db.collection("roles"), 20));
+    promises.push(deleteCollection(db, db.collection('instances').doc(process.env.INSTANCE ?? "---").collection("roles"), 20));
     promises.push(deleteInvites(setup));
     promises.push(finishSignups(game));
     promises.push(setupPermissions(setup, true));
