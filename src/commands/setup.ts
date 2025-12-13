@@ -349,11 +349,18 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
         const subcommand = interaction.options.getSubcommand();
         
         if(subcommand == "update") {
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply();
 
             await updateUsers();
 
-            await interaction.editReply({ content: "Usernames updated." });
+            const embed = new EmbedBuilder()
+                .setTitle("Accounts Migrated")
+                .setDescription("Nothing much changes... just removing old placeholder attributes and reorganizing database. You can add your pronouns now though!")
+                .setColor("Green");
+
+            await interaction.editReply({
+                embeds: [embed]
+            });
         } else if(subcommand == "permissions") {
             await interaction.deferReply({ ephemeral: true });
 

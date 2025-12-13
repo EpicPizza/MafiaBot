@@ -166,11 +166,14 @@ module.exports = {
 
             if(interaction.fields.getTextInputValue('nickname') == "") return await interaction.reply("An error occured, please try again.");
 
-            const requirements = z.string().max(20, "Max length 20 characters.").min(1, "Min length two characters.").regex(/^[a-zA-Z]+$/, "Only letters allowed. No spaces.");
+            const requirements = z.string().max(20, "Max length 20 characters.").min(1, "Min length two characters.").regex(/^[a-zA-Z]+$/, "Only letters allowed for nickname. No spaces.");
+            const pronounRequirements = z.string().max(20, "Max length 20 characters.").min(1, "Min length two characters.").regex(/^[a-zA-Z\/]+$/, "Only letters and slashes allowed for pronouns. No spaces.");
 
-            const nickname = requirements.safeParse(interaction.fields.getTextInputValue('nickname'));
+            const nicknameParse = requirements.safeParse(interaction.fields.getTextInputValue('nickname'));
+            const pronounsParse = pronounRequirements.safeParse(interaction.fields.getTextInputValue('pronouns'));
 
-            if(!nickname.success) throw new Error(nickname.error.flatten().formErrors.join(" "));
+            if(!nicknameParse.success) throw new Error(nicknameParse.error.flatten().formErrors.join(" "));
+            if(!pronounsParse.success) throw new Error(pronounsParse.error.flatten().formErrors.join(" "));
 
             const user = await getUser(interaction.user.id);
 
@@ -178,10 +181,13 @@ module.exports = {
 
             if(fetch != undefined && fetch.id != interaction.user.id) throw new Error("Duplicate names not allowed.");
 
+            const nickname = nicknameParse.data.substring(0, 1).toUpperCase() + nicknameParse.data.substring(1).toLowerCase();
+            const pronouns = pronounsParse.data.toLowerCase();
+
             if(user) {
-                await editUser(interaction.user.id, { nickname: interaction.fields.getTextInputValue('nickname').substring(0, 1).toUpperCase() + interaction.fields.getTextInputValue('nickname').substring(1, interaction.fields.getTextInputValue('nickname').length).toLowerCase() });
+                await editUser(interaction.user.id, { nickname: nickname, pronouns: pronouns });
             } else {
-                await createUser(interaction.user.id, interaction.fields.getTextInputValue('nickname').substring(0, 1).toUpperCase() + interaction.fields.getTextInputValue('nickname').substring(1, interaction.fields.getTextInputValue('nickname').length).toLowerCase());
+                await createUser(interaction.user.id, nickname, pronouns);
             }
 
             const id = JSON.parse(interaction.customId) as z.infer<typeof setNickname>;
@@ -242,12 +248,22 @@ async function showModal(interaction: ButtonInteraction | ChatInputCommandIntera
         .setStyle(TextInputStyle.Short)
         .setValue(user ? user.nickname : "");
 
-    const row = new ActionRowBuilder<TextInputBuilder>()
-        .addComponents([
-            nicknameInput
-        ])
+    const pronounsInput = new TextInputBuilder()
+        .setCustomId('pronouns')
+        .setLabel("What are your pronouns?")
+        .setStyle(TextInputStyle.Short)
+        .setValue(user?.pronouns ? user.pronouns : "");
 
-    modal.addComponents([row]);
+    modal.addComponents([
+        new ActionRowBuilder<TextInputBuilder>()
+            .addComponents([
+                nicknameInput
+            ]),
+        new ActionRowBuilder<TextInputBuilder>()
+            .addComponents([
+                pronounsInput
+            ])
+    ]);
 
     await interaction.showModal(modal);
 }

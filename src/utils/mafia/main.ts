@@ -379,7 +379,7 @@ export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup
             name: userProfile.nickname.toLowerCase()
         });
 
-        await db.collection('users').doc(userProfile.id).update({
+        await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('users').doc(userProfile.id).update({
             channel: channel.id,
         });
     }

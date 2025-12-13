@@ -330,7 +330,7 @@ async function pregameSetupPlayer(player: Awaited<ReturnType<typeof getPlayerObj
             name: player.userProfile.nickname.toLowerCase()
         });
 
-        await db.collection('users').doc(player.userProfile.id).update({
+        await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('users').doc(player.userProfile.id).update({
             channel: channel.id,
         });
     }

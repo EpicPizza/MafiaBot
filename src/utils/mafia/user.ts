@@ -1,9 +1,12 @@
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from "discord.js";
+import client from "../../discord/client";
 import { firebaseAdmin } from "../firebase";
 import type { Setup } from "../setup";
 
-export interface User {
+export interface OldUser {
     id: string,
     nickname: string,
+    lName: string
     emoji: string | false,
     settings: {
         auto_confirm: false,
@@ -11,10 +14,19 @@ export interface User {
     channel: string | null;
 }
 
+export interface User {
+    id: string,
+    nickname: string,
+    lName: string,
+    pronouns: string | null,
+    channel: string | null,
+    state: number,
+}
+
 export async function getUserByName(name: string) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('users');
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('users');
 
     const docs = (await ref.where('lName', '==', name.toLowerCase()).get()).docs;
 
@@ -26,7 +38,7 @@ export async function getUserByName(name: string) {
 export async function getUserByChannel(channel: string) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('users');
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('users');
 
     const docs = (await ref.where('channel', '==', channel).get()).docs;
 
@@ -35,32 +47,28 @@ export async function getUserByChannel(channel: string) {
     return undefined;
 }
 
-export async function createUser(id: string, nickname: string) {
+export async function createUser(id: string, nickname: string, pronouns: string | null = null) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('users').doc(id);
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('users').doc(id);
 
     if((await ref.get()).exists) {
         await ref.update({
             nickname: nickname,
             lName: nickname.toLowerCase(),
             id: id,
-            emoji: false,
-            settings: {
-                auto_confirm: false,
-            },
-        })
+            pronouns: pronouns,
+            state: 1,
+        } satisfies Partial<User>)
     } else {
         await ref.set({
             nickname: nickname,
             lName: nickname.toLowerCase(),
             id: id,
-            emoji: false,
-            settings: {
-                auto_confirm: false,
-            },
             channel: null,
-        })
+            pronouns: pronouns,
+            state: 1,
+        } satisfies User)
     }
 }
 
@@ -118,29 +126,72 @@ export async function getUsers(list: string[]) {
     return users;
 }
 
-export async function editUser(id: string, options: { nickname?: string, emoji?: string }) {
+export async function editUser(id: string, options: { nickname?: string, pronouns?: string }) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('users').doc(id);
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('users').doc(id);
     
     await ref.update({
         ...(options.nickname ? { nickname: options.nickname, lName: options.nickname.toLowerCase() } : {}),
-        ...(options.emoji ? { emoji: options.emoji } : {})
+        ...(options.pronouns ? { pronouns: options.pronouns } : {})
     })
 }
 
 export async function updateUsers() {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('users');
+    const docs = (await db.collection('users').get()).docs;
 
-    const docs = (await ref.get()).docs;
-
-    const promises = new Array();
+    const batch = db.batch();
 
     for(let i = 0; i < docs.length; i++) {
-        promises.push(docs[i].ref.update({
-            lName: docs[i].data().nickname.toLowerCase(),
+        const user = docs[i].data() as OldUser;
+
+        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('users').doc(docs[i].id);
+
+        batch.set(ref, {
+            id: user.id,
+            nickname: user.nickname,
+            lName: user.lName,
+            pronouns: null,
+            channel: user.channel,
+            state: 1,
+        });
+    }
+
+    await batch.commit();
+
+    const users = (await db.collection('migration').doc('accounts').get()).data()?.users as undefined | string[];
+
+    if(users == undefined) return;
+
+    const promises = [] as Promise<unknown>[];
+
+    for(let i = 0; i < docs.length; i++) {
+        const user = docs[i].data() as OldUser;
+
+        if(!users.includes(user.lName)) continue;
+
+        const dm = await (await client.users.fetch(user.id, { cache: true })).createDM().catch(() => undefined);
+
+        if(!dm) continue;
+
+         const embed = new EmbedBuilder()
+            .setTitle("Account Migrated")
+            .setDescription("No further action needed by you.\n\nBut if you want to add pronouns, you are able to now!")
+            .setColor("Green");
+    
+        const row = new ActionRowBuilder<ButtonBuilder>()
+            .addComponents([
+                new ButtonBuilder() 
+                    .setCustomId(JSON.stringify({ name: 'set-nickname', autoSignUp: false, for: user.id }))
+                    .setStyle(ButtonStyle.Success)
+                    .setLabel("Update Profile")
+            ]);
+
+        promises.push(dm.send({
+            embeds: [embed],
+            components: [row]
         }));
     }
 
@@ -150,7 +201,7 @@ export async function updateUsers() {
 export async function getUser(id: string): Promise<User | undefined> {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('users').doc(id);
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('users').doc(id);
 
     const doc = await ref.get();
 
@@ -190,7 +241,7 @@ export async function getPlayerObjects(id: string, setup: Setup) {
 export async function getAllUsers() {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('users');
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('users');
 
     const docs = (await ref.get()).docs;
 
@@ -203,10 +254,12 @@ export async function getAllUsers() {
     }
 
     return users;
-}export async function getAllNicknames() {
+}
+
+export async function getAllNicknames() {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('users');
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('users');
 
     const docs = (await ref.get()).docs;
 
