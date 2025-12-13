@@ -3,17 +3,6 @@ import client from "../../discord/client";
 import { firebaseAdmin } from "../firebase";
 import type { Setup } from "../setup";
 
-export interface OldUser {
-    id: string,
-    nickname: string,
-    lName: string
-    emoji: string | false,
-    settings: {
-        auto_confirm: false,
-    },
-    channel: string | null;
-}
-
 export interface User {
     id: string,
     nickname: string,
@@ -135,70 +124,6 @@ export async function editUser(id: string, options: { nickname?: string, pronoun
         ...(options.nickname ? { nickname: options.nickname, lName: options.nickname.toLowerCase() } : {}),
         ...(options.pronouns ? { pronouns: options.pronouns } : {})
     })
-}
-
-export async function updateUsers() {
-    const db = firebaseAdmin.getFirestore();
-
-    const docs = (await db.collection('users').get()).docs;
-
-    const batch = db.batch();
-
-    for(let i = 0; i < docs.length; i++) {
-        const user = docs[i].data() as OldUser;
-
-        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('users').doc(docs[i].id);
-
-        batch.set(ref, {
-            id: user.id,
-            nickname: user.nickname,
-            lName: user.lName,
-            pronouns: null,
-            channel: user.channel,
-            state: 1,
-        });
-    }
-
-    await batch.commit();
-
-    const users = (await db.collection('migration').doc('accounts').get()).data()?.users as undefined | string[];
-
-    if(users == undefined) return;
-
-    for(let i = 0; i < docs.length; i++) {
-        try {
-
-        const user = docs[i].data() as OldUser;
-
-        if(!users.includes(user.lName)) continue;
-
-        const dm = await (await client.users.fetch(user.id, { cache: true })).createDM().catch(() => undefined);
-
-        if(!dm) continue;
-
-         const embed = new EmbedBuilder()
-            .setTitle("Account Migrated")
-            .setDescription("No further action needed by you.\n\nBut if you want to add pronouns, you are able to now!")
-            .setColor("Green");
-    
-        const row = new ActionRowBuilder<ButtonBuilder>()
-            .addComponents([
-                new ButtonBuilder() 
-                    .setCustomId(JSON.stringify({ name: 'set-nickname', autoSignUp: false, for: user.id }))
-                    .setStyle(ButtonStyle.Success)
-                    .setLabel("Update Profile")
-            ]);
-
-        await dm.send({
-            embeds: [embed],
-            components: [row]
-        });
-
-        } catch(e) {
-            console.log(e);
-            console.log(docs[i].data().lName);
-        }
-    }
 }
 
 export async function getUser(id: string): Promise<User | undefined> {

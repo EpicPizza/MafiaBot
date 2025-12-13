@@ -6,7 +6,6 @@ import { firebaseAdmin } from "../utils/firebase";
 import { getGlobal } from '../utils/global';
 import { refreshSignup } from "../utils/mafia/games";
 import { onjoin } from "../utils/mafia/invite";
-import { updateUsers } from "../utils/mafia/user";
 import { checkSetup, getSetup } from "../utils/setup";
 
 module.exports = {
@@ -94,11 +93,6 @@ module.exports = {
                     subcommand
                         .setName("permissions")
                         .setDescription("Refresh permissions.")
-                )
-                .addSubcommand(subcommand =>
-                    subcommand
-                        .setName("update")
-                        .setDescription("Update user nicknames.")
                 )
                 .addSubcommand(subcommand =>
                     subcommand
@@ -348,20 +342,7 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
 
         const subcommand = interaction.options.getSubcommand();
         
-        if(subcommand == "update") {
-            await interaction.deferReply();
-
-            await updateUsers();
-
-            const embed = new EmbedBuilder()
-                .setTitle("Accounts Migrated")
-                .setDescription("Nothing much changes... just removing old placeholder attributes and reorganizing database. You can add your pronouns now though!")
-                .setColor("Green");
-
-            await interaction.editReply({
-                embeds: [embed]
-            });
-        } else if(subcommand == "permissions") {
+        if(subcommand == "permissions") {
             await interaction.deferReply({ ephemeral: true });
 
             const setup = await getSetup();
