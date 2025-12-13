@@ -8,10 +8,10 @@ import { firebaseAdmin } from "../utils/firebase";
 import { getGlobal } from '../utils/global';
 import { getGameByName } from "../utils/mafia/games";
 import { getStats } from "../utils/mafia/stats";
-import { getUsersArray } from "../utils/mafia/user";
+import { getUsersArray, User } from "../utils/mafia/user";
 import { getSetup } from "../utils/setup";
 
-const Format = z.union([ z.literal('complete'), z.literal('gxe'), z.literal('wr'), z.literal('alphabetical') ]);
+const Format = z.union([ z.literal('complete'), z.literal('gxe'), z.literal('wr'), z.literal('alphabetical'), z.literal('pronouns') ]);
 
 module.exports = {
     data: [
@@ -52,6 +52,10 @@ module.exports = {
                             {
                                 name: "alphabetical",
                                 value: "alphabetical",
+                            },
+                            {
+                                name: "pronouns",
+                                value: "pronouns"
                             }
                         ])
                 )
@@ -67,7 +71,7 @@ module.exports = {
                     .description('Show players of a current game or signups by specifying a game.')
                     .argument('[day]', 'which day to show from (during running game)', fromZod(z.coerce.number().min(1).max(100)))
                     .option('-g, --game <name>', 'which game to show signups from', fromZod(z.string().min(1).max(100)))
-                    .option('-f, --format <type>', 'types: complete, gxe, wr, alphabetical', fromZod(Format))
+                    .option('-f, --format <type>', 'types: complete, gxe, wr, alphabetical, pronouns', fromZod(Format))
             }
         },
         {
@@ -109,7 +113,7 @@ async function handlePlayerList(interaction: ChatInputCommandInteraction | TextC
 
     console.log("FORMAT", format);
 
-    let users = [] as { nickname: string, id: string }[];
+    let users = [] as User[];
 
     let reference = 'customId' in interaction ? JSON.parse(interaction.customId).game as string 
         : interaction.type == 'text' ? interaction.program.getOptionValue('game') as string | undefined ?? null : interaction.options.getString("game");
@@ -213,6 +217,8 @@ async function handlePlayerList(interaction: ChatInputCommandInteraction | TextC
                     return user.nickname + (stat ? " (" + stat.gxe + ")" : " (N/A)");
                 case 'wr':
                     return user.nickname + (stat ? " (" + stat.wr + ")" : " (N/A)");
+                case 'pronouns':
+                    return user.nickname + (user.pronouns ?  " (" + user.pronouns + ")" : "");
                 default:
                     return user.nickname;
             }
