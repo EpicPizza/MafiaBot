@@ -75,7 +75,7 @@ module.exports = {
 
         const db = firebaseAdmin.getFirestore();
 
-        const ref = db.collection('upick').doc('settings');
+        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('upick').doc('settings');
         const gameId = (await ref.get()).data()?.game as undefined | string;
         if(gameId == undefined) return;
         const check = await getGameByID(gameId);
@@ -163,7 +163,7 @@ module.exports = {
             await deleteInvites(setup);
             await closeSignups(game.name);
 
-            const ref = db.collection('upick').doc('settings');
+            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('upick').doc('settings');
             if(((await ref.get()).data()?.game) as undefined | string != undefined) throw new Error("Already started pregame!");
             await ref.set({ game: game.id });
 
@@ -195,7 +195,7 @@ module.exports = {
         } else if(command.name == "revert") {
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('upick').doc('settings');
+            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('upick').doc('settings');
             const gameId = (await ref.get()).data()?.game as undefined | string;
             if(gameId == undefined) throw new Error("Pregame has not started!");
             const check = await getGameByID(gameId);
@@ -231,7 +231,7 @@ module.exports = {
             const user = await getUserByName(command.program.processedArgs[0] as string);
             if(user == undefined) throw new Error("Player not found!");
 
-            const ref = db.collection('upick').doc('settings');
+            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('upick').doc('settings');
             const gameId = (await ref.get()).data()?.game as undefined | string;
             if(gameId == undefined) throw new Error("Pregame has not started!");
             const check = await getGameByID(gameId);

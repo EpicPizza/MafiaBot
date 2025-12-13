@@ -179,7 +179,7 @@ module.exports = {
 
             await command.message.react("✅");
 
-            await db.collection('daykill').doc(user.id).delete();
+            await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('daykill').doc(user.id).delete();
 
             await lockGame();
 
@@ -259,7 +259,7 @@ module.exports = {
             const player = global.players.find(player => player.id == user.id);
             if(player == undefined) throw new Error("Player not part of game?");
 
-            await db.collection('daykill').doc(user.id).set({
+            await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('daykill').doc(user.id).set({
                 type: type,
                 expire: expire,
                 lock: lock,
@@ -275,7 +275,7 @@ module.exports = {
             const gameSetup = await getGameSetup(game, setup);
             if(gameSetup.spec.id != command.message.channelId) throw new Error("Must be run in spectator channel.");
 
-            const daykills = (await Promise.allSettled((await db.collection('daykill').get()).docs.map(async doc => {
+            const daykills = (await Promise.allSettled((await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('daykill').get()).docs.map(async doc => {
                 const data = doc.data();
 
                 const user = await getUser(doc.id);
@@ -306,7 +306,7 @@ module.exports = {
             const type = command.program.processedArgs[0] as string;
             const minutes = command.program.processedArgs[1] as number;
 
-            await db.collection('daykill').doc('settings').set({
+            await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('daykill').doc('settings').set({
                 type: type,
                 minutes: minutes,
             });
@@ -411,7 +411,7 @@ module.exports = {
 async function getDaykill(id: string) {
     const db = firebaseAdmin.getFirestore();
 
-    const data = (await db.collection('daykill').doc(id).get()).data();
+    const data = (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('daykill').doc(id).get()).data();
     if(data == undefined) return undefined;
 
     return {
@@ -425,7 +425,7 @@ async function getDaykill(id: string) {
 async function getSettings() {
     const db = firebaseAdmin.getFirestore();
 
-    const data = (await db.collection('daykill').doc('settings').get()).data();
+    const data = (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('daykill').doc('settings').get()).data();
 
     let type = "mod";
     let minutes = 20;

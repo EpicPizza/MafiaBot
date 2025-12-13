@@ -122,9 +122,9 @@ module.exports = {
 
         const db = firebaseAdmin.getFirestore();
 
-        await deleteCollection(db, db.collection('whispers'), 20);
+        await deleteCollection(db, db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('whispers'), 20);
 
-        const ref = db.collection('whispers').doc('settings');
+        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('whispers').doc('settings');
 
         await ref.set({
             cooldown: 1000 * 60,
@@ -133,7 +133,7 @@ module.exports = {
         } satisfies Settings);
 
         for(let i = 0; i < game.signups.length; i++) {
-            const playerRef = db.collection('whispers').doc(game.signups[i]);
+            const playerRef = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('whispers').doc(game.signups[i]);
 
             await playerRef.set({
                 blocked: false,
@@ -157,7 +157,7 @@ module.exports = {
 
         const db = firebaseAdmin.getFirestore();
 
-        const ref = db.collection('whispers').doc('settings');
+        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('whispers').doc('settings');
 
         await ref.update({
             actual: true,
@@ -170,7 +170,7 @@ module.exports = {
 
         const db = firebaseAdmin.getFirestore();
 
-        const ref = db.collection('whispers').doc('settings');
+        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('whispers').doc('settings');
 
         await ref.update({
             actual: false,
@@ -218,7 +218,7 @@ module.exports = {
 
             if(sinceLast < cooldown) throw new Error("You're still on cooldown! " + (Math.round((cooldown - sinceLast) / 100) / 10) + "s left.");
 
-            const ref = db.collection('whispers').doc(player.id);
+            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('whispers').doc(player.id);
             await ref.update({
                 last: new Date().valueOf()
             } satisfies Partial<PlayerSettings>);
@@ -239,7 +239,7 @@ module.exports = {
         } else if(command.name == "lock") {
             checkMod(setup, global, command.user.id, command.message.guildId ?? "");
 
-            const ref = db.collection('whispers').doc('settings');
+            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('whispers').doc('settings');
 
             if(command.program.getOptionValue('match') === true) {
                 const global = await getGlobal();
@@ -259,7 +259,7 @@ module.exports = {
         } else if(command.name == "unlock") {
             checkMod(setup, global, command.user.id, command.message.guildId ?? "");
 
-            const ref = db.collection('whispers').doc('settings');
+            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('whispers').doc('settings');
 
             await ref.update({
                 locked: false,
@@ -277,7 +277,7 @@ module.exports = {
 
             const blocking = command.program.args.length > 0 ? command.program.processedArgs[0] as 'send' | 'receive' | 'both' : "both";
 
-            const ref = db.collection('whispers').doc(user.id);
+            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('whispers').doc(user.id);
 
             if(blocking == "both" || (blocking == "send" && userSettings.blocked == "receive") || (blocking == "receive" && userSettings.blocked == "send")) {
                 await ref.update({
@@ -300,7 +300,7 @@ module.exports = {
 
             const unblocking = command.program.args.length > 0 ? command.program.processedArgs[0] as 'send' | 'receive' | 'both' : "both";
 
-            const ref = db.collection('whispers').doc(user.id);
+            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('whispers').doc(user.id);
 
             if(unblocking == 'both' || (unblocking == 'send' && userSettings.blocked == 'send') || (unblocking == 'receive' && userSettings.blocked == 'receive')) {
                 await ref.update({
@@ -335,7 +335,7 @@ module.exports = {
                 return fetched;
             }));
 
-            const ref = db.collection('whispers').doc(user.id);
+            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('whispers').doc(user.id);
 
             if(blocking == 'send' || blocking == 'both') {
                 await ref.update({
@@ -364,7 +364,7 @@ module.exports = {
 
             const unblocking = command.program.args.length > 0 ? command.program.processedArgs[0] as 'send' | 'receive' | 'both' : 'both';
 
-            const ref = db.collection('whispers').doc(user.id);
+            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('whispers').doc(user.id);
 
             if(unblocking == 'send' || unblocking == 'both') {
                 await ref.update({
@@ -393,7 +393,7 @@ module.exports = {
                 if(user == undefined && inSpectatorChat == false) throw new Error("Not in dm or spectator chat?");
 
                 if(user) {
-                    const ref = db.collection('whispers').doc(user.id);
+                    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('whispers').doc(user.id);
 
                     await ref.update({
                         last: 0,
@@ -404,7 +404,7 @@ module.exports = {
                     const batch = db.batch();
 
                     global.players.forEach(player => {
-                        const ref = db.collection('whispers').doc(player.id);
+                        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('whispers').doc(player.id);
 
                         batch.update(ref, {
                             last: 0,
@@ -417,7 +417,7 @@ module.exports = {
                 const user = await getUserByChannel(command.message.channelId);
                 if(user == undefined) throw new Error("Not in dm?");
 
-                const ref = db.collection('whispers').doc(user.id);
+                const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('whispers').doc(user.id);
 
                 await ref.update({
                     cooldown: 'match',
@@ -434,13 +434,13 @@ module.exports = {
                 if(user == undefined && inSpectatorChat == false) throw new Error("Not in dm or spectator chat?");
 
                 if(user) {
-                    const ref = db.collection('whispers').doc(user.id);
+                    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('whispers').doc(user.id);
 
                     await ref.update({
                         cooldown: milliseconds,
                     } satisfies Partial<PlayerSettings>);
                 } else {
-                    const ref = db.collection('whispers').doc('settings');
+                    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('whispers').doc('settings');
 
                     await ref.update({
                         cooldown: milliseconds,
@@ -514,7 +514,7 @@ module.exports = {
     onRemove: async (global, setup, game, removed) => {
         const db = firebaseAdmin.getFirestore();
 
-        const ref = db.collection('whispers').doc(removed);
+        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('whispers').doc(removed);
 
         if((await ref.get()).exists) await ref.delete();
     },
@@ -543,7 +543,7 @@ interface PlayerSettings {
 async function getSettings() {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('whispers').doc('settings');
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('whispers').doc('settings');
 
     const doc = await ref.get();
 
@@ -555,7 +555,7 @@ async function getSettings() {
 async function getPlayerSettings(id: string) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('whispers').doc(id);
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('whispers').doc(id);
 
     const doc = await ref.get();
 

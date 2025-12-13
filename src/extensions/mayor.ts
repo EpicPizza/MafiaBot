@@ -84,7 +84,7 @@ module.exports = {
 
         const db = firebaseAdmin.getFirestore();
 
-        await deleteCollection(db, db.collection('mayor'), 20);
+        await deleteCollection(db, db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('mayor'), 20);
 
         return;
 
@@ -115,7 +115,7 @@ module.exports = {
             if(!user) throw new Error("This dm channel is not linked to a user.");
 
             const db = firebaseAdmin.getFirestore();
-            const ref = db.collection('mayor').doc(user.id);
+            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('mayor').doc(user.id);
 
             const previous = (await ref.get()).data() as MayorEntry | undefined;
             const newEntry = {
@@ -146,7 +146,7 @@ module.exports = {
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('mayor').doc(user.id);
+            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('mayor').doc(user.id);
             const previous = (await ref.get()).data() as MayorEntry | undefined;
             await ref.delete();
 
@@ -269,7 +269,7 @@ interface Mayor extends MayorEntry {
 async function getMayors(users: User[] | undefined = undefined, transaction: Transaction | undefined = undefined) {
     const db = firebaseAdmin.getFirestore();
 
-    const docs = transaction ? (await transaction.get(db.collection('mayor'))).docs : (await db.collection('mayor').get()).docs;
+    const docs = transaction ? (await transaction.get(db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('mayor'))).docs : (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('mayor').get()).docs;
 
     const mayors = new Array<Mayor>();
 
@@ -400,7 +400,7 @@ async function updateVotes(day: number, game: Signups, message: string, id: stri
 async function reveal(id: string, global: Global, game: Signups) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('mayor').doc(id);
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('mayor').doc(id);
 
     const users = await getUsersArray(game.signups);
 

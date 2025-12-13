@@ -56,7 +56,7 @@ module.exports = {
 
         const db = firebaseAdmin.getFirestore();
 
-        await deleteCollection(db, db.collection('wills'), 20);
+        await deleteCollection(db, db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('wills'), 20);
 
         return;
 
@@ -87,7 +87,7 @@ module.exports = {
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('wills').doc(user.id);
+            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('wills').doc(user.id);
 
             if((await ref.get()).data()?.locked == true) throw new Error("You are not allowed to set a will.");
 
@@ -108,7 +108,7 @@ module.exports = {
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('wills').doc(player.id);
+            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('wills').doc(player.id);
 
             await ref.update({
                 will: "",
@@ -127,7 +127,7 @@ module.exports = {
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('wills').doc(player.id);
+            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('wills').doc(player.id);
 
             await ref.delete();
 
@@ -150,7 +150,7 @@ module.exports = {
 
         const db = firebaseAdmin.getFirestore();
 
-        const ref = db.collection('wills').doc(user.id);
+        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('wills').doc(user.id);
 
         const data = (await ref.get()).data();
 
