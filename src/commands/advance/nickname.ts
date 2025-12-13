@@ -9,7 +9,7 @@ import { createUser, editUser, getUser, getUserByName } from "../../utils/mafia/
 import { Subcommand } from "../../utils/subcommands";
 import { removeReactions } from "../../discord/helpers";
 
-const requirements = z.string().max(20, "Max length 20 characters.").min(1, "Min length two characters.").regex(/^[a-zA-Z]+$/, "Only letters allowed. No spaces.");
+const requirements = z.string().max(20, "Max length 20 characters.").min(1, "Min length two characters.").regex(/^[a-zA-Z\/]+$/, "Only letters allowed. No spaces.");
 
 export const NicknameCommmand = {
     name: "nickname",
@@ -27,7 +27,13 @@ export const NicknameCommmand = {
         .addStringOption(option => 
             option 
                 .setName('nickname')
-                .setDescription('If wanted, to remove spectator.')
+                .setDescription('Set nickname to...')
+                .setRequired(true)
+        )
+        .addStringOption(option => 
+            option 
+                .setName('pronouns')
+                .setDescription('Set pronouns to...')
                 .setRequired(false)
         ),
     text: () => {
@@ -35,7 +41,8 @@ export const NicknameCommmand = {
             .name('nickname')
             .description('Set a nickname of a player.')
             .argument('<@member>', '@ to invite', fromZod(z.string().regex(/^<@\d+>$/, "Not a valid @!")))
-            .argument('<nickname>', 'nickname to set', fromZod(requirements));
+            .argument('<nickname>', 'nickname to set', fromZod(requirements))
+            .argument('[pronouns]', 'pronouns to set', fromZod(requirements));
     },
 
     execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
@@ -46,6 +53,7 @@ export const NicknameCommmand = {
         }
 
         const nickname = interaction.type == 'text' ? interaction.program.processedArgs[1] : requirements.parse(interaction.options.getString('nickname'));
+        const pronouns = interaction.type == 'text' ? (interaction.program.processedArgs.length > 2 ? interaction.program.processedArgs[2] as string : undefined) : ( interaction.options.getString('pronouns') ? requirements.parse(interaction.options.getString('pronouns')) : undefined);
 
         const id: string = interaction.type == 'text' ? interaction.program.processedArgs[0].substring(2, interaction.program.processedArgs[0].length - 1) : interaction.options.getUser('member')?.id
         const user = await getUser(id);
@@ -57,9 +65,9 @@ export const NicknameCommmand = {
         if(user != undefined && fetch != undefined && fetch.id != user.id) throw new Error("Unknown user / Duplicate names not allowed.");
 
         if(user) {
-            await editUser(id, { nickname: nickname });
+            await editUser(id, { nickname: nickname, pronouns });
         } else {
-            await createUser(id, nickname);
+            await createUser(id, nickname, pronouns ?? null);
         }
     
         if(interaction.type != 'text') {
