@@ -201,7 +201,7 @@ async function handlePlayerList(interaction: ChatInputCommandInteraction | TextC
         .setDescription(users.length == 0 ? "No Players" : users.reduce((previous, current) => previous += ((user) => {
             if (!current?.nickname || !current?.id) {
               console.error("Invalid user object detected:", current);
-              return previous;
+              return "";
             }
             
             const stat = !stats ? undefined : stats.find(stat => stat.player.toLowerCase() == current.nickname.toLowerCase());
