@@ -82,7 +82,7 @@ module.exports = {
 
             if(alignment != 'mafia' && sendTo == 'mafia') throw new Error("Not allowed! You're not mafia!");
 
-            await db.collection('notes').doc(user.id).set({
+            await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('notes').doc(user.id).set({
                 sendTo,
             });
 
@@ -102,7 +102,7 @@ module.exports = {
 
         if(interaction.type == 'text' || interaction.type == 'reaction' ? interaction.message.channelId != setup.primary.chat.id : interaction.channelId != setup.primary.chat.id) throw new Error("Not main chat!");
 
-        const ref = db.collection('notes').doc(user.id); 
+        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('notes').doc(user.id); 
         const sendTo = ((await ref.get()).data()?.sendTo ?? 'DM') as 'DM' | 'mafia';
 
         const channel = setup.secondary.guild.channels.cache.get(user.channel ?? "");
