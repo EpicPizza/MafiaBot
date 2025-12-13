@@ -141,7 +141,7 @@ module.exports = {
             const embed = new EmbedBuilder()
                 .setAuthor({ name: user.nickname })
                 .setColor(Colors.DarkOrange)
-                .setDescription("Nickname: " + user.nickname + "\nUser: <@" + user.id + ">");
+                .setDescription("Nickname: " + user.nickname + "\nUser: <@" + user.id + ">" + (user.pronouns ? "\nPronouns: " + user.pronouns : ""));
 
             if(extra) {
                 const setup = await getSetup();
