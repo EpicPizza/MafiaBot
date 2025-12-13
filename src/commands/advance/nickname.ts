@@ -65,7 +65,7 @@ export const NicknameCommmand = {
         if(user != undefined && fetch != undefined && fetch.id != user.id) throw new Error("Unknown user / Duplicate names not allowed.");
 
         if(user) {
-            await editUser(id, { nickname: nickname, pronouns });
+            await editUser(id, { nickname: nickname, ... (pronouns ? { pronouns: pronouns } : {}) } );
         } else {
             await createUser(id, nickname, pronouns ?? null);
         }
