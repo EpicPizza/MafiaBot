@@ -165,9 +165,9 @@ export async function updateUsers() {
 
     if(users == undefined) return;
 
-    const promises = [] as Promise<unknown>[];
-
     for(let i = 0; i < docs.length; i++) {
+        try {
+
         const user = docs[i].data() as OldUser;
 
         if(!users.includes(user.lName)) continue;
@@ -189,13 +189,16 @@ export async function updateUsers() {
                     .setLabel("Update Profile")
             ]);
 
-        promises.push(dm.send({
+        await dm.send({
             embeds: [embed],
             components: [row]
-        }));
-    }
+        });
 
-    await Promise.allSettled(promises);
+        } catch(e) {
+            console.log(e);
+            console.log(docs[i].data().lName);
+        }
+    }
 }
 
 export async function getUser(id: string): Promise<User | undefined> {
