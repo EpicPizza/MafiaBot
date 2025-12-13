@@ -43,6 +43,9 @@ export async function updateCache() {
 
 export async function messageCreateHandler(...[message, throws]: [...ClientEvents[Events.MessageCreate], throws?: boolean]) {
     try {
+        const ignore = (process.env.IGNORE ?? "---").split(",");
+        if(ignore.includes(message.guildId ?? "---")) return;
+
         if (!message.content.startsWith("?") || message.content.length < 2 || message.content.replace(/\?/g, "").length == 0) {
             await trackMessage(message, cache);
 
