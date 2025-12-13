@@ -12,7 +12,7 @@ export async function trackMessage(message: Message, cache: Cache) {
 
     if(!cache.started) return;
 
-    const ref = db.collection('day').doc(cache.day.toString()).collection('players').doc(message.author.id);
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(cache.day.toString()).collection('players').doc(message.author.id);
 
     if((await ref.get()).exists) {
         ref.update({

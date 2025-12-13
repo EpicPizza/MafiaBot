@@ -381,7 +381,7 @@ async function updateVotes(day: number, game: Signups, message: string, id: stri
 
         const board = getBoard(votes, users, mayors, day);
 
-        const ref = db.collection('day').doc(day.toString()).collection('votes').doc();
+        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(day.toString()).collection('votes').doc();
 
         t.create(ref, {
             board,
@@ -421,7 +421,7 @@ async function reveal(id: string, global: Global, game: Signups) {
 
         const board = getBoard(votes, users, mayors, global.day);
         
-        const logRef = db.collection('day').doc(global.day.toString()).collection('votes').doc();
+        const logRef = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(global.day.toString()).collection('votes').doc();
 
         const existing = votes.find(v => v.id == id);
         

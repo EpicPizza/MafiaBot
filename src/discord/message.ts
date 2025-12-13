@@ -306,7 +306,7 @@ export async function messageReactionAddHandler(...[reaction, user]: ClientEvent
 
             if (!cache.started) return;
 
-            const ref = db.collection('day').doc(cache.day.toString()).collection('players').doc(user.id);
+            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(cache.day.toString()).collection('players').doc(user.id);
 
             if ((await ref.get()).exists) {
                 ref.update({

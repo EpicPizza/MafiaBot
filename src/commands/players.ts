@@ -133,7 +133,7 @@ async function handlePlayerList(interaction: ChatInputCommandInteraction | TextC
 
         if(global.started == false) throw new Error("Game has not started.");
 
-        const currentPlayers = (await db.collection('day').doc(day.toString()).get()).data()?.players as string[] | undefined ?? [];
+        const currentPlayers = (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(day.toString()).get()).data()?.players as string[] | undefined ?? [];
 
         if(currentPlayers.length == 0) throw new Error("No data available.");
 

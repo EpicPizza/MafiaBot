@@ -122,12 +122,12 @@ export async function unlockGame(increment: boolean = false, ping: boolean = tru
         day: increment ? global.day + 1 : global.day,
     });
 
-    await db.collection('day').doc((increment ? global.day + 1 : global.day).toString()).set({
+    await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc((increment ? global.day + 1 : global.day).toString()).set({
         game: global.game,
     }, { merge: true });
 
     if(increment == true) {
-        await db.collection('day').doc((global.day + 1).toString()).set({
+        await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc((global.day + 1).toString()).set({
             game: global.game,
             players: global.players.map((player) => player.id),
         });
@@ -464,9 +464,22 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
 
     //at this point, things have been checked and accounted for and we can do multiple things at once now!
 
-    const promises = [] as Promise<any>[];
+    const promises = [] as Promise<unknown>[];
 
-    promises.push(deleteCollection(db, db.collection("day"), 20));
+    promises.push((async () => {
+        const db = firebaseAdmin.getFirestore();
+
+        const days = await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').listDocuments();
+
+        for(let i = 0; i < days.length; i++) {
+            const dayDoc = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc((days[i].id).toString());
+
+            await deleteCollection(db, dayDoc.collection('votes'), 20);
+            await deleteCollection(db, dayDoc.collection('players'), 20);
+            await dayDoc.delete();
+        }  
+    })());
+
     promises.push(deleteCollection(db, db.collection("edits"), 20));
     promises.push(deleteCollection(db, db.collection("roles"), 20));
     promises.push(deleteInvites(setup));

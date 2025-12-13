@@ -106,7 +106,7 @@ export const ConfirmAlignmentsButton = {
             day: 1,
         });
 
-        await db.collection('day').doc((1).toString()).set({
+        await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc((1).toString()).set({
             game: global.game,
             players: global.players.map((player) => player.id),
         });

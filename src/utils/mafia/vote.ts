@@ -54,7 +54,7 @@ export interface TransactionResult {
 export async function getVotes(day: number, transaction: Transaction | undefined = undefined) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('day').doc(day.toString()).collection('votes');
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(day.toString()).collection('votes');
     const docs = transaction ? (await transaction.get(ref)).docs : (await ref.get()).docs;
     const logs = (docs.map(doc => doc.data()) as (Log | ResetLog | CustomLog)[]).filter(l => l.type != 'custom'); 
 
@@ -174,7 +174,7 @@ export const flow = {
     finish: (t: Transaction, vote: Vote, board: string, day: number) => {
         const db = firebaseAdmin.getFirestore();
 
-        const ref = db.collection('day').doc(day.toString()).collection('votes').doc();
+        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(day.toString()).collection('votes').doc();
 
         t.create(ref, {
             board,
@@ -273,7 +273,7 @@ export async function wipe(global: Global, message: string) {
 
         const board = "";
 
-        const ref = db.collection('day').doc(global.day.toString()).collection('votes').doc();
+        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(global.day.toString()).collection('votes').doc();
 
         t.create(ref, {
             messageId: null,

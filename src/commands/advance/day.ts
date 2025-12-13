@@ -49,7 +49,7 @@ export const ClearCommand = {
 
         const db = firebaseAdmin.getFirestore();
 
-        const dayDoc = db.collection('day').doc((day).toString());
+        const dayDoc = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc((day).toString());
 
         await deleteCollection(db, dayDoc.collection('votes'), 20);
         await deleteCollection(db, dayDoc.collection('players'), 20);
@@ -118,7 +118,7 @@ export const DayCommand = {
         });
 
         if(players) {
-            await db.collection('day').doc((day).toString()).set({
+            await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc((day).toString()).set({
                 game: global.game,
                 players: global.players.map((player) => player.id),
             });

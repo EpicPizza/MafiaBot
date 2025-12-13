@@ -82,7 +82,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | TextCo
         const cumulativeStats: Map<string, { messages: number, words: number }> = new Map();
 
         for (let d = 1; d <= global.day; d++) {
-            const ref = db.collection('day').doc(d.toString()).collection('players');
+            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(d.toString()).collection('players');
             const docs = (await ref.get()).docs;
 
             for (const doc of docs) {
@@ -111,7 +111,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | TextCo
             };
         });
 
-        const currentPlayersData = (await db.collection('day').doc(global.day.toString()).get()).data();
+        const currentPlayersData = (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(global.day.toString()).get()).data();
         const currentPlayers = currentPlayersData?.players as string[] | undefined ?? game.signups;
 
         currentPlayers.forEach(playerId => {
@@ -156,8 +156,8 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | TextCo
     const users = await getAllUsers();
 
     const db = firebaseAdmin.getFirestore();
-    const ref = db.collection('day').doc(day.toString()).collection('players');
-    const currentPlayers = (await db.collection('day').doc(day.toString()).get()).data()?.players as string[] | undefined ?? [];
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(day.toString()).collection('players');
+    const currentPlayers = (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(day.toString()).get()).data()?.players as string[] | undefined ?? [];
     const docs = (await ref.get()).docs;
 
     let list = [] as { name: string, id: string, messages: number, words: number, show: boolean, alive: boolean, images: number, reactions: { reaction: string, timestamp: number, message: string }[] }[];
