@@ -139,6 +139,8 @@ export async function messageCreateHandler(...[message, throws]: [...ClientEvent
         } catch (e: any) {
             if(throws) throw e;
 
+            console.log(e);
+
             await removeReactions(message);
 
             await message.reply({ content: e.message });

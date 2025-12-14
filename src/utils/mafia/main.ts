@@ -57,6 +57,21 @@ export function editOverwrites() {
     }
 }
 
+export function viewOverwrites() {
+    return {
+        ViewChannel: true,
+        SendMessages: false,
+        AddReactions: false, 
+        AttachFiles: false, 
+        EmbedLinks: false, 
+        SendPolls: false, 
+        SendVoiceMessages: false,
+        UseExternalEmojis: false,
+        SendTTSMessages: false,
+        UseApplicationCommands: false,
+    }
+}
+
 export async function unlockExtensions(global: Global, setup: Setup, game: Signups, increment: boolean) {
     const extensions = await getEnabledExtensions(global);
 
@@ -386,6 +401,8 @@ export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup
 
     if(channel.parentId != setup.secondary.dms.id) {
         await channel.setParent(setup.secondary.dms.id);
+    } else {
+        await channel.permissionOverwrites.edit(setup.secondary.spec.id, viewOverwrites());
     }
 
     if(!deadPlayer) {
@@ -487,6 +504,7 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
     promises.push(finishSignups(game));
     promises.push(setupPermissions(setup, true));
     promises.push(startExtensions(global, setup, game));
+    promises.push(setup.secondary.dms.permissionOverwrites.edit(setup.secondary.spec.id, viewOverwrites()));
 
     for(let i = 0; i < game.signups.length; i++) {
         promises.push(setupPlayer(game.signups[i], setup, gameSetup));
