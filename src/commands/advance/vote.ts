@@ -70,7 +70,7 @@ export const VoteCommand = {
         const playerUser = await getUserByName(playerInput);
         if(!playerUser) throw new Error("Player not found.");
         const player = global.players.find(player => player.id == playerUser.id);
-        if(!player) throw new Error("Player it not in this game");
+        if(!player) throw new Error("Player is not in this game");
 
         const forInput = interaction.type == 'text' ? (interaction.program.args.length > 2 ? interaction.program.processedArgs[2] as string : null) : interaction.options.getString('for');
         const forUser = forInput ? await getUserByName(forInput) : undefined;
