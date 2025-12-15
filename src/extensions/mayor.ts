@@ -243,7 +243,7 @@ module.exports = {
         if(global.hammer) {
             return "";
         } else {
-            return "Hammer disabled;"
+            return "Hammer disabled."
         }
      }, // no need to change from default behavior
     onHammer: async (global, setup, game, hammered) => {},
