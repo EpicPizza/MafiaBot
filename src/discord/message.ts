@@ -2,7 +2,7 @@ import { ClientEvents, Colors, EmbedBuilder, Events, Guild, Message, MessageRepl
 import stringArgv from "string-argv";
 import client from "./client";
 import { getAllExtensions, getExtensions } from "../utils/extensions";
-import { addReaction, createMessage, deleteMessage, removeAllReactions, removeReactionEmoji, removeReaction, updateMessage } from "../utils/mafia/tracking";
+import { addReaction, createMessage, deleteMessage, removeAllReactions, removeReactionEmoji, removeReaction, updateMessage, fetchMessage } from "../utils/mafia/tracking";
 import type { TextCommand, ReactionCommand } from ".";
 import { removeReactions } from "./helpers";
 import { firebaseAdmin } from "../utils/firebase";
@@ -168,7 +168,11 @@ export async function messageDeleteHandler(...[message]: ClientEvents[Events.Mes
         const instance = await getAuthority(message.guildId);
         if(!(instance && instance.setup.primary.guild.id == message.guildId && instance.setup.primary.chat.id == message.channelId)) return; //don't need to track every message in the main server
 
-        await deleteMessage(message);
+        if(instance.global.started == false) return await deleteMessage(message);
+
+        const tracked = await fetchMessage(message);
+
+        if(!tracked || !('createdTimestamp' in tracked)) return;
 
         const db = firebaseAdmin.getFirestore();
 
@@ -200,7 +204,7 @@ export async function messageDeleteHandler(...[message]: ClientEvents[Events.Mes
             });
         }
 
-        const result = await archiveMessage(instance.setup.primary.chat, message as any, webhookClient);
+        const result = await archiveMessage(instance.setup.primary.chat, message.partial == true ? tracked : message, webhookClient);
 
         if (!webhooks.find(webhook => webhook.id == webhookClient.id)) {
             await Promise.allSettled(webhooks.map(webhook => webhook.ref.delete()));
@@ -214,9 +218,7 @@ export async function messageDeleteHandler(...[message]: ClientEvents[Events.Mes
 
         webhookClient.destroy();
 
-        await db.collection('channels').doc(message.channelId).collection('messages').doc(message.id).set({
-            sniped: result.id,
-        }, { merge: true });
+        await deleteMessage(message, message.id);
     } catch (e) {
         console.log(e);
     }

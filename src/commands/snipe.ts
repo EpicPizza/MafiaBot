@@ -5,6 +5,7 @@ import { TextCommand } from '../discord';
 import { firebaseAdmin } from "../utils/firebase";
 import { snipeMessage } from "../utils/google/doc";
 import { getSetup } from "../utils/setup";
+import { fetchMessage } from "../utils/mafia/tracking";
 
 module.exports = {
     data: [
@@ -30,36 +31,25 @@ module.exports = {
         const setup = await getSetup();
         
         if(interaction.type == 'text' ? interaction.message.guildId != setup.primary.guild.id : interaction.guildId != setup.primary.guild.id) throw new Error("Does not work outside of bag mafia main chat!");
-
         if(interaction.type != 'text' && !interaction.isMessageContextMenuCommand()) throw new Error("Unable to fetch message.");
 
-        const db = firebaseAdmin.getFirestore();
+        const message = interaction.type == 'text' ? await interaction.message.fetchReference() : interaction.targetMessage;
+        if(message == undefined) throw new Error("Must refer to a message to snipe.");
 
-        const id = interaction.type == 'text' ? interaction.message.reference?.messageId : interaction.targetMessage.id;
+        let tracked = await fetchMessage(message);
 
-        if(id == undefined) throw new Error("Must refer to a message to snipe.");
+        if(tracked && 'sniped' in tracked) tracked = await fetchMessage({ channelId: message.channelId, id: tracked.sniped as string, partial: true });
 
-        const ref = db.collection('edits').doc(id);
+        console.log(tracked);
+        console.log(tracked && 'sniped' in tracked);
 
-        const doc = await ref.get();
+        const embeds = await snipeMessage(await setup.primary.chat.messages.fetch({ message: message.id, cache: true}));
 
-        const data = doc.data();
+        if(tracked == undefined || !('createdTimestamp' in tracked)) return await interaction.reply({ content: "No edits recorded.", embeds: [ ... embeds ] });
 
-        const rows = interaction.type != 'text' ? [
-            new ActionRowBuilder<ButtonBuilder>()
-                .addComponents([
-                    new ButtonBuilder()
-                        .setEmoji('⤴️')
-                        .setStyle(ButtonStyle.Link)
-                        .setURL("https://discord.com/channels/" + interaction.targetMessage.guildId + "/" + interaction.targetMessage.channelId + "/" + interaction.targetMessage.id)
-                ])
-        ] : [];
+        const edits = [... (tracked.logs ?? []), { content: message.content, timestamp: message.editedTimestamp ?? message.createdTimestamp } ].sort((a, b) => a.timestamp - b.timestamp) satisfies { content: string, timestamp: number }[];
 
-        const embeds = await snipeMessage(await setup.primary.chat.messages.fetch({ message: id, cache: true}));
-
-        if(data == undefined) return await interaction.reply({ content: "No edits recorded.", embeds: [ ... embeds ], components: rows });
-
-        const edits = data.edits as { content: string, timestamp: number }[];
+        if(edits.length < 2) return await interaction.reply({ content: "No edits recorded.", embeds: [ ... embeds ] });
 
         const embed = new EmbedBuilder()
             .setTitle("Edits")
@@ -68,6 +58,6 @@ module.exports = {
                 return previous += "[<t:" + Math.round(new Date(current.timestamp).valueOf() / 1000) + ":T>, <t:" + Math.round(new Date(current.timestamp).valueOf() / 1000) + ":d>] - `" + current.content.replaceAll("`", "'") + "`\n";
             }, ""));
 
-        await interaction.reply({ embeds: [embed, ...embeds ], components: rows });
+        await interaction.reply({ embeds: [embed, ...embeds ] });
     }
 }

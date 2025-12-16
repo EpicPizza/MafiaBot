@@ -1,34 +1,30 @@
 import { Attachment, AttachmentBuilder, Collection, EmbedBuilder, EmbedFooterOptions, Message, TextChannel, WebhookClient } from "discord.js";
 import Stream from 'stream';
 import * as https from 'https';
+import { TrackedMessage } from "./mafia/tracking";
+import client from "../discord/client";
 
-export async function archiveMessage(channel: TextChannel, message: Message, webhook: WebhookClient, note = false, name: string = "") {
+export async function archiveMessage(channel: TextChannel, message: Message | TrackedMessage, webhook: WebhookClient, note = false, name: string = "") {
     channel.messages.cache.clear();
 
-    let { newAttachments, fails } = await getAttachments(message.attachments);
+    const { newAttachments, fails } = await getAttachments(message.attachments);
 
-    var messageEmbeds = message.embeds;
+    const messageEmbeds = message.embeds;
 
-    if(message.content == "") {
-        if(message.attachments.size == 0) {
-            throw new Error("empty");
-        }
+    if(message.content == "" && !('size' in message.attachments ? message.attachments.size > 0 : message.attachments.length > 0)) {
+        throw new Error("empty");
     }
 
-    console.log(message);
+    const response = await getNickname(message);
 
-    var response = await getNickname(message);
-    var footer = response.footer;
-    var nickname = response.nickname;
-
-    var sent = new Date(0);
+    const sent = new Date(0);
     sent.setUTCSeconds(Math.ceil(message.createdTimestamp / 1000));
 
     if(fails > 0) {
-        footer.text += "Failed to retreive " + fails + " attachment" + (fails == 1 ? "" : "s") + ".\n";
+        response.footer.text += "Failed to retreive " + fails + " attachment" + (fails == 1 ? "" : "s") + ".\n";
     }
 
-    footer.text += "Sent " + sent.toLocaleString('default', { timeZone: 'PST' }) + "\n";
+    response.footer.text += "Sent " + sent.toLocaleString('default', { timeZone: 'PST' }) + "\n";
 
     var embed = new EmbedBuilder()
 
@@ -36,8 +32,8 @@ export async function archiveMessage(channel: TextChannel, message: Message, web
 
     var optionsWebhook = {
         content: message.content,
-        username: nickname,
-        avatarURL: message.author.displayAvatarURL(),
+        username: response.nickname,
+        avatarURL: response.avatarURL,
         allowedMentions: { parse: [] }, //to prevent pings
         embeds: new Array(),
         files: newAttachments,
@@ -45,7 +41,7 @@ export async function archiveMessage(channel: TextChannel, message: Message, web
     }
 
     if(message.editedTimestamp) {
-        footer.text += "\nEdited";
+        response.footer.text += "\nEdited";
     }
 
     if(note) {
@@ -58,11 +54,12 @@ export async function archiveMessage(channel: TextChannel, message: Message, web
         }
     }
 
-    embed.setFooter(footer);
+    embed.setFooter(response.footer);
     optionsWebhook.embeds = [embed];
 
     for(var b = messageEmbeds.length - 1; b >= 0; b--) {
-        if(messageEmbeds[b].data.type == "rich") {
+        const messageEmbed = messageEmbeds[b];
+        if (('data' in messageEmbed ? messageEmbed.data.type : messageEmbed.type) === "rich") {
             optionsWebhook.embeds.unshift(messageEmbeds[b]);
         }
     }
@@ -70,11 +67,11 @@ export async function archiveMessage(channel: TextChannel, message: Message, web
     return await webhook.send(optionsWebhook as any);
 }
 
-export async function getAttachments(messageAttachments: Collection<string, Attachment>): Promise<{ newAttachments: any[], fails: number }> {
+export async function getAttachments(messageAttachments: Collection<string, Attachment> | Attachment[]): Promise<{ newAttachments: any[], fails: number }> {
     var newAttachments = new Array();
     var indexA = 0;
     let fails = 0;
-    if(messageAttachments.size > 0) {
+    if('size' in messageAttachments ? messageAttachments.size > 0 : messageAttachments.length > 0) {
         await new Promise<null>((resolve) => {
             messageAttachments.forEach(async (attachment) => {
                 
@@ -92,7 +89,7 @@ export async function getAttachments(messageAttachments: Collection<string, Atta
                     newAttachments.push(new AttachmentBuilder(attachment.url).setName(attachment.name as string));
                 }
                 indexA++;
-                if(indexA == messageAttachments.size) {
+                if(indexA == ('size' in messageAttachments ? messageAttachments.size : messageAttachments.length)) {
                     resolve(null);
                 }
             })
@@ -117,15 +114,23 @@ function stringifyReactions(reactions: Reaction[]): string {
 
 interface nicknameResponse {
     footer: EmbedFooterOptions,
-    nickname: string
+    nickname: string,
+    avatarURL: string | null,
 }
 
 
-export async function getNickname(message: Message): Promise<nicknameResponse> {
+export async function getNickname(message: Message | TrackedMessage): Promise<nicknameResponse> {
     var footer: EmbedFooterOptions = {text: ""};
 
+    if('authorId' in message) {
+        const author = await client.users.fetch(message.authorId);
+        var nickname = author ? author.displayName: null;
+
+        return { footer: { text: "Original message by <@" + message.authorId + ">" }, nickname: nickname ?? message.authorId, avatarURL: author.avatarURL() };
+    }
+
     if(message.author.bot == true || message.author.discriminator == "0000") {
-        return {footer: footer, nickname: message.author.username};
+        return {footer: footer, nickname: message.author.username, avatarURL: message.author.avatarURL()};
     }
 
     const member = await message.guild?.members.fetch(message.author.id);
@@ -140,11 +145,11 @@ export async function getNickname(message: Message): Promise<nicknameResponse> {
     if(hasNickname) {
         footer.text = "Original message by " + message.author.username + (message.author.discriminator == "0" ? "\n" : "#" + message.author.discriminator + ".\n" + footer.text);
     }
-    return {footer: footer, nickname: nickname};
+    return {footer: footer, nickname: nickname, avatarURL: message.author.avatarURL()};
 }
 
-export async function getReactionsString(message: Message): Promise<string | null> {
-    const reactions = await getReactions(message);
+export async function getReactionsString(message: Message | TrackedMessage): Promise<string | null> {
+    const reactions = 'authorId' in message ? message.reactions : await getReactions(message);
 
     var reactionsString = "";
 
@@ -208,7 +213,7 @@ function sleep(ms: number) {
     });
 }
 
-async function handleReference(message: Message): Promise<any[]> {
+async function handleReference(message: Message | TrackedMessage): Promise<any[]> {
     var components = new Array();
     if(message.reference != null) {
         components.push({
@@ -218,7 +223,7 @@ async function handleReference(message: Message): Promise<any[]> {
                     "type": 2,
                     "emoji": "⤴️",
                     "style":5,
-                    "url": "https://discord.com/channels/" + message.guildId + "/" + message.channelId + "/" + message.reference.messageId
+                    "url": "https://discord.com/channels/" + message.guildId + "/" + message.channelId + "/" + (typeof message.reference == 'string' ? message.reference : message.reference.messageId)
                 }
             ]
 

@@ -8,7 +8,7 @@ interface MessageAction {
     type: 'create' | 'delete' | 'edit',
     message?: TrackedMessage,
     timestamp: number,
-    deleted?: { channel: string, id: string },
+    deleted?: { channel: string, id: string, sniped?: string },
     log?: Log,
 }
 
@@ -40,6 +40,7 @@ export interface TrackedMessage {
     reactions: Reaction[],
     deleted?: boolean,
     logs?: Log[],
+    sniped?: string,
 }
 
 interface Log {
@@ -119,6 +120,7 @@ export async function dumpTracking() {
             } else if(entry.type == 'delete' && entry.deleted) {
                 t.set(db.collection('channels').doc(entry.deleted.channel).collection('messages').doc(entry.deleted.id), {
                     deleted: true,
+                    sniped: entry.deleted.sniped,
                 }, { merge: true });
             }
         });
@@ -224,13 +226,13 @@ export async function createMessage(message: Message) {
     });
 }
 
-export async function updateMessage(oldMessage: PartialMessage | Message, newMessage: Message) {
+export async function updateMessage(oldMessage: PartialMessage | Message | TrackedMessage, newMessage: Message) {
     if(!newMessage.guildId) return;
 
     const instance = await getAuthority(newMessage.guildId);
     if(!instance || (instance.setup.primary.guild.id == newMessage.guildId && instance.setup.primary.chat.id != newMessage.channelId)) return; //don't need to track every message in the main server
 
-    if(oldMessage.partial) {
+    if('partial' in oldMessage && oldMessage.partial) {
         const db = firebaseAdmin.getFirestore();
         const fetchedMessage = (await db.collection('channels').doc(newMessage.channelId).collection('messages').doc(newMessage.id).get()).data() as TrackedMessage | undefined;
 
@@ -240,23 +242,28 @@ export async function updateMessage(oldMessage: PartialMessage | Message, newMes
                 cleanContent: fetchedMessage.cleanContent,
                 editedTimestamp: fetchedMessage.editedTimestamp,
                 createdTimestamp: fetchedMessage.createdTimestamp,
+                partial: false,
             } as Message;
         }
     }
 
-    messageBuffer.push({
-        type: 'edit',
+    const entry = {
+        type: 'edit' as 'edit',
         message: await transformMessage(newMessage, false),
         timestamp: newMessage.editedTimestamp ?? new Date().valueOf(),
-        log: !oldMessage.partial && oldMessage.content != newMessage.content ? {
+        log: !('partial' in oldMessage && oldMessage.partial) && oldMessage.content != newMessage.content ? {
             content: oldMessage.content,
             cleanContent: oldMessage.cleanContent,
             timestamp: oldMessage.editedTimestamp ?? oldMessage.createdTimestamp,
         } : undefined,
-    });
+    }
+
+    messageBuffer.push(entry);
+
+    return entry;
 }
 
-export async function deleteMessage(message: PartialMessage | Message) {
+export async function deleteMessage(message: PartialMessage | Message, sniped: string | undefined = undefined) {
     if(!message.guildId) return;
 
     const instance = await getAuthority(message.guildId);
@@ -267,6 +274,7 @@ export async function deleteMessage(message: PartialMessage | Message) {
     messageBuffer.forEach(message => {
         if((message.type == 'create' || message.type == 'edit') && message.message) {
             message.message.deleted = true;
+            message.message.sniped = sniped;
             adjustedInBuffer = true;
         }
     });
@@ -275,7 +283,7 @@ export async function deleteMessage(message: PartialMessage | Message) {
         messageBuffer.push({
             type: 'delete',
             timestamp: new Date().valueOf(),
-            deleted: { channel: message.channelId, id: message.id }
+            deleted: { channel: message.channelId, id: message.id, sniped }
         });
     }
 }
@@ -287,7 +295,7 @@ export async function catchupChannel(channel: TextChannel, callback: Function) {
     const docs = (await ref.orderBy('createdTimestamp', 'desc').limit(1).get()).docs;
     const latestMessage = docs.length > 0 ? docs[0].data() as TrackedMessage : undefined;
 
-    console.log("LATEST", latestMessage);
+    console.log("latest", latestMessage);
     
     let message = null as null | Message;
     let fetched = 0;
@@ -296,7 +304,7 @@ export async function catchupChannel(channel: TextChannel, callback: Function) {
         const options = { limit: 100, before: message?.id, cache: false }; //cache only stores 200 messages max, so pointless in this case
         const messages = await channel.messages.fetch(options);
 
-        console.log("hi", messages.size);
+        console.log("fetched", messages.size);
 
         let endFound = false;
 
@@ -334,6 +342,49 @@ function sleep(ms: number) {
     });
 }
 
+export async function fetchMessage(message: PartialMessage | Message | { channelId: string, id: string, partial: true }): Promise<TrackedMessage | { deleted: true } | undefined> {
+    const db = firebaseAdmin.getFirestore();
+    const ref = db.collection('channels').doc(message.channelId).collection('messages').doc(message.id);
+
+    let trackedMessage = (await ref.get()).data() as TrackedMessage | { deleted: true } | undefined;
+
+    const bufferedActions = messageBuffer.filter(entry => entry.type == 'delete' ? (entry.deleted?.id == message.id && entry.deleted.channel == message.channelId) : (entry.message?.id == message.id && entry.message?.channelId == message.channelId));
+
+    bufferedActions.forEach(action => {
+        if(action.type == 'create') {
+            trackedMessage = action.message;
+        } else if(action.type == 'edit' && trackedMessage && 'content' in trackedMessage && action.message && action.message?.content != trackedMessage.content) {
+            trackedMessage = {
+                ...action.message,
+                logs: [
+                    ...(trackedMessage.logs ?? []),
+                    {
+                        content: trackedMessage.content,
+                        cleanContent: trackedMessage.cleanContent,
+                        timestamp: trackedMessage.editedTimestamp ?? trackedMessage.createdTimestamp,
+                    }
+                ]
+            } satisfies TrackedMessage;
+        } else if(action.type == 'delete' && trackedMessage) {
+            trackedMessage.deleted = true;
+        }
+
+        console.log(action.type, trackedMessage);
+    })
+
+    if(trackedMessage && 'createdTimestamp' in trackedMessage && message.partial == false && message.content != trackedMessage.content) {
+        const newEntry = await updateMessage(trackedMessage, message);
+
+        if(newEntry != undefined) {
+            trackedMessage = {
+                ...newEntry.message,
+                ...(newEntry.log ? { logs: [ ...(newEntry.message.logs ?? []), newEntry.log ] } : {})
+            }
+        }
+    }
+
+    return trackedMessage;
+}
 
 export async function transformMessage(message: Message, reactions: boolean = true) {
     const mentions = [] as string[];
