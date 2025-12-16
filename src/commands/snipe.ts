@@ -38,10 +38,10 @@ module.exports = {
 
         let tracked = await fetchMessage(message);
 
-        if(tracked && 'sniped' in tracked) tracked = await fetchMessage({ channelId: message.channelId, id: tracked.sniped as string, partial: true });
-
         console.log(tracked);
         console.log(tracked && 'sniped' in tracked);
+
+        if(tracked && 'sniped' in tracked && tracked.sniped) tracked = await fetchMessage({ channelId: message.channelId, id: tracked.sniped as string, partial: true });
 
         const embeds = await snipeMessage(await setup.primary.chat.messages.fetch({ message: message.id, cache: true}));
 

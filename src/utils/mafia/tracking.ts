@@ -4,13 +4,20 @@ import { firebaseAdmin } from "../firebase";
 import { getAuthority } from "../instance";
 import { getReactions, Reaction } from "../archive";
 
-interface MessageAction {
-    type: 'create' | 'delete' | 'edit',
-    message?: TrackedMessage,
+type MessageAction = {
+    type: 'delete',
     timestamp: number,
-    deleted?: { channel: string, id: string, sniped?: string },
+    deleted: { channel: string, id: string, sniped?: string },
+} | {
+    type: 'create'
+    message: TrackedMessage,
+    timestamp: number,
+} | {
+    type: 'edit',
+    message: Omit<Partial<TrackedMessage>, "channelId" | "id"> & Pick<PartialMessage, "channelId" | "id">,
+    timestamp: number,
     log?: Log,
-}
+};
 
 interface ReactionAction {
     type: 'add' | 'remove' | 'removeAll' | 'removeReaction',
@@ -58,7 +65,7 @@ export async function dumpTracking() {
     const reactionBatch = [ ...reactionBuffer];
     reactionBuffer = [];
 
-    if(messageBatch.length > 0) console.log("dumping", messageBatch);
+    if(messageBatch.length > 0) console.log("dumping", messageBatch.length);
 
     const toBeEdited = [] as { channel: string, id: string }[];
 
@@ -81,8 +88,6 @@ export async function dumpTracking() {
         }));
 
         editing.forEach(promise => {
-            console.log(promise);
-
             if(promise.status == 'fulfilled' && promise.value.doc.data() != undefined) {
                 const message = promise.value.doc.data() as TrackedMessage;
 
@@ -226,7 +231,7 @@ export async function createMessage(message: Message) {
     });
 }
 
-export async function updateMessage(oldMessage: PartialMessage | Message | TrackedMessage, newMessage: Message) {
+export async function updateMessage(oldMessage: PartialMessage | Message | TrackedMessage, newMessage: Message | TrackedMessage) {
     if(!newMessage.guildId) return;
 
     const instance = await getAuthority(newMessage.guildId);
@@ -249,7 +254,7 @@ export async function updateMessage(oldMessage: PartialMessage | Message | Track
 
     const entry = {
         type: 'edit' as 'edit',
-        message: await transformMessage(newMessage, false),
+        message: 'authorId' in newMessage ? newMessage : await transformMessage(newMessage, false),
         timestamp: newMessage.editedTimestamp ?? new Date().valueOf(),
         log: !('partial' in oldMessage && oldMessage.partial) && oldMessage.content != newMessage.content ? {
             content: oldMessage.content,
@@ -261,6 +266,18 @@ export async function updateMessage(oldMessage: PartialMessage | Message | Track
     messageBuffer.push(entry);
 
     return entry;
+}
+
+export async function updateSnipeMessage(snipe: { channelId: string, id: string }, original: string) {
+    messageBuffer.push({
+        type: 'edit',
+        message: {
+            sniped: original,
+            channelId: snipe.channelId,
+            id: snipe.id
+        },
+        timestamp: new Date().valueOf(),
+    });
 }
 
 export async function deleteMessage(message: PartialMessage | Message, sniped: string | undefined = undefined) {
@@ -344,6 +361,7 @@ function sleep(ms: number) {
 
 export async function fetchMessage(message: PartialMessage | Message | { channelId: string, id: string, partial: true }): Promise<TrackedMessage | { deleted: true } | undefined> {
     const db = firebaseAdmin.getFirestore();
+
     const ref = db.collection('channels').doc(message.channelId).collection('messages').doc(message.id);
 
     let trackedMessage = (await ref.get()).data() as TrackedMessage | { deleted: true } | undefined;
@@ -355,6 +373,7 @@ export async function fetchMessage(message: PartialMessage | Message | { channel
             trackedMessage = action.message;
         } else if(action.type == 'edit' && trackedMessage && 'content' in trackedMessage && action.message && action.message?.content != trackedMessage.content) {
             trackedMessage = {
+                ...trackedMessage,
                 ...action.message,
                 logs: [
                     ...(trackedMessage.logs ?? []),
@@ -368,8 +387,6 @@ export async function fetchMessage(message: PartialMessage | Message | { channel
         } else if(action.type == 'delete' && trackedMessage) {
             trackedMessage.deleted = true;
         }
-
-        console.log(action.type, trackedMessage);
     })
 
     if(trackedMessage && 'createdTimestamp' in trackedMessage && message.partial == false && message.content != trackedMessage.content) {

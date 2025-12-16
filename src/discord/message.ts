@@ -2,7 +2,7 @@ import { ClientEvents, Colors, EmbedBuilder, Events, Guild, Message, MessageRepl
 import stringArgv from "string-argv";
 import client from "./client";
 import { getAllExtensions, getExtensions } from "../utils/extensions";
-import { addReaction, createMessage, deleteMessage, removeAllReactions, removeReactionEmoji, removeReaction, updateMessage, fetchMessage } from "../utils/mafia/tracking";
+import { addReaction, createMessage, deleteMessage, removeAllReactions, removeReactionEmoji, removeReaction, updateMessage, fetchMessage, transformMessage, updateSnipeMessage } from "../utils/mafia/tracking";
 import type { TextCommand, ReactionCommand } from ".";
 import { removeReactions } from "./helpers";
 import { firebaseAdmin } from "../utils/firebase";
@@ -161,14 +161,14 @@ export async function messageUpdateHandler(...[oldMessage, newMessage]: ClientEv
 
 export async function messageDeleteHandler(...[message]: ClientEvents[Events.MessageDelete]) {
     try {
-        console.log(message);
-
         if(!message.guildId) return;
         
         const instance = await getAuthority(message.guildId);
         if(!(instance && instance.setup.primary.guild.id == message.guildId && instance.setup.primary.chat.id == message.channelId)) return; //don't need to track every message in the main server
 
-        if(instance.global.started == false) return await deleteMessage(message);
+        await deleteMessage(message);
+
+        if(instance.global.started == false) return;
 
         const tracked = await fetchMessage(message);
 
@@ -218,7 +218,7 @@ export async function messageDeleteHandler(...[message]: ClientEvents[Events.Mes
 
         webhookClient.destroy();
 
-        await deleteMessage(message, message.id);
+        await updateSnipeMessage({ channelId: result.channel_id, id: result.id }, message.id);
     } catch (e) {
         console.log(e);
     }
