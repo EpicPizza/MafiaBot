@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        host: [UCSC_HOST, BAG_HOST]
+        host: [BAG_HOST]
     steps:
       - name: Checkout Repo
         uses: actions/checkout@master

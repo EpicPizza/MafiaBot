@@ -7,6 +7,7 @@ import { getGlobal } from '../utils/global';
 import { refreshSignup } from "../utils/mafia/games";
 import { onjoin } from "../utils/mafia/invite";
 import { checkSetup, getSetup } from "../utils/setup";
+import { getInstance } from "../utils/instance";
 
 module.exports = {
     data: [

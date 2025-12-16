@@ -156,8 +156,8 @@ export async function getReactionsString(message: Message): Promise<string | nul
     }
 }
 
-interface Reaction {
-    id: string[] | null;
+export interface Reaction {
+    id: string[];
     emoji: string | null;
 }
 
@@ -197,7 +197,7 @@ export async function getReactions(message: Message): Promise<Reaction[]> {
         await sleep(500); //plz do not remove... for some reason this breaks without, could be possible issues with accessing discord api too quickly, idk...
         //two years later... i know why and this code is stupid, but im too lazy to fix it rn
         if(message.reactions.cache.size == 0) {
-            resolve([{id: null, emoji: null}]);
+            resolve([{id: [], emoji: null}]);
         }
     });
 }

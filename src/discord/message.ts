@@ -1,9 +1,9 @@
-import { ClientEvents, Colors, EmbedBuilder, Events, Message, MessageReplyOptions, TextChannel, WebhookClient } from "discord.js";
+import { ClientEvents, Colors, EmbedBuilder, Events, Guild, Message, MessageReplyOptions, TextChannel, WebhookClient } from "discord.js";
 import stringArgv from "string-argv";
 import client from "./client";
 import { getAllExtensions, getExtensions } from "../utils/extensions";
 import { checkMessage } from "../utils/google/doc";
-import { trackMessage } from "../utils/mafia/tracking";
+import { addReaction, createMessage, deleteMessage, removeAllReactions, removeReactionEmoji, removeReaction, updateMessage } from "../utils/mafia/tracking";
 import type { TextCommand, ReactionCommand } from ".";
 import { removeReactions } from "./helpers";
 import { firebaseAdmin } from "../utils/firebase";
@@ -13,48 +13,16 @@ import { archiveMessage } from "../utils/archive";
 import { getGlobal } from "../utils/global";
 import { Command } from "commander";
 import { getHelpEmbed } from "./help";
-
-export interface Cache {
-    day: number;
-    started: boolean;
-    channel: null | TextChannel;
-    extensions: string[];
-}
-
-const cache: Cache = {
-    day: 0,
-    started: false,
-    channel: null,
-    extensions: [],
-} satisfies Cache;
-
-export async function updateCache() {
-    const global = await getGlobal();
-
-    const setup = await getSetup();
-
-    if (typeof setup == 'string') return;
-
-    cache.channel = setup.primary.chat;
-    cache.day = global.day;
-    cache.started = global.started;
-    cache.extensions = global.extensions;
-}
+import { getAuthority } from "../utils/instance";
 
 export async function messageCreateHandler(...[message, throws]: [...ClientEvents[Events.MessageCreate], throws?: boolean]) {
     try {
         const ignore = (process.env.IGNORE ?? "---").split(",");
         if(ignore.includes(message.guildId ?? "---")) return;
 
-        if (!message.content.startsWith("?") || message.content.length < 2 || message.content.replace(/\?/g, "").length == 0) {
-            await trackMessage(message, cache);
+        await createMessage(message);
 
-            if (!message.author.bot) await messageExtensions(cache.extensions, message, cache);
-
-            await checkMessage(message, cache);
-
-            return;
-        }
+        if (!message.content.startsWith("?") || message.content.length < 2 || message.content.replace(/\?/g, "").length == 0) return;
 
         if (message.author.bot) return;
 
@@ -186,35 +154,7 @@ export async function messageCreateHandler(...[message, throws]: [...ClientEvent
 
 export async function messageUpdateHandler(...[oldMessage, newMessage]: ClientEvents[Events.MessageUpdate]) {
     try {
-        if (!cache.started) return;
-
-        if (newMessage.author && newMessage.author.bot == true) return;
-        if (cache.channel && newMessage.channelId != cache.channel.id) return;
-
-        const db = firebaseAdmin.getFirestore();
-
-        const ref = db.collection('edits').doc(newMessage.id);
-
-        if (cache.channel && cache.channel.id != oldMessage.channelId) return;
-
-        if ((await ref.get()).exists) {
-            await ref.update({
-                edits: FieldValue.arrayUnion({
-                    content: newMessage.content ?? "No Content",
-                    timestamp: newMessage.editedTimestamp ?? new Date().valueOf()
-                }),
-            })
-        } else {
-            await ref.set({
-                edits: [{
-                    content: oldMessage.content ?? "No Content",
-                    timestamp: oldMessage.editedTimestamp ?? new Date().valueOf()
-                }, {
-                    content: newMessage.content ?? "No Content",
-                    timestamp: newMessage.editedTimestamp ?? new Date().valueOf()
-                }],
-            })
-        }
+        await updateMessage(oldMessage, newMessage);
     } catch (e) {
         console.log(e);
     }
@@ -224,27 +164,21 @@ export async function messageDeleteHandler(...[message]: ClientEvents[Events.Mes
     try {
         console.log(message);
 
-        if (!cache.started) return;
+        if(!message.guildId) return;
+        
+        const instance = await getAuthority(message.guildId);
+        if(!(instance && instance.setup.primary.guild.id == message.guildId && instance.setup.primary.chat.id == message.channelId)) return; //don't need to track every message in the main server
 
-        const channel = message.channel;
-
-        if (message.author && message.author.bot == true) return;
-        if (cache.channel && message.channelId != cache.channel.id) return;
-
-        const setup = await getSetup();
-
-        if (channel.id != setup.primary.chat.id) return;
+        await deleteMessage(message);
 
         const db = firebaseAdmin.getFirestore();
-        if ((await db.collection('delete').doc(message.id).get()).exists) return;
-        const doc = await db.collection('edits').doc(message.id).get();
 
-        const webhooks = (await db.collection('webhooks').where('channel', '==', channel.id).get()).docs.map(doc => ({ ...doc.data(), ref: doc.ref })) as { channel: string, token: string, id: string, ref: DocumentReference }[];
+        const webhooks = (await db.collection('webhooks').where('channel', '==', instance.setup.primary.chat.id).get()).docs.map(doc => ({ ...doc.data(), ref: doc.ref })) as { channel: string, token: string, id: string, ref: DocumentReference }[];
 
         let webhookClient: WebhookClient | undefined = undefined;
 
         if (webhooks.length > 0) {
-            const currentWebhooks = await setup.primary.chat.fetchWebhooks();
+            const currentWebhooks = await instance.setup.primary.chat.fetchWebhooks();
 
             if (currentWebhooks.find(webhook => webhook.id == webhooks[0].id)) {
                 webhookClient = new WebhookClient({
@@ -255,7 +189,7 @@ export async function messageDeleteHandler(...[message]: ClientEvents[Events.Mes
         }
 
         if (webhookClient == undefined) {
-            const webhook = await setup.primary.chat.createWebhook({
+            const webhook = await instance.setup.primary.chat.createWebhook({
                 name: 'Mafia Bot Snipe',
             });
 
@@ -267,7 +201,7 @@ export async function messageDeleteHandler(...[message]: ClientEvents[Events.Mes
             });
         }
 
-        const result = await archiveMessage(setup.primary.chat, message as any, webhookClient);
+        const result = await archiveMessage(instance.setup.primary.chat, message as any, webhookClient);
 
         if (!webhooks.find(webhook => webhook.id == webhookClient.id)) {
             await Promise.allSettled(webhooks.map(webhook => webhook.ref.delete()));
@@ -275,24 +209,48 @@ export async function messageDeleteHandler(...[message]: ClientEvents[Events.Mes
             await db.collection('webhooks').add({
                 id: webhookClient.id,
                 token: webhookClient.token,
-                channel: channel.id,
+                channel: instance.setup.primary.chat.id,
             });
         }
 
         webhookClient.destroy();
 
-        if (doc.exists && doc.data()) {
-            db.collection('edits').doc(result.id).set(
-                doc.data() ?? {}
-            )
-        }
+        await db.collection('channels').doc(message.channelId).collection('messages').doc(message.id).set({
+            sniped: result.id,
+        }, { merge: true });
     } catch (e) {
+        console.log(e);
+    }
+}
+
+export async function messageReactionRemoveHandler(...[reaction, user]: ClientEvents[Events.MessageReactionRemove]) {
+    try {
+        await removeReaction(reaction, user);
+    } catch(e) {
+        console.log(e);
+    }
+}
+
+export async function messageReactionRemoveAllHandler(...[message]: ClientEvents[Events.MessageReactionRemoveAll]) {
+    try {
+        await removeAllReactions(message);
+    } catch(e) {
+        console.log(e);
+    }
+}
+
+export async function messageReactionRemoveEmojiHandler(...[reaction]: ClientEvents[Events.MessageReactionRemoveEmoji]) {
+    try {
+        await removeReactionEmoji(reaction);
+    } catch(e) {
         console.log(e);
     }
 }
 
 export async function messageReactionAddHandler(...[reaction, user]: ClientEvents[Events.MessageReactionAdd]) {
     try {
+        await addReaction(reaction, user);
+
         if (reaction.partial) {
             reaction = await reaction.fetch();
         }
@@ -302,25 +260,6 @@ export async function messageReactionAddHandler(...[reaction, user]: ClientEvent
         const command = client.commands.get('reaction-' + reaction.emoji.toString());
 
         if (command == undefined || command.type != 'reaction') {
-            const db = firebaseAdmin.getFirestore();
-
-            if (cache.channel && cache.channel.id != reaction.message.channelId) return;
-
-            if (!cache.started) return;
-
-            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(cache.day.toString()).collection('players').doc(user.id);
-
-            if ((await ref.get()).exists) {
-                ref.update({
-                    reactions: FieldValue.arrayUnion({ timestamp: new Date().valueOf(), reaction: reaction.emoji.toString(), message: reaction.message.id })
-                })
-            } else {
-                ref.set({
-                    messages: 0,
-                    words: 0,
-                    reactions: FieldValue.arrayUnion({ timestamp: new Date().valueOf(), reaction: reaction.emoji.toString(), message: reaction.message.id })
-                })
-            }
 
             return;
         }

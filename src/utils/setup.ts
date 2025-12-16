@@ -32,10 +32,10 @@ const PartialSetup = z.object({
     })
 })
 
-export async function getPartialSetup() {
+export async function getPartialSetup(instance: string | undefined = undefined) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('setup');
+    const ref = db.collection('instances').doc(instance ? instance : process.env.INSTANCE ?? "---").collection('settings').doc('setup');
 
     const data = (await ref.get()).data();
 
@@ -48,8 +48,8 @@ export async function getPartialSetup() {
 
 export type Setup = Exclude<Awaited<ReturnType<typeof getSetup>>, string>;
 
-export async function getSetup() {
-    const setup = await checkSetup();
+export async function getSetup(instance: string | undefined = undefined, admin: typeof firebaseAdmin | undefined = undefined) {
+    const setup = await checkSetup(instance, admin);
 
     if(typeof setup == 'string') {
         throw new Error("Setup Incomplete");
@@ -58,15 +58,15 @@ export async function getSetup() {
     }
 }
 
-export async function checkSetup() {
-    const db = firebaseAdmin.getFirestore();
+export async function checkSetup(instance: string | undefined = undefined, admin: typeof firebaseAdmin | undefined = undefined) {
+    const db = admin ? admin.getFirestore() : firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('setup')
+    const ref = db.collection('instances').doc(instance ? instance : process.env.INSTANCE ?? "---").collection('settings').doc('setup')
 
     const data = (await ref.get()).data();
 
     const parse = PartialSetup.safeParse(data);
-
+    
     if(!data || !parse.success) throw new Error("Database not setup.");
 
     const setup = parse.data;
