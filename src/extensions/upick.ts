@@ -260,7 +260,7 @@ module.exports = {
          */
     },
     onInteraction: async (extensionInteraction: ExtensionInteraction) => {},
-    onMessage: async (message, cache) => {},
+    onMessage: async (message) => {},
     onEnd: async (global, setup, game) => {},
     onVote: async (global, setup, game, voter, voting, type, users, transaction) => {},
     onVotes: async (global, setup, game, board ) => { return ""; },

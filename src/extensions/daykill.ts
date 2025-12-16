@@ -388,7 +388,7 @@ module.exports = {
 
         return;
     },
-    onMessage: async (message, cache) => {},
+    onMessage: async (message) => {},
     onEnd: async (global, setup, game) => {
         /**
          * Runs during game end processes.

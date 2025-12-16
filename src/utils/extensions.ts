@@ -4,7 +4,6 @@ import type { Transaction } from 'firebase-admin/firestore';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { ZodObject } from 'zod';
-import type { Cache } from '../discord/message';
 import type { ReactionCommand } from '../discord';
 import type { TextCommand } from '../discord';
 import type { ExtendedClient } from '../discord/client';
@@ -68,7 +67,7 @@ export interface Extension {
     onLock: { (global: Global, setup: Setup, game: Signups): Promise<unknown> },
     onUnlock: { (global: Global, setup: Setup, game: Signups, incremented: boolean): Promise<unknown> },
     onCommand: { (command: TextCommand): Promise<unknown> },
-    onMessage: { (message: Message, cache: Cache): Promise<unknown> },
+    onMessage: { (message: Message): Promise<unknown> },
     onEnd: { (global: Global, setup: Setup, game: Signups): Promise<unknown> },
     onVote: { (global: Global, setup: Setup, game: Signups, voter: User, voting: User | undefined, type: 'vote' | 'unvote', users: User[], transaction: Transaction): Promise<TransactionResult> | Promise<void> },
     onVotes: { (global: Global, setup: Setup, game: Signups, board: string ): string | Promise<string> },

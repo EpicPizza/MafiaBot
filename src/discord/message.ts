@@ -2,7 +2,6 @@ import { ClientEvents, Colors, EmbedBuilder, Events, Guild, Message, MessageRepl
 import stringArgv from "string-argv";
 import client from "./client";
 import { getAllExtensions, getExtensions } from "../utils/extensions";
-import { checkMessage } from "../utils/google/doc";
 import { addReaction, createMessage, deleteMessage, removeAllReactions, removeReactionEmoji, removeReaction, updateMessage } from "../utils/mafia/tracking";
 import type { TextCommand, ReactionCommand } from ".";
 import { removeReactions } from "./helpers";
@@ -296,12 +295,12 @@ export async function messageReactionAddHandler(...[reaction, user]: ClientEvent
 }
 
 
-async function messageExtensions(extensionNames: string[], message: Message, cache: Cache) {
+async function messageExtensions(extensionNames: string[], message: Message) {
     const extensions = getExtensions(extensionNames);
 
     const promises = [] as Promise<any>[];
 
-    extensions.forEach(extension => { promises.push(extension.onMessage(message, cache)) });
+    extensions.forEach(extension => { promises.push(extension.onMessage(message)) });
 
     const results = await Promise.allSettled(promises);
 

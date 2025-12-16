@@ -88,7 +88,7 @@ module.exports = {
 
         return;
     },
-    onMessage: async (message, cache) => {
+    onMessage: async (message) => {
         /*
          * Keep fetches to a minimum, these can add up. For this reason, only cache is given, only use helper functions when necessary.
          * 

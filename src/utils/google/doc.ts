@@ -2,7 +2,6 @@ import { Colors, EmbedBuilder, Message } from "discord.js";
 import { getClient } from "./google";
 import { google } from "googleapis";
 import { firebaseAdmin } from "../firebase";
-import type { Cache } from '../../discord/message';
 import { removeReactions } from "../../discord/helpers";
 
 const googleDocIdRegex = /docs\.google\.com\/(?:document|spreadsheets|presentation)\/d\/([a-zA-Z0-9-_]+)/g;
@@ -74,7 +73,7 @@ export async function snipeMessage(message: Message): Promise<EmbedBuilder[]> {
     return embeds;
 }
 
-export async function checkMessage(message: Message, cache: Cache) {
+/*export async function checkMessage(message: Message, cache: Cache) {
     if(message.author && message.author.bot == true) return;
     if(cache.channel && cache.channel.id != message.channelId) return;
     if(!cache.started) return;
@@ -143,4 +142,4 @@ export async function checkMessage(message: Message, cache: Cache) {
 
     await removeReactions(message);
     await message.react('💾');
-}
+}*/
