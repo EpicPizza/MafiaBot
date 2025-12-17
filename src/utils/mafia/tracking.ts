@@ -3,6 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { firebaseAdmin } from "../firebase";
 import { getAuthority } from "../instance";
 import { getReactions, Reaction } from "../archive";
+import { getSetup } from "../setup";
 
 type MessageAction = {
     type: 'delete',
@@ -72,8 +73,11 @@ let reactionBuffer = [] as ReactionAction[];
 let statsBuffer = [] as StatsAction[];
 
 let dumping = false;
+let initialized = false;
 
 export async function dumpTracking() {
+    if(!initialized) return;
+
     dumping = true;
 
     const messageBatch = [ ...messageBuffer];
@@ -160,6 +164,10 @@ export async function dumpTracking() {
                 images: FieldValue.increment(entry.images)
             }, { merge: true });
         });
+
+        t.set(db.collection('channels').doc('tracking'), {
+            timestamp: new Date().valueOf(),
+        });
     });
 
     dumping = false;
@@ -192,7 +200,7 @@ function reconcileReactions(reactionEntries: ReactionAction[], reactions: Reacti
             const reaction = reactions.find(reaction => reaction.emoji == entry.emoji);
 
             if(reaction) {
-                reaction.id.push(entry.user);
+                if(!reaction.id.includes(entry.user)) reaction.id.push(entry.user);
             } else {
                 reactions.push({
                     emoji: entry.emoji,
@@ -372,7 +380,7 @@ export async function deleteMessage(message: PartialMessage | Message, sniped: s
     }
 }
 
-export async function catchupChannel(channel: TextChannel, callback: Function) {
+export async function catchupChannel(channel: TextChannel, callback: Function, statsTracking: boolean) {
     const instance = await getAuthority(channel.guildId);
     if(!instance || (instance.setup.primary.guild.id == channel.guildId && instance.setup.primary.chat.id != channel.id)) return; //don't need to track every message in the main server
 
@@ -401,7 +409,7 @@ export async function catchupChannel(channel: TextChannel, callback: Function) {
                 return;
             }
 
-            /*if(instance.setup.primary.chat.id == message.channelId && instance.global.started) {
+            if(instance.setup.primary.chat.id == message.channelId && instance.global.started && statsTracking) {
                 statsBuffer.push({
                     type: 'add',
                     id: message.author.id,
@@ -412,7 +420,7 @@ export async function catchupChannel(channel: TextChannel, callback: Function) {
                     words: message.content.split(" ").length,
                     messages: 1,
                 })
-            }*/
+            }
  
             messageBuffer.push({
                 type: 'create',
@@ -443,6 +451,8 @@ function sleep(ms: number) {
 }
 
 export async function fetchMessage(message: PartialMessage | Message | { channelId: string, id: string, partial: true }): Promise<TrackedMessage | { deleted: true } | undefined> {
+    await processing();
+    
     const db = firebaseAdmin.getFirestore();
 
     const ref = db.collection('channels').doc(message.channelId).collection('messages').doc(message.id);
@@ -487,13 +497,7 @@ export async function fetchMessage(message: PartialMessage | Message | { channel
 }
 
 export async function fetchStats(instance: string, game: string, day: number) {
-    if(dumping) {
-        await new Promise((resolve) => {
-            setTimeout(() => {
-                if(!dumping) resolve(0);
-            }, 100);
-        })
-    }
+    await processing();
 
     const db = firebaseAdmin.getFirestore();
 
@@ -554,4 +558,44 @@ export async function transformMessage(message: Message, reactions: boolean = tr
         poll: message.poll ? true : false,
         ... (reactions ? { reactions: await getReactions(message) } : {}),
     } satisfies Partial<TrackedMessage> as TrackedMessage;
+}
+
+export async function startup() {
+    const db = firebaseAdmin.getFirestore();
+    const ref = db.collection('channels').doc('tracking');
+    const lastFetched = (await ref.get()).data()?.timestamp as number | undefined ?? undefined;
+
+    if(!lastFetched || (new Date().valueOf() - lastFetched) > (1000 * 60 * 5)) {
+        console.log("Too long... aborting.");
+
+        return;
+    }
+
+    const setup = await getSetup();
+
+    const messagesFetched = await catchupChannel(setup.primary.chat, async (length: number) => {
+        console.log("Fetching messages... (" + length + ")");
+    }, true);
+
+    console.log("Fetched " + messagesFetched + " messages.");
+
+    initialized = true;
+}
+
+export async function setInitialized(state: boolean) {
+    initialized = state;
+}
+
+export function addStatsAction(action: StatsAction) {
+    statsBuffer.push(action);
+}
+
+async function processing() {
+    if(dumping) {
+        await new Promise((resolve) => {
+            setTimeout(() => {
+                if(!dumping) resolve(0);
+            }, 100);
+        })
+    }
 }

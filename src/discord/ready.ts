@@ -1,13 +1,19 @@
 import { ActivityType, ClientEvents, Events } from "discord.js";
 import client from "./client";
 import { checkFutureGrace, checkFutureLock } from "../utils/mafia/timing";
-import { dumpTracking } from "../utils/mafia/tracking";
+import { dumpTracking, startup } from "../utils/mafia/tracking";
 import { getAuthority } from "../utils/instance";
 
 export async function clientReadyHandler(...[]: ClientEvents[Events.ClientReady]) {
     console.log("Bot is ready!");
 
     client.user?.setActivity({ type: ActivityType.Watching, name: "/games", });
+
+    try {
+        await startup();
+    } catch(e) {
+        console.log(e);
+    }
 
     setInterval(async () => {
         try {
