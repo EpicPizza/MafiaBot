@@ -27,6 +27,17 @@ interface ReactionAction {
     user?: string,
 }
 
+interface StatsAction {
+    type: 'add',
+    id: string,
+    day: number,
+    instance: string,
+    game: string,
+    messages: number,
+    images: number,
+    words: number,
+}
+
 export interface TrackedMessage { 
     channelId: string,
     guildId: string,
@@ -58,12 +69,19 @@ interface Log {
 
 let messageBuffer = [] as MessageAction[];
 let reactionBuffer = [] as ReactionAction[];
+let statsBuffer = [] as StatsAction[];
+
+let dumping = false;
 
 export async function dumpTracking() {
+    dumping = true;
+
     const messageBatch = [ ...messageBuffer];
     messageBuffer = [];
     const reactionBatch = [ ...reactionBuffer];
     reactionBuffer = [];
+    const statsBatch = [ ...statsBuffer];
+    statsBuffer = [];
 
     if(messageBatch.length > 0) console.log("dumping", messageBatch.length);
 
@@ -75,6 +93,8 @@ export async function dumpTracking() {
             id: reaction.id,
         });
     });
+
+    const compressedStats = reconcileStats(statsBatch);
 
     const db = firebaseAdmin.getFirestore();
 
@@ -112,24 +132,58 @@ export async function dumpTracking() {
         });
 
         messageBatch.forEach(entry => {
-            if(entry.type == 'create' && entry.message) {
+            if(entry.type == 'create') {
                 t.set(db.collection('channels').doc(entry.message.channelId).collection('messages').doc(entry.message.id), {
                     ...entry.message,
                     ...(toBeEdited.find(editing => entry.message?.id == editing.id && entry.message?.channelId == editing.channel) ? {} : { reactions: [] })
                 }, { merge: true });
-            } else if(entry.type == 'edit' && entry.message) {
+            } else if(entry.type == 'edit') {
                 t.set(db.collection('channels').doc(entry.message.channelId).collection('messages').doc(entry.message.id), {
                     ...entry.message,
                     ...(entry.log ? { logs: FieldValue.arrayUnion(entry.log) } : {})
                 }, { merge: true });
-            } else if(entry.type == 'delete' && entry.deleted) {
+            } else if(entry.type == 'delete') {
                 t.set(db.collection('channels').doc(entry.deleted.channel).collection('messages').doc(entry.deleted.id), {
                     deleted: true,
                     sniped: entry.deleted.sniped,
                 }, { merge: true });
             }
         });
+
+        compressedStats.forEach(entry => {
+            t.set(db.collection('instances').doc(entry.instance)
+                    .collection('games').doc(entry.game)
+                    .collection('days').doc(entry.day.toString())
+                    .collection('stats').doc(entry.id), {
+                messages: FieldValue.increment(entry.messages),
+                words: FieldValue.increment(entry.words),
+                images: FieldValue.increment(entry.images)
+            }, { merge: true });
+        });
     });
+
+    dumping = false;
+}
+
+function reconcileStats(statsEntries: StatsAction[]) {
+    const compressed = [] as StatsAction[];
+
+    for(let i = 0; i < statsEntries.length; i++) {
+        const entry = statsEntries[i];
+        const existing = compressed.find(e => e.day == entry.day && e.game == entry.game && e.id == entry.id);
+
+        console.log("existing found", existing, entry);
+
+        if(existing) {
+            existing.messages += entry.messages;
+            existing.words += entry.words;
+            existing.images += entry.images;
+        } else {
+            compressed.push({ ...entry });
+        }
+    }
+
+    return compressed;
 }
 
 function reconcileReactions(reactionEntries: ReactionAction[], reactions: Reaction[]) {
@@ -224,6 +278,19 @@ export async function createMessage(message: Message) {
     const instance = await getAuthority(message.guildId);
     if(!instance || (instance.setup.primary.guild.id == message.guildId && instance.setup.primary.chat.id != message.channelId)) return; //don't need to track every message in the main server
 
+    if(instance.setup.primary.chat.id == message.channelId && instance.global.started) {
+        statsBuffer.push({
+            type: 'add',
+            id: message.author.id,
+            day: instance.global.day,
+            game: instance.global.game ?? "---",
+            instance: instance.id,
+            images: message.attachments.reduce((acc, value) => acc + (value.contentType?.startsWith("image") ? 1 : 0), 0),
+            words: message.content.split(" ").length,
+            messages: 1,
+        })
+    }
+
     messageBuffer.push({
         type: 'create',
         message: await transformMessage(message, false),
@@ -306,6 +373,9 @@ export async function deleteMessage(message: PartialMessage | Message, sniped: s
 }
 
 export async function catchupChannel(channel: TextChannel, callback: Function) {
+    const instance = await getAuthority(channel.guildId);
+    if(!instance || (instance.setup.primary.guild.id == channel.guildId && instance.setup.primary.chat.id != channel.id)) return; //don't need to track every message in the main server
+
     const db = firebaseAdmin.getFirestore();
     const ref = db.collection('channels').doc(channel.id).collection('messages');
 
@@ -330,6 +400,19 @@ export async function catchupChannel(channel: TextChannel, callback: Function) {
                 endFound = true;
                 return;
             }
+
+            /*if(instance.setup.primary.chat.id == message.channelId && instance.global.started) {
+                statsBuffer.push({
+                    type: 'add',
+                    id: message.author.id,
+                    day: instance.global.day,
+                    game: instance.global.game ?? "---",
+                    instance: instance.id,
+                    images: message.attachments.reduce((acc, value) => acc + (value.contentType?.startsWith("image") ? 1 : 0), 0),
+                    words: message.content.split(" ").length,
+                    messages: 1,
+                })
+            }*/
  
             messageBuffer.push({
                 type: 'create',
@@ -371,7 +454,7 @@ export async function fetchMessage(message: PartialMessage | Message | { channel
     bufferedActions.forEach(action => {
         if(action.type == 'create') {
             trackedMessage = action.message;
-        } else if(action.type == 'edit' && trackedMessage && 'content' in trackedMessage && action.message && action.message?.content != trackedMessage.content) {
+        } else if(action.type == 'edit' && trackedMessage && 'content' in trackedMessage && action.message?.content != trackedMessage.content) {
             trackedMessage = {
                 ...trackedMessage,
                 ...action.message,
@@ -401,6 +484,46 @@ export async function fetchMessage(message: PartialMessage | Message | { channel
     }
 
     return trackedMessage;
+}
+
+export async function fetchStats(instance: string, game: string, day: number) {
+    if(dumping) {
+        await new Promise((resolve) => {
+            setTimeout(() => {
+                if(!dumping) resolve(0);
+            }, 100);
+        })
+    }
+
+    const db = firebaseAdmin.getFirestore();
+
+    const ref = db.collection('instances').doc(instance).collection('games').doc(game).collection('days').doc(day.toString()).collection('stats');
+
+    const docs = (await ref.get()).docs.map(doc => ({ ...doc.data(), instance, game, day, type: "add", id: doc.ref.id })) as StatsAction[];
+
+    const compressed = reconcileStats(statsBuffer).filter(entry => entry.instance == instance && entry.game == game && entry.day == day);
+
+    docs.forEach(doc => {
+        const cached = compressed.find(entry => entry.id == doc.id);
+
+        if(cached) {
+            doc.messages += cached.messages;
+            doc.words += cached.words;
+            doc.images += cached.images;
+        }
+    });
+
+    compressed.forEach(entry => {
+        if(!docs.find(stat => stat.id == entry.id)) {
+            docs.push({
+                ...entry
+            });
+        }
+    });
+
+    console.log(docs);
+
+    return docs;
 }
 
 export async function transformMessage(message: Message, reactions: boolean = true) {

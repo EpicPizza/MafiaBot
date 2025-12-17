@@ -9,6 +9,7 @@ import { getGlobal } from '../utils/global';
 import { getGameByID } from "../utils/mafia/games";
 import { getAllUsers } from "../utils/mafia/user";
 import { getSetup } from "../utils/setup";
+import { fetchStats } from "../utils/mafia/tracking";
 
 module.exports = {
     data: [
@@ -23,11 +24,11 @@ module.exports = {
                         .setName('day')
                         .setDescription('Which day to show stats from.')
                 )
-                .addBooleanOption(option =>
+                /*.addBooleanOption(option =>
                     option
                         .setName('total')
                         .setDescription('To calculate cumulative stats.')
-                )
+                )*/
         },
         {
             type: 'text',
@@ -37,10 +38,10 @@ module.exports = {
                     .name('stats')
                     .description('View message and word count for each player.')
                     .argument("[day]", "which day to show stats form", fromZod(z.coerce.number().min(1).max(100)))
-                    .option("-t, --total", "to calculate cumalitive stats");
+                    //.option("-t, --total", "to calculate cumalitive stats");
             }
         },
-        { 
+        /*{ 
             type: 'slash',
             name: 'slash-reactions',
             command: new SlashCommandBuilder()
@@ -61,7 +62,7 @@ module.exports = {
                     .description('show reactions')
                     .argument("[day]", "which day to show reactions form", fromZod(z.coerce.number().min(1).max(100)))
             }
-        }
+        }*/
     ] satisfies Data[],
 
     execute: async (interaction: ChatInputCommandInteraction) => {
@@ -75,7 +76,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | TextCo
     const game = await getGameByID(global.game != null ? global.game : "bruh");
     if(game == null) throw new Error("Game not found.");
     
-    if(interaction.type == 'text' ? interaction.program.getOptionValue('total') : (interaction.options.getBoolean('total') === true)) {
+    /*if(interaction.type == 'text' ? interaction.program.getOptionValue('total') : (interaction.options.getBoolean('total') === true)) {
         const users = await getAllUsers();
         const db = firebaseAdmin.getFirestore();
 
@@ -144,7 +145,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | TextCo
 
         await interaction.reply({ embeds: [embed] });
         return;
-    }
+    }*/
 
     const setup = await getSetup();
 
@@ -156,15 +157,15 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | TextCo
     const users = await getAllUsers();
 
     const db = firebaseAdmin.getFirestore();
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(day.toString()).collection('players');
     const currentPlayers = (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(day.toString()).get()).data()?.players as string[] | undefined ?? [];
-    const docs = (await ref.get()).docs;
+    
+    const docs = await fetchStats(process.env.INSTANCE ?? "---", game.id, global.day);
 
-    let list = [] as { name: string, id: string, messages: number, words: number, show: boolean, alive: boolean, images: number, reactions: { reaction: string, timestamp: number, message: string }[] }[];
-    let aliveList = [] as { name: string, id: string, messages: number, words: number, show: boolean, alive: boolean, images: number, reactions: { reaction: string, timestamp: number, message: string }[] }[];
+    let list = [] as { name: string, id: string, messages: number, words: number, show: boolean, alive: boolean, images: number, /* reactions: { reaction: string, timestamp: number, message: string }[] */}[];
+    let aliveList = [] as { name: string, id: string, messages: number, words: number, show: boolean, alive: boolean, images: number, /* reactions: { reaction: string, timestamp: number, message: string }[] */ }[];
     
     for(let i = 0; i < docs.length; i++) {
-        const data = docs[i].data();
+        const data = docs[i];
 
         const user = users.find(user => user.id == docs[i].id);
 
@@ -176,7 +177,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | TextCo
                 words: data.words,
                 show: true,
                 alive: false,
-                reactions: data.reactions ?? [],
+//                reactions: data.reactions ?? [],
                 images: data.images ?? 0,
             });
         }
@@ -197,7 +198,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | TextCo
                 words: 0,
                 show: true,
                 alive: true,
-                reactions: [],
+//                reactions: [],
                 images: 0,
             });
         })
@@ -212,10 +213,10 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | TextCo
         if((interaction.type == 'text') ? interaction.name == "stats" : interaction.commandName == "stats") {
             aliveList = aliveList.sort((a, b) => b.messages - a.messages);
             return aliveList.reduce((previous, current) => previous += current.name + " » " + current.messages + " message" + (current.messages== 1 ? "" : "s") + " containing " + current.words + " word" + (current.words== 1 ? "" : "s") + "\n", "");
-        } else if((interaction.type == 'text') ? interaction.name == "reactions" : interaction.commandName == "reactions") {
+        /*} else if((interaction.type == 'text') ? interaction.name == "reactions" : interaction.commandName == "reactions") {
             list = list.sort((a, b) => b.reactions.length - a.reactions.length);
             const messageCounter = (current) => (new Set(current.reactions.map(reaction => reaction.message).filter(message => message != undefined))).size;
-            return list.reduce((previous, current) => previous += current.name + " » " + current.reactions.length + " reaction" + (current.reactions.length== 1 ? "" : "s") + " across " + messageCounter(current) + " message" + (messageCounter(current)== 1 ? "" : "s") + "\n", "");
+            return list.reduce((previous, current) => previous += current.name + " » " + current.reactions.length + " reaction" + (current.reactions.length== 1 ? "" : "s") + " across " + messageCounter(current) + " message" + (messageCounter(current)== 1 ? "" : "s") + "\n", "");*/
         } else {
             return "";
         }
