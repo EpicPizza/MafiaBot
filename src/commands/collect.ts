@@ -54,11 +54,11 @@ module.exports = {
         if(interaction.name == "collect") {
             const message = await interaction.message.reply("Fetching messages...");
 
+            setInitialized(true);
+
             const messagesFetched = await catchupChannel(setup.primary.chat, async (length: number) => {
                 await message.edit("Fetching messages... (" + length + ")");
             }, false);
-
-            setInitialized(true);
 
             await message.edit("Total Fetched Messages: " + messagesFetched);
 
