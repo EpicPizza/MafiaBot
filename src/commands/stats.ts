@@ -159,7 +159,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | TextCo
     const db = firebaseAdmin.getFirestore();
     const currentPlayers = (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(day.toString()).get()).data()?.players as string[] | undefined ?? [];
     
-    const docs = await fetchStats(process.env.INSTANCE ?? "---", game.id, global.day);
+    const docs = await fetchStats(process.env.INSTANCE ?? "---", game.id, day);
 
     let list = [] as { name: string, id: string, messages: number, words: number, show: boolean, alive: boolean, images: number, /* reactions: { reaction: string, timestamp: number, message: string }[] */}[];
     let aliveList = [] as { name: string, id: string, messages: number, words: number, show: boolean, alive: boolean, images: number, /* reactions: { reaction: string, timestamp: number, message: string }[] */ }[];
