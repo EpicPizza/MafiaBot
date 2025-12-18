@@ -6,6 +6,7 @@ import { firebaseAdmin } from "../utils/firebase";
 import { snipeMessage } from "../utils/google/doc";
 import { getSetup } from "../utils/setup";
 import { fetchMessage } from "../utils/mafia/tracking";
+import { getAuthority } from "../utils/instance";
 
 module.exports = {
     data: [
@@ -28,9 +29,9 @@ module.exports = {
     ] satisfies Data[],
 
     execute: async function(interaction: ContextMenuCommandInteraction | TextCommand) {
-        const setup = await getSetup();
+        const instance = await getAuthority((interaction.type == 'text' ? interaction.message.guildId : interaction.guildId) ?? "---");
         
-        if(interaction.type == 'text' ? interaction.message.guildId != setup.primary.guild.id : interaction.guildId != setup.primary.guild.id) throw new Error("Does not work outside of bag mafia main chat!");
+        if(!instance) throw new Error("Server not set up!");
         if(interaction.type != 'text' && !interaction.isMessageContextMenuCommand()) throw new Error("Unable to fetch message.");
 
         const message = interaction.type == 'text' ? await interaction.message.fetchReference() : interaction.targetMessage;
@@ -38,12 +39,9 @@ module.exports = {
 
         let tracked = await fetchMessage(message);
 
-        console.log(tracked);
-        console.log(tracked && 'sniped' in tracked);
-
         if(tracked && 'sniped' in tracked && tracked.sniped) tracked = await fetchMessage({ channelId: message.channelId, id: tracked.sniped as string, partial: true });
 
-        const embeds = await snipeMessage(await setup.primary.chat.messages.fetch({ message: message.id, cache: true}));
+        const embeds = await snipeMessage(message);
 
         if(tracked == undefined || !('createdTimestamp' in tracked)) return await interaction.reply({ content: "No edits recorded.", embeds: [ ... embeds ] });
 
