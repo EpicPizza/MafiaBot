@@ -33,6 +33,9 @@ export const StartCommand = {
     },
 
     execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+        return await interaction.reply("Please try again later...");
+
+        /*
         const name = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
 
         if(name == null) throw new Error("Game needs to be specified.");
@@ -79,6 +82,7 @@ export const StartCommand = {
             ])
 
         await interaction.reply({ embeds: [embed], components: [row] });
+        */
     }
 }
 
