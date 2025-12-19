@@ -42,7 +42,7 @@ export type ExportableButton = ExportableBaseButton & ({
 
 export type Transform = ReturnType<typeof transform>;
 
-export type CommandResult = Transform | { reaction: EmojiIdentifierResolvable } | { content: string };
+export type CommandResult = Transform | { reaction: EmojiIdentifierResolvable } | { content: string } | { error: string };
 
 export async function runCommand(content: string, setup: Setup | undefined = undefined) {
     if(setup == undefined) setup = await getSetup();
@@ -72,8 +72,10 @@ export async function runCommand(content: string, setup: Setup | undefined = und
         try {
             await messageCreateHandler(message, true);
         } catch(e: any) {
+            console.log(e);
+
             resolve({
-                content: e.message as string,
+                error: e.message as string, 
             })
         }
     });
@@ -113,7 +115,7 @@ export async function createMessage(setup: Setup, user: User, content: string, h
         id: DiscordSnowflake.generate().toString(),
         interaction: null,
         interactionMetadata: null,
-        member: await setup.primary.guild.members.fetch(user),
+        member: await setup.primary.guild.members.fetch({ user: user.id, cache: true}),
         mentions: undefined as unknown as MessageMentions, //TODO,
         nonce: null,
         partial: false,
@@ -184,7 +186,10 @@ export async function createMessage(setup: Setup, user: User, content: string, h
         unpin: (() => undefined) as any,
         inGuild: (() => undefined) as any,
         client: client as unknown as Client<true>,
+        spoofed: true,
     } as unknown as Message<true>;
+
+    console.log("hi!");
 
     return spoofedMessage;
 }

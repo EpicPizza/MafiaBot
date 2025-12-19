@@ -3,6 +3,7 @@ import client from "./client";
 import { checkFutureGrace, checkFutureLock } from "../utils/mafia/timing";
 import { dumpTracking, startup } from "../utils/mafia/tracking";
 import { getAuthority } from "../utils/instance";
+import { websiteListener } from "../utils/website";
 
 export async function clientReadyHandler(...[]: ClientEvents[Events.ClientReady]) {
     console.log("Bot is ready!");
@@ -11,6 +12,7 @@ export async function clientReadyHandler(...[]: ClientEvents[Events.ClientReady]
 
     try {
         await startup();
+        await websiteListener();
     } catch(e) {
         console.log(e);
     }

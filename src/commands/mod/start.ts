@@ -86,6 +86,46 @@ export const StartCommand = {
     }
 }
 
+export const WebsiteStartCommand = {
+    name: "websitestart",
+    subcommand: true,
+
+    slash: new SlashCommandSubcommandBuilder()
+        .setName("websitestart")
+        .setDescription("Starts the mafia game.")
+        .addStringOption(option =>
+            option  
+                .setName('game')
+                .setDescription('Name of the game.')
+                .setRequired(true)
+                .setAutocomplete(true)
+        ),
+    text: () => {
+        return new Command()
+            .name('websitestart')
+            .description('Starts the game. Locks the channel. Setups player dms. Kicks everyone from mafia server. Sends message in spectator chat to setup alignments (which will invite mafia to mafia server after confirming).')
+            .argument('<game>', 'name of game', fromZod(z.string().min(1).max(100)));
+    },
+
+    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+        const name = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
+
+        if(name == null) throw new Error("Game needs to be specified.");
+
+        const game = await getGameByName(name);
+        
+        if(game == null) throw new Error("")
+
+        const global = await getGlobal();
+
+        if(global.started == true) throw new Error("Game has already started."); ;
+
+        await startGame(interaction, game.id as string);
+
+        await setAlignments();
+    }
+}
+
 export const StartButton = {
     type: 'button',
     name: 'button-start',

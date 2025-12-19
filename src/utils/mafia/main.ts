@@ -479,6 +479,8 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
 
     await checkSignups(game.signups, setup);
 
+    await prepareGame(game);
+
     //at this point, things have been checked and accounted for and we can do multiple things at once now!
 
     const promises = [] as Promise<unknown>[];
@@ -537,8 +539,6 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
         await setup.primary.chat.send("Game has locked!");
     }
 
-    await prepareGame(game);
-
     if(interaction.type != 'text') {
         await interaction.editReply({ content: "Game is starting!" });
     } else {
@@ -547,7 +547,7 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
         await interaction.message.react("✅")
     }
 
-    await startLog(setup, global, game);
+    //await startLog(setup, global, game);
 }
 
 export async function startLog(setup: Setup, global: Global, game: Signups) {
