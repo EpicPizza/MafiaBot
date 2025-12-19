@@ -33,9 +33,6 @@ export const StartCommand = {
     },
 
     execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
-        return await interaction.reply("Please try again later...");
-
-        /*
         const name = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
 
         if(name == null) throw new Error("Game needs to be specified.");
@@ -48,41 +45,42 @@ export const StartCommand = {
 
         if(global.started == true) throw new Error("Game has already started."); ;
 
-        const confirmed = game.signups.map(signup => game.confirmations.includes(signup)).filter(confirmation => confirmation);
-        if(confirmed.length != game.signups.length) throw new Error("Not everyone has confirmed!");
+        const db = firebaseAdmin.getFirestore();
 
-        const users = await getUsersArray(game.signups);
+        const ref = db.collection('sessions').doc(interaction.user.id);
+
+        const token = crypto.randomUUID();
+
+        await ref.set({
+            token: token,
+            timestamp: new Date().valueOf(),
+        }, { merge: true });
+
+        const url = new URL((process.env.DEV == "TRUE" ? process.env.DEVDOMAIN ?? "-" : process.env.DOMAIN ?? "-") + "/session/discord");
+
+        url.searchParams.set("id", interaction.user.id);
+        url.searchParams.set("token", token);
+        url.searchParams.set("redirect", "/" + (process.env.INSTANCE ?? "---") + "/mod/" + game.id + "/start");
 
         const embed = new EmbedBuilder()
-            .setTitle("Confirm Game Start")
-            .setColor(Colors.Orange)
-            .setFields([
-                {
-                    name: 'Players',
-                    value: users.reduce((prev, user) => prev + user.nickname + "\n", ""),
-                    inline: true
-                },
-                {
-                    name: 'Extensions',
-                    value: global.extensions.length == 0 ? "None enabled." : global.extensions.join("\n"),
-                    inline: true
-                }
-            ])
+            .setTitle("Start " + game.name + " Mafia")
+            .setDescription("Here's a link to start the game:")
+            .setFooter({ text: "Do not share or screenshot this link with anyone, this link is only meant for you." })
+            .setColor(Colors.Yellow);
 
         const row = new ActionRowBuilder<ButtonBuilder>()
             .addComponents([
                 new ButtonBuilder()
                     .setLabel("Start")
-                    .setStyle(ButtonStyle.Success)
-                    .setCustomId(JSON.stringify({ name: "start", for: interaction.user.id, game: name })),
-                new ButtonBuilder()
-                    .setLabel("Cancel")
-                    .setStyle(ButtonStyle.Secondary)
-                    .setCustomId(JSON.stringify({ name: "cancel-start", for: interaction.user.id }))
-            ])
+                    .setStyle(ButtonStyle.Link)
+                    .setURL(url.toString()),
+            ]);
 
-        await interaction.reply({ embeds: [embed], components: [row] });
-        */
+        if(interaction.type == "text") {
+            throw new Error("Please use text command.");
+        } else {
+            await interaction.reply({ ephemeral: true, embeds: [embed], components: [row] });
+        }
     }
 }
 
@@ -120,7 +118,7 @@ export const WebsiteStartCommand = {
 
         if(global.started == true) throw new Error("Game has already started."); ;
 
-        await startGame(interaction, game.id as string);
+        await startGame(interaction, game.name as string);
 
         await setAlignments();
     }
