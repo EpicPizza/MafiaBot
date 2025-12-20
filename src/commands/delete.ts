@@ -6,6 +6,7 @@ import { firebaseAdmin } from "../utils/firebase";
 import { getGlobal } from '../utils/global';
 import { checkMod } from "../utils/mod";
 import { getSetup } from "../utils/setup";
+import { purgeMessage } from "../utils/mafia/tracking";
 
 module.exports = {
     data: [
@@ -42,19 +43,13 @@ module.exports = {
 
         if(message == undefined) return await interaction.reply("Unable to fetch message.");
 
-        const ref = db.collection('delete');
-
         if(message != -1) {
-            await ref.doc(message.id).set({
-                timestamp: Date.now().valueOf(),
-            });
+            purgeMessage(message);
 
             await message.delete();
         }
 
-        await ref.doc(target.id).set({
-            timestamp: Date.now().valueOf(),
-        });
+        purgeMessage(target);
 
         await target.delete();
 

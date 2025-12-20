@@ -166,9 +166,9 @@ export async function messageDeleteHandler(...[message]: ClientEvents[Events.Mes
         const instance = await getAuthority(message.guildId);
         if(!(instance && instance.setup.primary.guild.id == message.guildId && instance.setup.primary.chat.id == message.channelId)) return; //don't need to track every message in the main server
 
-        await deleteMessage(message);
+        const purged = await deleteMessage(message) ?? false;
 
-        if(instance.global.started == false) return;
+        if(instance.global.started == false || purged) return;
 
         const tracked = await fetchMessage(message);
 

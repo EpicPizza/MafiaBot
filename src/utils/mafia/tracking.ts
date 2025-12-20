@@ -8,7 +8,7 @@ import { getSetup } from "../setup";
 type MessageAction = {
     type: 'delete',
     timestamp: number,
-    deleted: { channel: string, id: string, sniped?: string },
+    deleted: { channel: string, id: string },
 } | {
     type: 'create'
     message: TrackedMessage,
@@ -37,6 +37,11 @@ interface StatsAction {
     messages: number,
     images: number,
     words: number,
+}
+
+interface PurgeAction {
+    channel: string,
+    id: string,
 }
 
 export interface TrackedMessage { 
@@ -71,6 +76,7 @@ interface Log {
 let messageBuffer = [] as MessageAction[];
 let reactionBuffer = [] as ReactionAction[];
 let statsBuffer = [] as StatsAction[];
+let purgeBuffer = [] as PurgeAction[];
 
 let dumping = false;
 let initialized = false;
@@ -148,8 +154,7 @@ export async function dumpTracking() {
                 }, { merge: true });
             } else if(entry.type == 'delete') {
                 t.set(db.collection('channels').doc(entry.deleted.channel).collection('messages').doc(entry.deleted.id), {
-                    deleted: true,
-                    sniped: entry.deleted.sniped,
+                    deleted: true
                 }, { merge: true });
             }
         });
@@ -355,7 +360,11 @@ export async function updateSnipeMessage(snipe: { channelId: string, id: string 
     });
 }
 
-export async function deleteMessage(message: PartialMessage | Message, sniped: string | undefined = undefined) {
+export function purgeMessage(message: PartialMessage | Message) {
+    if(!purgeBuffer.find(action => action.id == message.id && action.channel == message.channelId)) purgeBuffer.push({ id: message.id, channel: message.channelId });
+}
+
+export async function deleteMessage(message: PartialMessage | Message) {
     if(!message.guildId) return;
 
     const instance = await getAuthority(message.guildId);
@@ -366,7 +375,6 @@ export async function deleteMessage(message: PartialMessage | Message, sniped: s
     messageBuffer.forEach(message => {
         if((message.type == 'create' || message.type == 'edit') && message.message) {
             message.message.deleted = true;
-            message.message.sniped = sniped;
             adjustedInBuffer = true;
         }
     });
@@ -375,9 +383,11 @@ export async function deleteMessage(message: PartialMessage | Message, sniped: s
         messageBuffer.push({
             type: 'delete',
             timestamp: new Date().valueOf(),
-            deleted: { channel: message.channelId, id: message.id, sniped }
+            deleted: { channel: message.channelId, id: message.id }
         });
     }
+
+    if(purgeBuffer.find(action => action.id == message.id && action.channel == message.channelId)) return true;
 }
 
 export async function catchupChannel(channel: TextChannel, callback: Function, statsTracking: boolean) {
