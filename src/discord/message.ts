@@ -285,7 +285,7 @@ export async function messageReactionAddHandler(...[reaction, user]: ClientEvent
                 const dm = await client.users.cache.get(user.id)?.createDM();
 
                 if (dm != undefined) {
-                    await dm.send({ content: e.message as string })
+                    await dm.send({ content: "Reaction Command Error: " + e.message as string })
                 }
             } catch (e) {
                 console.log(e);
