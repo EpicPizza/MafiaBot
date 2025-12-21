@@ -9,6 +9,7 @@ import { getGlobal } from '../utils/global';
 import { getGameByID, getGameSetup } from "../utils/mafia/games";
 import { getUser } from "../utils/mafia/user";
 import { getSetup } from "../utils/setup";
+import { purgeMessage } from "../utils/mafia/tracking";
 
 module.exports = {
     data: [
@@ -130,13 +131,7 @@ module.exports = {
         await webhook.delete();
 
         if(interaction.type == 'text') {
-            const db = firebaseAdmin.getFirestore();
-
-            const ref = db.collection('delete');
-
-            await ref.doc(interaction.message.id).set({
-                timestamp: Date.now().valueOf(),
-            });
+            purgeMessage(interaction.message);
 
             await interaction.message.delete();
         } else if(interaction.type != 'reaction') {
