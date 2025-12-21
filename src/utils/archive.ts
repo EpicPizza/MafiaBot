@@ -11,7 +11,7 @@ export async function archiveMessage(channel: TextChannel, message: Message | Tr
 
     const messageEmbeds = message.embeds;
 
-    if(message.content == "" && !('size' in message.attachments ? message.attachments.size > 0 : message.attachments.length > 0)) {
+    if(message.content == "" && !('size' in message.attachments ? message.attachments.size > 0 : message.attachments.length > 0) && message.embeds.length == 0) {
         throw new Error("empty");
     }
 
