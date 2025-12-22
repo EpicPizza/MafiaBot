@@ -1,4 +1,4 @@
-import { ClientEvents, Colors, EmbedBuilder, Events, Guild, Message, MessageReplyOptions, TextChannel, WebhookClient } from "discord.js";
+import { ChannelType, ClientEvents, Colors, EmbedBuilder, Events, Guild, Message, MessageReplyOptions, TextChannel, WebhookClient } from "discord.js";
 import stringArgv from "string-argv";
 import client from "./client";
 import { getAllExtensions, getExtensions } from "../utils/extensions";
@@ -13,6 +13,7 @@ import { getGlobal } from "../utils/global";
 import { Command } from "commander";
 import { getHelpEmbed } from "./help";
 import { getAuthority } from "../utils/instance";
+import { getWebhook } from "../utils/webhook";
 
 export async function messageCreateHandler(...[message, throws]: [...ClientEvents[Events.MessageCreate], throws?: boolean]) {
     try {
@@ -167,56 +168,18 @@ export async function messageDeleteHandler(...[message]: ClientEvents[Events.Mes
         if(!(instance && instance.setup.primary.guild.id == message.guildId && instance.setup.primary.chat.id == message.channelId)) return; //don't need to track every message in the main server
 
         const purged = await deleteMessage(message) ?? false;
-
         if(instance.global.started == false || purged) return;
 
         const tracked = await fetchMessage(message);
-
         if(!tracked || !('createdTimestamp' in tracked)) return;
 
-        const db = firebaseAdmin.getFirestore();
+        if(!('fetchWebhooks' in message.channel)) return;
 
-        const webhooks = (await db.collection('webhooks').where('channel', '==', instance.setup.primary.chat.id).get()).docs.map(doc => ({ ...doc.data(), ref: doc.ref })) as { channel: string, token: string, id: string, ref: DocumentReference }[];
+        const webhook = await getWebhook(message.channel);
 
-        let webhookClient: WebhookClient | undefined = undefined;
+        const result = await archiveMessage(instance.setup.primary.chat, message.partial == true ? tracked : message, webhook.client);
 
-        if (webhooks.length > 0) {
-            const currentWebhooks = await instance.setup.primary.chat.fetchWebhooks();
-
-            if (currentWebhooks.find(webhook => webhook.id == webhooks[0].id)) {
-                webhookClient = new WebhookClient({
-                    token: webhooks[0].token,
-                    id: webhooks[0].id
-                })
-            }
-        }
-
-        if (webhookClient == undefined) {
-            const webhook = await instance.setup.primary.chat.createWebhook({
-                name: 'Mafia Bot Snipe',
-            });
-
-            if (webhook.token == null) return;
-
-            webhookClient = new WebhookClient({
-                id: webhook.id,
-                token: webhook.token,
-            });
-        }
-
-        const result = await archiveMessage(instance.setup.primary.chat, message.partial == true ? tracked : message, webhookClient);
-
-        if (!webhooks.find(webhook => webhook.id == webhookClient.id)) {
-            await Promise.allSettled(webhooks.map(webhook => webhook.ref.delete()));
-
-            await db.collection('webhooks').add({
-                id: webhookClient.id,
-                token: webhookClient.token,
-                channel: instance.setup.primary.chat.id,
-            });
-        }
-
-        webhookClient.destroy();
+        webhook.destroy();
 
         await updateSnipeMessage({ channelId: result.channel_id, id: result.id }, message.id);
     } catch (e) {

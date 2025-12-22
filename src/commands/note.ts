@@ -10,6 +10,7 @@ import { getGameByID, getGameSetup } from "../utils/mafia/games";
 import { getUser } from "../utils/mafia/user";
 import { getSetup } from "../utils/setup";
 import { purgeMessage } from "../utils/mafia/tracking";
+import { getWebhook } from "../utils/webhook";
 
 module.exports = {
     data: [
@@ -113,22 +114,11 @@ module.exports = {
 
         if(interaction.type == 'text') await interaction.message.react("✅");
 
-        const webhook = await (sendTo == 'mafia' ? mafiaChannel : channel).createWebhook({
-            name: 'Mafia Bot Note',
-        });
+        const webhook = await getWebhook(sendTo == 'mafia' ? mafiaChannel : channel);
 
-        if(webhook.token == null) return;
+        await archiveMessage((sendTo == 'mafia' ? mafiaChannel : channel), await setup.primary.chat.messages.fetch(id), webhook.client, true, user.nickname);
 
-        const client = new WebhookClient({
-            id: webhook.id,
-            token: webhook.token,
-        });
-
-        await archiveMessage((sendTo == 'mafia' ? mafiaChannel : channel), await setup.primary.chat.messages.fetch(id), client, true, user.nickname);
-
-        client.destroy();
-
-        await webhook.delete();
+        webhook.destroy();
 
         if(interaction.type == 'text') {
             purgeMessage(interaction.message);
