@@ -24,11 +24,11 @@ module.exports = {
                         .setName('day')
                         .setDescription('Which day to show stats from.')
                 )
-                /*.addBooleanOption(option =>
+                .addBooleanOption(option =>
                     option
                         .setName('total')
                         .setDescription('To calculate cumulative stats.')
-                )*/
+                )
         },
         {
             type: 'text',
@@ -38,7 +38,7 @@ module.exports = {
                     .name('stats')
                     .description('View message and word count for each player.')
                     .argument("[day]", "which day to show stats form", fromZod(z.coerce.number().min(1).max(100)))
-                    //.option("-t, --total", "to calculate cumalitive stats");
+                    .option("-t, --total", "to calculate cumalitive stats");
             }
         },
         /*{ 
@@ -76,25 +76,22 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | TextCo
     const game = await getGameByID(global.game != null ? global.game : "bruh");
     if(game == null) throw new Error("Game not found.");
     
-    /*if(interaction.type == 'text' ? interaction.program.getOptionValue('total') : (interaction.options.getBoolean('total') === true)) {
+    if(interaction.type == 'text' ? interaction.program.getOptionValue('total') : (interaction.options.getBoolean('total') === true)) {
         const users = await getAllUsers();
         const db = firebaseAdmin.getFirestore();
 
         const cumulativeStats: Map<string, { messages: number, words: number }> = new Map();
 
         for (let d = 1; d <= global.day; d++) {
-            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(d.toString()).collection('players');
-            const docs = (await ref.get()).docs;
+            const docs = await fetchStats(process.env.INSTANCE ?? "---", game.id, d);
 
-            for (const doc of docs) {
-                const data = doc.data();
-                if (data) {
-                    const current = cumulativeStats.get(doc.id) ?? { messages: 0, words: 0 };
-                    cumulativeStats.set(doc.id, {
-                        messages: current.messages + (data.messages ?? 0),
-                        words: current.words + (data.words ?? 0)
-                    });
-                }
+            for (const stats of docs) {
+                const current = cumulativeStats.get(stats.id) ?? { messages: 0, words: 0 };
+
+                cumulativeStats.set(stats.id, {
+                    messages: current.messages + (stats.messages ?? 0),
+                    words: current.words + (stats.words ?? 0)
+                });
             }
         }
 
@@ -144,8 +141,9 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | TextCo
             .setDescription(message === '' ? "No Stats" : message);
 
         await interaction.reply({ embeds: [embed] });
+        
         return;
-    }*/
+    }
 
     const setup = await getSetup();
 
