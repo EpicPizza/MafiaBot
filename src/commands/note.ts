@@ -62,7 +62,13 @@ module.exports = {
         if(interaction.type != "text" && interaction.type != 'reaction') await interaction.deferReply({ ephemeral: true });
 
         const user = await getUser(interaction.user.id);
-        if(user == undefined || !global.players.find(player => player.id == user.id)) throw new Error("You're not in this game!");
+        if(user == undefined || !global.players.find(player => player.id == user.id)) {
+            if(interaction.type == 'reaction') {
+                return;
+            } else {
+                throw new Error("You're not in this game!");
+            }
+        }
 
         const db = firebaseAdmin.getFirestore();
 
@@ -101,9 +107,9 @@ module.exports = {
         const id = interaction.type == 'reaction' ? interaction.message.id : (interaction.type == 'text' ? interaction.message.reference?.messageId : interaction.targetMessage.id);
         if(id == undefined) throw new Error("Must refer to a message to note.");
 
-        if(interaction.type == 'text' || interaction.type == 'reaction' ? interaction.message.channelId != setup.primary.chat.id : interaction.channelId != setup.primary.chat.id) return;
-
         if(interaction.type == 'reaction') await interaction.reaction.remove();
+
+        if(interaction.type == 'text' || interaction.type == 'reaction' ? interaction.message.channelId != setup.primary.chat.id : interaction.channelId != setup.primary.chat.id) return;
 
         const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('notes').doc(user.id); 
         const sendTo = ((await ref.get()).data()?.sendTo ?? 'DM') as 'DM' | 'mafia';
