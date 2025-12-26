@@ -59,7 +59,6 @@ module.exports = {
         const setup = await getSetup();
         
         if(interaction.type == 'reaction' && interaction.message.guild?.id != setup.primary.guild.id) return;
-        if(interaction.type == 'reaction') await interaction.reaction.remove();
         if(interaction.type != "text" && interaction.type != 'reaction') await interaction.deferReply({ ephemeral: true });
 
         const user = await getUser(interaction.user.id);
@@ -102,7 +101,9 @@ module.exports = {
         const id = interaction.type == 'reaction' ? interaction.message.id : (interaction.type == 'text' ? interaction.message.reference?.messageId : interaction.targetMessage.id);
         if(id == undefined) throw new Error("Must refer to a message to note.");
 
-        if(interaction.type == 'text' || interaction.type == 'reaction' ? interaction.message.channelId != setup.primary.chat.id : interaction.channelId != setup.primary.chat.id) throw new Error("Not main chat!");
+        if(interaction.type == 'text' || interaction.type == 'reaction' ? interaction.message.channelId != setup.primary.chat.id : interaction.channelId != setup.primary.chat.id) return;
+
+        if(interaction.type == 'reaction') await interaction.reaction.remove();
 
         const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('notes').doc(user.id); 
         const sendTo = ((await ref.get()).data()?.sendTo ?? 'DM') as 'DM' | 'mafia';
