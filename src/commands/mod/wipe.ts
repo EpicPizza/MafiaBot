@@ -8,6 +8,7 @@ import { getGlobal } from '../../utils/global';
 import { wipe } from "../../utils/mafia/vote";
 import { getSetup } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
+import { getGameByID } from "../../utils/mafia/games";
 
 export const WipeCommand = {
     name: "wipe",
@@ -45,6 +46,9 @@ export const WipeCommand = {
         const global = await getGlobal();
         const setup  = await getSetup();
 
+        const game = await getGameByID(global.game ?? "---");
+        if(game == undefined) throw new Error("Game not found!");
+
         if(setup.primary.chat.id != (interaction.type == 'text' ? interaction.message.channelId : interaction.channelId )) throw new Error("Must be in main chat!");
         if(global.started == false) throw new Error("Game has not started.");
 
@@ -53,7 +57,7 @@ export const WipeCommand = {
 
         const message = interaction.type == 'text' ? (interaction.program.args.length > 1 ? interaction.program.processedArgs[2] as string ?? "" : "") : interaction.options.getString('message') ?? "";
 
-        const setMessage = await wipe(global, message);
+        const setMessage = await wipe(global, message, game);
 
         if(interaction.type != 'text') {
             const message = await interaction.editReply({ content: "Day wiped."});

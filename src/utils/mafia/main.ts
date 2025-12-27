@@ -137,12 +137,12 @@ export async function unlockGame(increment: boolean = false, ping: boolean = tru
         day: increment ? global.day + 1 : global.day,
     });
 
-    await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc((increment ? global.day + 1 : global.day).toString()).set({
+    await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc((increment ? global.day + 1 : global.day).toString()).set({
         game: global.game,
     }, { merge: true });
 
     if(increment == true) {
-        await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc((global.day + 1).toString()).set({
+        await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc((global.day + 1).toString()).set({
             game: global.game,
             players: global.players.map((player) => player.id),
         });
@@ -278,7 +278,7 @@ export async function prepareGame(game: Signups) {
 export async function finishSignups(game: Signups) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games').doc(game.id);
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id);
 
     await ref.update({
         closed: true,
@@ -488,10 +488,10 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
     promises.push((async () => {
         const db = firebaseAdmin.getFirestore();
 
-        const days = await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').listDocuments();
+        const days = await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').listDocuments();
 
         for(let i = 0; i < days.length; i++) {
-            const dayDoc = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc((days[i].id).toString());
+            const dayDoc = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc((days[i].id).toString());
 
             await deleteCollection(db, dayDoc.collection('votes'), 20);
             await deleteCollection(db, dayDoc.collection('players'), 20);

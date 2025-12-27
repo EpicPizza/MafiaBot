@@ -109,7 +109,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | TextCo
             };
         });
 
-        const currentPlayersData = (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(global.day.toString()).get()).data();
+        const currentPlayersData = (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc(global.day.toString()).get()).data();
         const currentPlayers = currentPlayersData?.players as string[] | undefined ?? game.signups;
 
         currentPlayers.forEach(playerId => {
@@ -155,7 +155,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | TextCo
     const users = await getAllUsers();
 
     const db = firebaseAdmin.getFirestore();
-    const currentPlayers = (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(day.toString()).get()).data()?.players as string[] | undefined ?? [];
+    const currentPlayers = (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc(day.toString()).get()).data()?.players as string[] | undefined ?? [];
     
     const docs = await fetchStats(process.env.INSTANCE ?? "---", game.id, day);
 

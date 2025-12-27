@@ -238,7 +238,7 @@ module.exports = {
             if(check == undefined) throw new Error("Game not found.");
             const gameSetup = await getGameSetup(check, setup);
 
-            await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games').doc(check.id).update({
+            await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(check.id).update({
                 signups: FieldValue.arrayUnion(user.id),
             })
 

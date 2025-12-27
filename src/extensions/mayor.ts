@@ -189,7 +189,7 @@ module.exports = {
             const gameSetup = await getGameSetup(game, setup);
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != gameSetup.spec.guildId || command.message.channel.id != gameSetup.spec.id) throw new Error("This command must be run in dead chat.");
 
-            const votes = await getVotes(global.day);
+            const votes = await getVotes(global.day, game);
             const users = await getUsersArray(game.signups);
             const mayors = await getMayors();
 
@@ -223,7 +223,7 @@ module.exports = {
          */
     },
     onVote: async (global, setup, game, voter, voting, type, users, transaction) => {
-        const { reply, vote, votes } = await flow.placeVote(transaction, voter, voting, type, users, global.day); // doesn't save vote yet since board needs to be created
+        const { reply, vote, votes } = await flow.placeVote(transaction, voter, voting, type, users, global.day, game); // doesn't save vote yet since board needs to be created
         
         if(vote == undefined) return { reply };
 
@@ -231,7 +231,7 @@ module.exports = {
 
         const board = getBoard(votes, users, mayors, global.day);
 
-        const setMessage = flow.finish(transaction, vote, board, global.day); // locks in vote
+        const setMessage = flow.finish(transaction, vote, board, global.day, game); // locks in vote
 
         return {
             reply,
@@ -375,13 +375,13 @@ async function updateVotes(day: number, game: Signups, message: string, id: stri
     const users = await getUsersArray(game.signups);
 
     await db.runTransaction(async t => {
-        const votes = await getVotes(day, t);
+        const votes = await getVotes(day, game, t);
 
         const mayors = await getMayors(users, t);
 
         const board = getBoard(votes, users, mayors, day);
 
-        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(day.toString()).collection('votes').doc();
+        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc(day.toString()).collection('votes').doc();
 
         t.create(ref, {
             board,
@@ -405,7 +405,7 @@ async function reveal(id: string, global: Global, game: Signups) {
     const users = await getUsersArray(game.signups);
 
     const result = await db.runTransaction(async t => {
-        const votes = await getVotes(global.day, t); // no need to actually put a vote, just retrieve votes
+        const votes = await getVotes(global.day, game, t); // no need to actually put a vote, just retrieve votes
 
         const data = (await t.get(ref)).data();
         if(!data || !(data.type == 'secret' || data.type == 'classic') || data.reveal == true) return; //check they are a mayor
@@ -421,7 +421,7 @@ async function reveal(id: string, global: Global, game: Signups) {
 
         const board = getBoard(votes, users, mayors, global.day);
         
-        const logRef = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(global.day.toString()).collection('votes').doc();
+        const logRef = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc(global.day.toString()).collection('votes').doc();
 
         const existing = votes.find(v => v.id == id);
         

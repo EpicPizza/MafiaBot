@@ -123,13 +123,13 @@ module.exports = {
          * This runs within a database transaction, reading with the transaction blocks other writes, only read with transaction as necessary. Use users or fallback to normal reads.
          */
 
-        const { reply, vote, votes } = await flow.placeVote(transaction, voter, voting, type, users, global.day); // doesn't save vote yet since board needs to be created
+        const { reply, vote, votes } = await flow.placeVote(transaction, voter, voting, type, users, global.day, game); // doesn't save vote yet since board needs to be created
         
         if(vote == undefined) return { reply };
 
         const board = flow.board(votes, users);
 
-        const setMessage = flow.finish(transaction, vote, board, global.day); // locks in vote
+        const setMessage = flow.finish(transaction, vote, board, global.day, game); // locks in vote
 
         return {
             reply,

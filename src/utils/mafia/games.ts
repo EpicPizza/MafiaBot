@@ -22,6 +22,30 @@ export interface Signups {
         mafia: string,
     }
     confirmations: string[],
+    mods: [],
+    days: number,
+    alignments: string[],
+    winners: string[],
+    losers: string[],
+    links: Link[],
+    state: 'active' | 'completed' | 'counting' | 'canned',
+    pinned: string | null,
+}
+
+type Link = DiscordLink | MaterialLink;
+
+interface DiscordLink {
+    type: 'Discord'
+    channelName: string,
+    label: string,
+    url: string,
+}
+
+interface MaterialLink {
+    type: 'Material',
+    logo: 'Drive' | 'Slides' | 'Docs' | 'Sheets' | 'Custom',
+    label: string,
+    url: string,
 }
 
 export async function addSignup(options: { id: string, game: string }) {
@@ -33,7 +57,7 @@ export async function addSignup(options: { id: string, game: string }) {
 
     if(game == null) return false;
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games').doc(game.id);
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id);
 
     const confirmed = await db.runTransaction(async t => {
         const doc = await t.get(ref);
@@ -104,7 +128,7 @@ export async function removeSignup(options: { id: string, game: string }) {
 
     if(id == null) return false;
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games').doc(id);
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(id);
 
     await db.runTransaction(async t => {
         const doc = await t.get(ref);
@@ -130,7 +154,7 @@ export async function openSignups(name: string) {
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games').doc(game.id);
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id);
 
     await ref.update({
         closed: false,
@@ -146,7 +170,7 @@ export async function closeSignups(name: string) {
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games').doc(game.id);
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id);
 
     await ref.update({
         closed: true,
@@ -160,7 +184,7 @@ export async function activateSignup(options: { id: string, name: string }) {
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games').doc(game.id);
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id);
 
     const signup = game.message;
 
@@ -257,9 +281,9 @@ export async function archiveGame(interaction: ChatInputCommandInteraction | Tex
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games').doc(game.id);
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id);
 
-    await ref.delete();
+    await ref.update({ state: 'completed '});
 
     await register();
 
@@ -273,7 +297,7 @@ export async function createGame(interaction: ChatInputCommandInteraction | Text
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games');
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games');
 
     const exists = await getGameByName(name).catch(() => { return undefined; });
 
@@ -310,8 +334,16 @@ export async function createGame(interaction: ChatInputCommandInteraction | Text
         channels: {
             spec: spec.id,
             mafia: mafia.id,
-        }
-    });
+        },
+        days: 0,
+        alignments: [],
+        winners: [],
+        losers: [],
+        links: [],
+        state: 'active',
+        pinned: null,
+        mods: [],
+    } satisfies Omit<Signups, "id">);
 
     await register();
 
@@ -342,7 +374,7 @@ function getRandom(min: number, max: number) {
 export async function getGames() {    
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games');
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games');
 
     const docs = (await ref.get()).docs;
 
@@ -365,7 +397,7 @@ export async function getGames() {
 export async function getGameByName(name: string) {
     const db = firebaseAdmin.getFirestore();
 
-    const docs = (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games').get()).docs;
+    const docs = (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').get()).docs;
     const games = docs.map(doc => doc.data());
     
     for(let i = 0; i < games.length; i++) {
@@ -380,7 +412,7 @@ export async function getGameByName(name: string) {
 export async function getGameByID(id: string) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games').doc(id);
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(id);
 
     console.log(id)
 

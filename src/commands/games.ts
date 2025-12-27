@@ -32,7 +32,7 @@ module.exports = {
         
         const db = firebaseAdmin.getFirestore();
 
-        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games');
+        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games');
 
         const docs = (await ref.get()).docs;
 

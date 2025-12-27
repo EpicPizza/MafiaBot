@@ -51,10 +51,10 @@ export interface TransactionResult {
     setMessage?: ReturnType<(typeof flow)["finish"]>,
 }
 
-export async function getVotes(day: number, transaction: Transaction | undefined = undefined) {
+export async function getVotes(day: number, game: Signups, transaction: Transaction | undefined = undefined) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(day.toString()).collection('votes');
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc(day.toString()).collection('votes');
     const docs = transaction ? (await transaction.get(ref)).docs : (await ref.get()).docs;
     const logs = (docs.map(doc => doc.data()) as (Log | ResetLog | CustomLog)[]).filter(l => l.type != 'custom'); 
 
@@ -84,8 +84,8 @@ export async function getVotes(day: number, transaction: Transaction | undefined
 }
 
 export const flow = {
-    placeVote: async (t: Transaction, voter: User, voting: User | undefined, type: 'unvote' | 'vote', users: User[], day: number) => {
-        const votes = await getVotes(day, t);
+    placeVote: async (t: Transaction, voter: User, voting: User | undefined, type: 'unvote' | 'vote', users: User[], day: number, game: Signups) => {
+        const votes = await getVotes(day, game, t);
 
         if(type != 'unvote' && voting == undefined) throw new Error("Voter must be specified!");
  
@@ -171,10 +171,10 @@ export const flow = {
 
         return board;
     },
-    finish: (t: Transaction, vote: Vote, board: string, day: number) => {
+    finish: (t: Transaction, vote: Vote, board: string, day: number, game: Signups) => {
         const db = firebaseAdmin.getFirestore();
 
-        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(day.toString()).collection('votes').doc();
+        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc(day.toString()).collection('votes').doc();
 
         t.create(ref, {
             board,
@@ -212,13 +212,13 @@ export const flow = {
 }
 
 export async function defaultVote(global: Global, setup: Setup, game: Signups, voter: User, voting: User | undefined, type: 'vote' | 'unvote', users: User[], transaction: Transaction): Promise<TransactionResult> {
-    const { reply, vote, votes } = await flow.placeVote(transaction, voter, voting, type, users, global.day); // doesn't save vote yet since board needs to be created
+    const { reply, vote, votes } = await flow.placeVote(transaction, voter, voting, type, users, global.day, game); // doesn't save vote yet since board needs to be created
     
     if(vote == undefined) return { reply };
 
     const board = flow.board(votes, users);
 
-    const setMessage = flow.finish(transaction, vote, board, global.day); // locks in vote
+    const setMessage = flow.finish(transaction, vote, board, global.day, game); // locks in vote
 
     return {
         reply,
@@ -265,15 +265,15 @@ function getNickname(id: string, users: User[]) {
     return users.find(user => user.id == id)?.nickname ?? "<@" + id + ">";
 }
 
-export async function wipe(global: Global, message: string) {
+export async function wipe(global: Global, message: string, game: Signups) {
     const db = firebaseAdmin.getFirestore();
 
     return await db.runTransaction(async (t) => {
-        await getVotes(global.day, t); //just need to lock documents
+        await getVotes(global.day, game, t); //just need to lock documents
 
         const board = "";
 
-        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(global.day.toString()).collection('votes').doc();
+        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc(global.day.toString()).collection('votes').doc();
 
         t.create(ref, {
             messageId: null,

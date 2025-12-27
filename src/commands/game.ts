@@ -120,7 +120,7 @@ module.exports = {
 
             const db = firebaseAdmin.getFirestore();
 
-            await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games').doc(game.id).update({
+            await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).update({
                 confirmations: FieldValue.arrayUnion(user.id)
             });
 

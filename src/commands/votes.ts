@@ -77,7 +77,7 @@ async function handleVoteList(interaction: ChatInputCommandInteraction | TextCom
     const half = Math.floor(players / 2);
 
     const db = firebaseAdmin.getFirestore();
-    const docs = (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(day.toString()).collection('votes').orderBy('timestamp', 'desc').limit(1).get()).docs;
+    const docs = (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc(day.toString()).collection('votes').orderBy('timestamp', 'desc').limit(1).get()).docs;
 
     let board = "";
     if(docs.length == 1) board = (docs[0].data() as Log).board;

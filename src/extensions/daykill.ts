@@ -171,6 +171,9 @@ module.exports = {
             console.log(daykill.day + daykill.expire, global.day);
             if(global.day >= daykill.day + daykill.expire) throw new Error("Your day kill has expired! You cannot use it.");
 
+            const game = await getGameByID(global.game ?? "---");
+            if(game == undefined) throw new Error("Game not found!");
+
             const future = await getFuture();
             const settings = await getSettings();
             const eod =  future && (future.when.valueOf() - new Date().valueOf()) < (settings.minutes * 60 * 1000);
@@ -241,7 +244,7 @@ module.exports = {
                     await removePlayer(killing.nickname, global, setup);
                 }
 
-                const setMessage = await wipe(global, killing.nickname + " was " + killingPlayer.alignment + "!");
+                const setMessage = await wipe(global, killing.nickname + " was " + killingPlayer.alignment + "!", game);
 
                 await setMessage(final.id);
 
@@ -347,6 +350,9 @@ module.exports = {
         const setup = await getSetup();
         const global = await getGlobal();
 
+        const game = await getGameByID(global.game ?? "---");
+        if(game == undefined) throw new Error("Game not found!");
+
         const interaction = extensionInteraction.interaction;
         const customId = extensionInteraction.customId;
 
@@ -379,7 +385,7 @@ module.exports = {
                 await removePlayer(killing.nickname, global, setup);
             }
 
-            const setMessage = await wipe(global, killing.nickname + " was " + killingPlayer.alignment + "!");
+            const setMessage = await wipe(global, killing.nickname + " was " + killingPlayer.alignment + "!", game);
 
             await setMessage(message.id);
 

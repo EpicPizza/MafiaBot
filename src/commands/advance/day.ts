@@ -43,16 +43,20 @@ export const ClearCommand = {
         
         if(global.started == false) throw new Error("Game has not started.");
 
+        const game = await getGameByID(global.game ?? "---");
+        if(game == undefined) throw new Error("Game not found?");
+
+
         const day = interaction.type == 'text' ? interaction.program.processedArgs[0] as number : interaction.options.getNumber("day");
 
         if(day == null) throw new Error("Day not specified.");
 
         const db = firebaseAdmin.getFirestore();
 
-        const dayDoc = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc((day).toString());
+        const dayDoc = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc((day).toString());
 
         await deleteCollection(db, dayDoc.collection('votes'), 20);
-        await deleteCollection(db, dayDoc.collection('players'), 20);
+        await deleteCollection(db, dayDoc.collection('stats'), 20);
         await dayDoc.delete();
         
         if(interaction.type != 'text') {
@@ -118,7 +122,7 @@ export const DayCommand = {
         });
 
         if(players) {
-            await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc((day).toString()).set({
+            await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc((day).toString()).set({
                 game: global.game,
                 players: global.players.map((player) => player.id),
             });

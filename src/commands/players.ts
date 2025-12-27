@@ -129,11 +129,15 @@ async function handlePlayerList(interaction: ChatInputCommandInteraction | TextC
 
         users = await getUsersArray(game.signups);  
     } else if(day != null) {
-         const db = firebaseAdmin.getFirestore();
+        const db = firebaseAdmin.getFirestore();
 
         if(global.started == false) throw new Error("Game has not started.");
 
-        const currentPlayers = (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('day').doc(day.toString()).get()).data()?.players as string[] | undefined ?? [];
+        const game = await getGameByName(global.game ?? "---");
+
+        if(game == null) throw new Error("Game not found. (current)");
+
+        const currentPlayers = (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc(day.toString()).get()).data()?.players as string[] | undefined ?? [];
 
         if(currentPlayers.length == 0) throw new Error("No data available.");
 
@@ -237,7 +241,7 @@ async function getGames() {
 
     const setup = await getSetup();
         
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').collection('games');        
+    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games');        
     const docs = (await ref.get()).docs;
     
     const games = [] as { name: string, id: string, url: string | null }[];
