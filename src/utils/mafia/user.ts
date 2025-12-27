@@ -119,6 +119,9 @@ export async function editUser(id: string, options: { nickname?: string, pronoun
     const db = firebaseAdmin.getFirestore();
 
     const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('users').doc(id);
+
+    const locked = ((await ref.get()).data() as User).state == 6;
+    if(locked) throw new Error("Player locked.");
     
     await ref.update({
         ...(options.nickname ? { nickname: options.nickname, lName: options.nickname.toLowerCase() } : {}),
