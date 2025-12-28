@@ -30,6 +30,8 @@ export interface Signups {
     links: Link[],
     state: 'active' | 'completed' | 'counting' | 'canned',
     pinned: string | null,
+    start: number | null,
+    end: number | null,
 }
 
 type Link = DiscordLink | MaterialLink;
@@ -343,6 +345,8 @@ export async function createGame(interaction: ChatInputCommandInteraction | Text
         state: 'active',
         pinned: null,
         mods: [],
+        start: null,
+        end: null,
     } satisfies Omit<Signups, "id">);
 
     await register();

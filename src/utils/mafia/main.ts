@@ -621,7 +621,7 @@ export async function startLog(setup: Setup, global: Global, game: Signups) {
     await setup.secondary.logs.send({ embeds: [ tertiaryEmbed ] });
 }
 
-export async function clearGame() {
+export async function clearGame(global: Global) {
     const db = firebaseAdmin.getFirestore();
 
     const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
@@ -633,6 +633,13 @@ export async function clearGame() {
         day: 0,
         game: null,
     });
+
+    const gameRef = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(global.game ?? "---");
+
+    await gameRef.update({
+        state: "completed",
+        days: global.day,
+    } satisfies Partial<Signups>)
 }
 
 export async function archiveChannels(setup: Setup) {
@@ -756,7 +763,7 @@ export async function endGame(interaction: ChatInputCommandInteraction | TextCom
 
     //await checkSignups(game.signups, setup);
 
-    await clearGame();
+    await clearGame(global);
 
     const promises = [] as Promise<any>[];
 
