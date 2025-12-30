@@ -125,8 +125,11 @@ export async function dumpTracking() {
 
                 const reactions = reconcileReactions(reactionEntries, message.reactions);
 
+                const stars = reactions.find(reaction => reaction.emoji == "⭐")?.id.length ?? 0;
+
                 t.set(db.collection('channels').doc(message.channelId).collection('messages').doc(message.id), {
                     reactions: reactions,
+                    stars: stars,
                 }, { merge: true });
             } else if(promise.status == 'fulfilled') {
                 const { channel, id } = promise.value;
@@ -135,8 +138,11 @@ export async function dumpTracking() {
 
                 const reactions = reconcileReactions(reactionEntries, []);
 
+                const stars = reactions.find(reaction => reaction.emoji == "⭐")?.id.length ?? 0;
+
                 t.set(db.collection('channels').doc(channel).collection('messages').doc(id), {
                     reactions: reactions,
+                    stars: stars,
                 }, { merge: true });
             }
         });
