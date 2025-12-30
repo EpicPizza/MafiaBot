@@ -303,10 +303,24 @@ export async function createMessage(message: Message) {
             messages: 1,
         })
     }
+    
+    const transformed = await transformMessage(message, false);
+
+    if(transformed.pinning && transformed.reference) {
+        messageBuffer.push({
+            type: 'edit',
+            message: {
+                pinned: true,
+                channelId: transformed.channelId,
+                id: transformed.reference,
+            },
+            timestamp: new Date().valueOf(),
+        });
+    }
 
     messageBuffer.push({
         type: 'create',
-        message: await transformMessage(message, false),
+        message: transformed,
         timestamp: message.createdTimestamp,
     });
 }
@@ -332,9 +346,11 @@ export async function updateMessage(oldMessage: PartialMessage | Message | Track
         }
     }
 
+    const transformed = 'authorId' in newMessage ? newMessage : await transformMessage(newMessage, false);
+
     const entry = {
         type: 'edit' as 'edit',
-        message: 'authorId' in newMessage ? newMessage : await transformMessage(newMessage, false),
+        message: { ... transformed, pinned: transformed.pinned ? true : undefined },
         timestamp: newMessage.editedTimestamp ?? new Date().valueOf(),
         log: !('partial' in oldMessage && oldMessage.partial) && oldMessage.content != newMessage.content ? {
             content: oldMessage.content,
@@ -345,7 +361,7 @@ export async function updateMessage(oldMessage: PartialMessage | Message | Track
 
     messageBuffer.push(entry);
 
-    return entry;
+    return { ...entry, message: {...entry.message, pinned: entry.message.pinned == undefined ? false : true } };
 }
 
 export async function updateSnipeMessage(snipe: { channelId: string, id: string }, original: string) {
@@ -432,9 +448,23 @@ export async function catchupChannel(channel: TextChannel, callback: Function, s
                 })
             }
  
+            const transformed = await transformMessage(message, false);
+
+            if(transformed.pinning && transformed.reference) {
+                messageBuffer.push({
+                    type: 'edit',
+                    message: {
+                        pinned: true,
+                        channelId: transformed.channelId,
+                        id: transformed.reference,
+                    },
+                    timestamp: new Date().valueOf(),
+                });
+            }
+
             messageBuffer.push({
                 type: 'create',
-                message: await transformMessage(message),
+                message: transformed,
                 timestamp: message.createdTimestamp,
             });
         }));
