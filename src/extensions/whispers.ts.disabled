@@ -115,7 +115,7 @@ module.exports = {
         }
     ],
     interactions: [],
-    onStart: async (global, setup, game) => {
+    onStart: async (instance, game) => {
         /**
          * Runs during game start processes.
          */
@@ -150,7 +150,7 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onLock: async (global, setup, game) => {
+    onLock: async (instance, game) => {
         const settings = await getSettings();
 
         if(settings.locked != 'match') return;
@@ -163,7 +163,7 @@ module.exports = {
             actual: true,
         } satisfies Partial<Settings>);
     },
-    onUnlock: async (global, setup, game, incremented) => {
+    onUnlock: async (instance, game, incremented) => {
         const settings = await getSettings();
 
         if(settings.locked != 'match') return;
@@ -507,11 +507,11 @@ module.exports = {
     },
     onInteraction: async (extensionInteraction: ExtensionInteraction) => {},
     onMessage: async (message) => {},
-    onEnd: async (global, setup, game) => {},
-    onVote: async (global, setup, game, voter, voting, type, users, transaction) => {},
-    onVotes: async (global, setup, game, board ) => { return ""; },
-    onHammer: async (global, setup, game, hammered) => {},
-    onRemove: async (global, setup, game, removed) => {
+    onEnd: async (instance, game) => {},
+    onVote: async (instance, game, voter, voting, type, users, transaction) => {},
+    onVotes: async (instance, game, board ) => { return ""; },
+    onHammer: async (instance, game, hammered) => {},
+    onRemove: async (instance, game, removed) => {
         const db = firebaseAdmin.getFirestore();
 
         const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('whispers').doc(removed);

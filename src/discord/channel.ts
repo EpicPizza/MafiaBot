@@ -1,13 +1,15 @@
 import { ChannelType, ClientEvents, Colors, EmbedBuilder, Events } from "discord.js";
-import { getGlobal } from "../utils/global";
 import { getSetup } from "../utils/setup";
+import { getAuthority } from "../utils/instance";
 
 export async function channelCreateHandler(...[channel]: ClientEvents[Events.ChannelCreate]) {
     try {
-        const global = await getGlobal();
-        if (!global.started) return;
+        const instance = await getAuthority(channel.guildId ?? "---", false);
+        if(instance == undefined) return;
 
-        const setup = await getSetup();
+        const global = instance.global;
+        const setup = instance.setup;
+
         const name = Object.entries(setup).find(entry => entry[1].guild.id == channel.guild.id)?.[0];
         if (name == undefined) return;
 
@@ -42,10 +44,12 @@ export async function channelUpdateHandler(...[oldChannel, newChannel]: ClientEv
      try {
         if (newChannel.type === ChannelType.DM) return;
 
-        const global = await getGlobal();
-        if (!global.started) return;
+        const instance = await getAuthority(newChannel.guildId ?? "---", false);
+        if(instance == undefined) return;
 
-        const setup = await getSetup();
+        const global = instance.global;
+        const setup = instance.setup;
+        
         const name = Object.entries(setup).find(entry => entry[1].guild.id == newChannel.guild.id)?.[0];
         if (name == undefined) return;
 

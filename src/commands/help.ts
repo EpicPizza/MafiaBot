@@ -1,10 +1,9 @@
 import { Command } from "commander";
 import { ActionRowBuilder, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandBuilder, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { z } from "zod";
-import { Data } from '../discord';
+import { Data, Event } from '../discord';
 import { TextCommand } from '../discord';
 import { getEnabledExtensions } from "../utils/extensions";
-import { getGlobal } from '../utils/global';
 import { isMod } from "../utils/mod";
 import { getSetup } from "../utils/setup";
 
@@ -27,12 +26,14 @@ module.exports = {
         },
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction | StringSelectMenuInteraction | TextCommand ) => {
-        const global = await getGlobal();
+    execute: async (interaction: Event<ChatInputCommandInteraction | StringSelectMenuInteraction | TextCommand>) => {
+        interaction.inInstance();
+
+        const global = interaction.instance.global;
 
         const extensions = await getEnabledExtensions(global);
 
-        const mod = await isMod(await getSetup(), global, interaction.user.id, (interaction.type == 'text' ? interaction.message.guildId : interaction.guildId) ?? "");
+        const mod = await isMod(interaction.instance.setup, global, interaction.user.id, (interaction.type == 'text' ? interaction.message.guildId : interaction.guildId) ?? "");
 
         let page = interaction.type != 'text' && interaction.isStringSelectMenu() ? interaction.values[0] : "0";
 

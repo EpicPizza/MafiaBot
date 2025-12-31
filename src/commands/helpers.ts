@@ -1,14 +1,13 @@
 import { Command } from "commander";
 import { ActionRowBuilder, ApplicationCommandType, ChannelType, CommandInteraction, ContextMenuCommandBuilder, ContextMenuCommandInteraction, InteractionType, ModalBuilder, ModalSubmitInteraction, SlashCommandBuilder, SlashCommandStringOption, TextInputBuilder, TextInputStyle, WebhookClient } from "discord.js";
-import { Data } from '../discord';
+import { Data, Event } from '../discord';
 import { ReactionCommand } from '../discord';
 import { TextCommand } from '../discord';
 import { archiveMessage } from "../utils/archive";
 import { firebaseAdmin } from "../utils/firebase";
-import { getGlobal, Global } from '../utils/global';
+import type { Global } from '../utils/global';
 import { getGameByID, getGameSetup } from "../utils/mafia/games";
 import { getUser } from "../utils/mafia/user";
-import { getSetup } from "../utils/setup";
 import { purgeMessage } from "../utils/mafia/tracking";
 import { getWebhook } from "../utils/webhook";
 import { z } from "zod";
@@ -34,9 +33,11 @@ module.exports = {
         }, 
     ] satisfies Data[],
 
-    execute: async function(interaction: ContextMenuCommandInteraction | ModalSubmitInteraction) {
-        const global = await getGlobal();
-        const setup = await getSetup();
+    execute: async function(interaction: Event<ContextMenuCommandInteraction | ModalSubmitInteraction>) {
+        interaction.inInstance();
+
+        const global = interaction.instance.global;
+        const setup = interaction.instance.setup;
         
         if(!(global.admin.includes(interaction.user.id))) throw new Error("You're not a mod!");
 

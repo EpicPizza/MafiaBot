@@ -2,6 +2,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from "disc
 import client from "../../discord/client";
 import { firebaseAdmin } from "../firebase";
 import type { Setup } from "../setup";
+import { Instance } from "../instance";
 
 export interface User {
     id: string,
@@ -12,10 +13,10 @@ export interface User {
     state: number,
 }
 
-export async function getUserByName(name: string) {
+export async function getUserByName(name: string, instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('users');
+    const ref = db.collection('instances').doc(instance.id).collection('users');
 
     const docs = (await ref.where('lName', '==', name.toLowerCase()).get()).docs;
 
@@ -24,10 +25,10 @@ export async function getUserByName(name: string) {
     return undefined;
 }
 
-export async function getUserByChannel(channel: string) {
+export async function getUserByChannel(channel: string, instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('users');
+    const ref = db.collection('instances').doc(instance.id).collection('users');
 
     const docs = (await ref.where('channel', '==', channel).get()).docs;
 
@@ -36,10 +37,10 @@ export async function getUserByChannel(channel: string) {
     return undefined;
 }
 
-export async function createUser(id: string, nickname: string, pronouns: string | null = null) {
+export async function createUser(id: string, nickname: string, pronouns: string | null = null, instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('users').doc(id);
+    const ref = db.collection('instances').doc(instance.id).collection('users').doc(id);
 
     if((await ref.get()).exists) {
         await ref.update({
@@ -61,11 +62,11 @@ export async function createUser(id: string, nickname: string, pronouns: string 
     }
 }
 
-export async function getUsersArray(list: string[]) {
+export async function getUsersArray(list: string[], instance: Instance) {
     const promises = [] as Promise<User | undefined>[];
 
     for(let i = 0; i < list.length; i++) {
-        promises.push(getUser(list[i]));
+        promises.push(getUser(list[i], instance));
     }
 
     const results = await Promise.allSettled(promises);
@@ -88,11 +89,11 @@ export async function getUsersArray(list: string[]) {
     return users;
 }
 
-export async function getUsers(list: string[]) {
+export async function getUsers(list: string[], instance: Instance) {
     const promises = [] as Promise<User | undefined>[];
 
     for(let i = 0; i < list.length; i++) {
-        promises.push(getUser(list[i]));
+        promises.push(getUser(list[i], instance));
     }
 
     const results = await Promise.allSettled(promises);
@@ -115,10 +116,10 @@ export async function getUsers(list: string[]) {
     return users;
 }
 
-export async function editUser(id: string, options: { nickname?: string, pronouns?: string }) {
+export async function editUser(id: string, options: { nickname?: string, pronouns?: string }, instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('users').doc(id);
+    const ref = db.collection('instances').doc(instance.id).collection('users').doc(id);
 
     const locked = ((await ref.get()).data() as User).state == 6;
     if(locked) throw new Error("Player locked.");
@@ -129,10 +130,10 @@ export async function editUser(id: string, options: { nickname?: string, pronoun
     })
 }
 
-export async function getUser(id: string): Promise<User | undefined> {
+export async function getUser(id: string, instance: Instance): Promise<User | undefined> {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('users').doc(id);
+    const ref = db.collection('instances').doc(instance.id).collection('users').doc(id);
 
     const doc = await ref.get();
 
@@ -145,9 +146,11 @@ export async function getUser(id: string): Promise<User | undefined> {
     }
 }
 
-export async function getPlayerObjects(id: string, setup: Setup) {
+export async function getPlayerObjects(id: string, instance: Instance) {
+    const setup = instance.setup;
+    
     const deadPlayer = setup.secondary.guild.members.fetch(id).catch(() => undefined);
-    const userProfile = getUser(id);
+    const userProfile = getUser(id, instance);
     const player = setup.primary.guild.members.fetch(id).catch(() => undefined);
     const mafiaPlayer = setup.tertiary.guild.members.fetch(id).catch(() => undefined);
 
@@ -169,10 +172,10 @@ export async function getPlayerObjects(id: string, setup: Setup) {
         mafiaPlayer: await mafiaPlayer,
     };
 }
-export async function getAllUsers() {
+export async function getAllUsers(instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('users');
+    const ref = db.collection('instances').doc(instance.id).collection('users');
 
     const docs = (await ref.get()).docs;
 
@@ -187,10 +190,10 @@ export async function getAllUsers() {
     return users;
 }
 
-export async function getAllNicknames() {
+export async function getAllNicknames(instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('users');
+    const ref = db.collection('instances').doc(instance.id).collection('users');
 
     const docs = (await ref.get()).docs;
 

@@ -1,4 +1,5 @@
 import { firebaseAdmin } from "../firebase";
+import { Instance } from "../instance";
 
 export interface RoleQueue {
     server: 'primary' | 'secondary' | 'tertiary',
@@ -16,10 +17,10 @@ export interface RoleQueue {
     id: string,
 }
 
-export async function onjoin(queue: RoleQueue) {
+export async function onjoin(queue: RoleQueue, instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('roles');
+    const ref = db.collection('instances').doc(instance.id).collection('roles');
 
     await ref.add(queue);
 }

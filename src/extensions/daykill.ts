@@ -1,13 +1,12 @@
 import { Command } from "commander";
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors, EmbedBuilder } from "discord.js";
+import { ActionRowBuilder, AnySelectMenuInteraction, ButtonBuilder, ButtonInteraction, ButtonStyle, Colors, EmbedBuilder, ModalSubmitInteraction } from "discord.js";
 import { z } from "zod";
-import { type TextCommand } from '../discord';
+import { Event, ReactionCommand, type TextCommand } from '../discord';
 import { fromZod } from '../utils/text';
 import { killPlayer } from "../commands/advance/kill";
 import { removePlayer } from "../commands/mod/remove";
 import { Extension, ExtensionInteraction } from "../utils/extensions";
 import { firebaseAdmin } from "../utils/firebase";
-import { getGlobal } from '../utils/global';
 import { getGameByID, getGameSetup } from "../utils/mafia/games";
 import { lockGame, unlockGame } from "../utils/mafia/main";
 import { getFuture } from "../utils/mafia/timing";
@@ -15,6 +14,7 @@ import { getUser, getUserByChannel, getUserByName } from "../utils/mafia/user";
 import { wipe } from "../utils/mafia/vote";
 import { checkMod } from "../utils/mod";
 import { getSetup } from "../utils/setup";
+import { Instance } from "../utils/instance";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -99,7 +99,7 @@ module.exports = {
             })
         }
     ],
-    onStart: async (global, setup, game) => {
+    onStart: async (instance, game) => {
         /**
          * Runs during game start processes.
          */
@@ -117,14 +117,14 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onLock: async (global, setup, game) => {
+    onLock: async (instance, game) => {
         /**
          * Runs after game has locked.
          */
 
         console.log("Extension Lock");
     },
-    onUnlock: async (global, setup, game, incremented) => {
+    onUnlock: async (instance, game, incremented) => {
         /**
          * Runa after game has unlocked.
          * 
@@ -139,30 +139,33 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onCommand: async (command: TextCommand) => {
+    onCommand: async (command: Event<TextCommand>) => {
         /**
          * Text commands only for the forseeable future.
          * 
          * command: Command
          */
 
+        command.inInstance();
+
         const db = firebaseAdmin.getFirestore();
-        const setup = await getSetup();
-        const global = await getGlobal();
+
+        const setup = command.instance.setup;
+        const global = command.instance.global;
 
         if(global.started == false) throw new Error("Game has not started.");
 
         if(command.name == "kill") {
-            const user = await getUser(command.user.id);
+            const user = await getUser(command.user.id, command.instance);
             if(user == undefined) throw new Error("User not found.");
             const player = global.players.find(player => player.id == user.id);
             if(player == undefined) throw new Error("You are not part of the game!");
             if(user.channel != command.message.channelId) throw new Error("Must be run in dead chat dm!");
 
-            const daykill = await getDaykill(command.user.id);
+            const daykill = await getDaykill(command.user.id, command.instance);
             if(daykill == undefined) throw new Error("You don't have any day kills!");
 
-            const killing = await getUserByName(command.program.processedArgs[0] as string);
+            const killing = await getUserByName(command.program.processedArgs[0] as string, command.instance);
             if(killing == undefined) throw new Error("Player not found!");
             const killingPlayer = global.players.find(player => player.id == killing.id);
             if(killingPlayer == undefined) throw new Error("Not part of this game!");
@@ -171,20 +174,20 @@ module.exports = {
             console.log(daykill.day + daykill.expire, global.day);
             if(global.day >= daykill.day + daykill.expire) throw new Error("Your day kill has expired! You cannot use it.");
 
-            const game = await getGameByID(global.game ?? "---");
+            const game = await getGameByID(global.game ?? "---", command.instance);
             if(game == undefined) throw new Error("Game not found!");
 
-            const future = await getFuture();
-            const settings = await getSettings();
+            const future = await getFuture(command.instance);
+            const settings = await getSettings(command.instance);
             const eod =  future && (future.when.valueOf() - new Date().valueOf()) < (settings.minutes * 60 * 1000);
 
             if(eod && settings.type == 'cancel') throw new Error("Too close to end of day! Cannot day kill.");
 
             await command.message.react("✅");
 
-            await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('daykill').doc(user.id).delete();
+            await db.collection('instances').doc(command.instance.id).collection('daykill').doc(user.id).delete();
 
-            await lockGame();
+            await lockGame(command.instance);
 
             if(daykill.lock == 'hammer' || (eod && settings.type == 'mod')) {
                 const content = "<@&" + setup.primary.alive.id + "> <@&" + setup.primary.mod.id + ">\n# " + killing.nickname + " has been killed!\n** **\nThe day has ended! Waiting on game mod to flip."
@@ -239,16 +242,16 @@ module.exports = {
                 });
 
                 if(daykill.type == "mute") {
-                    await killPlayer(killing.nickname, global, setup);
+                    await killPlayer(killing.nickname, command.instance);
                 } else {
-                    await removePlayer(killing.nickname, global, setup);
+                    await removePlayer(killing.nickname, command.instance);
                 }
 
-                const setMessage = await wipe(global, killing.nickname + " was " + killingPlayer.alignment + "!", game);
+                const setMessage = await wipe(global, killing.nickname + " was " + killingPlayer.alignment + "!", game, command.instance);
 
                 await setMessage(final.id);
 
-                await unlockGame(false);
+                await unlockGame(command.instance, false);
             }  
         } else if(command.name == "set") {
             await checkMod(setup, global, command.user.id, command.message.guildId ?? "---");
@@ -257,12 +260,12 @@ module.exports = {
             const lock = type == "hammer" ? "hammer" : "pause";
             const expire = command.program.processedArgs[1] as number;
 
-            const user = await getUserByChannel(command.message.channelId);
+            const user = await getUserByChannel(command.message.channelId, command.instance);
             if(user == undefined) throw new Error("Command must be run in dead chat dm channel!");
             const player = global.players.find(player => player.id == user.id);
             if(player == undefined) throw new Error("Player not part of game?");
 
-            await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('daykill').doc(user.id).set({
+            await db.collection('instances').doc(command.instance.id).collection('daykill').doc(user.id).set({
                 type: type,
                 expire: expire,
                 lock: lock,
@@ -273,15 +276,15 @@ module.exports = {
         } else if(command.name == "list") {
             await checkMod(setup, global, command.user.id, command.message.guildId ?? "---");
 
-            const game = await getGameByID(global.game ?? "---");
+            const game = await getGameByID(global.game ?? "---", command.instance);
             if(game == undefined) throw new Error("Game not found.");
             const gameSetup = await getGameSetup(game, setup);
             if(gameSetup.spec.id != command.message.channelId) throw new Error("Must be run in spectator channel.");
 
-            const daykills = (await Promise.allSettled((await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('daykill').get()).docs.map(async doc => {
+            const daykills = (await Promise.allSettled((await db.collection('instances').doc(command.instance.id).collection('daykill').get()).docs.map(async doc => {
                 const data = doc.data();
 
-                const user = await getUser(doc.id);
+                const user = await getUser(doc.id, command.instance);
                 if(user == undefined) throw new Error("User not found");
                 const player = global.players.find(player => player.id == user.id);
                 if(player == undefined) throw new Error("Player not part of game?");
@@ -309,7 +312,7 @@ module.exports = {
             const type = command.program.processedArgs[0] as string;
             const minutes = command.program.processedArgs[1] as number;
 
-            await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('daykill').doc('settings').set({
+            await db.collection('instances').doc(command.instance.id).collection('daykill').doc('settings').set({
                 type: type,
                 minutes: minutes,
             });
@@ -318,7 +321,7 @@ module.exports = {
         } else if(command.name == "check") {
             await checkMod(setup, global, command.user.id, command.message.guildId ?? "---");
 
-            const settings = await getSettings();
+            const settings = await getSettings(command.instance);
 
             const embed = new EmbedBuilder()
                 .setTitle('Day Kill Settings')
@@ -347,13 +350,15 @@ module.exports = {
 
         if(!('customId' in extensionInteraction)) return;
 
-        const setup = await getSetup();
-        const global = await getGlobal();
+        const interaction: Event<ButtonInteraction | ModalSubmitInteraction | AnySelectMenuInteraction | ReactionCommand> = extensionInteraction.interaction;
+        interaction.inInstance();
 
-        const game = await getGameByID(global.game ?? "---");
+        const setup = interaction.instance.setup;
+        const global = interaction.instance.global;
+
+        const game = await getGameByID(global.game ?? "---", interaction.instance);
         if(game == undefined) throw new Error("Game not found!");
 
-        const interaction = extensionInteraction.interaction;
         const customId = extensionInteraction.customId;
 
         if(!('isButton' in interaction) || !interaction.isButton()) return;
@@ -367,7 +372,7 @@ module.exports = {
         } else if(extensionInteraction.name == "button-daykill-reveal-now") {
             if(close) close(true);
         
-            const killing = await getUser(customId.user ?? "---");
+            const killing = await getUser(customId.user ?? "---", interaction.instance);
             if(killing == undefined) throw new Error("Player not found!");
             const killingPlayer = global.players.find(player => player.id == killing.id);
             if(killingPlayer == undefined) throw new Error("Not part of this game!");
@@ -380,22 +385,22 @@ module.exports = {
             });
 
             if(type == "mute") {
-                await killPlayer(killing.nickname, global, setup);
+                await killPlayer(killing.nickname, interaction.instance);
             } else {
-                await removePlayer(killing.nickname, global, setup);
+                await removePlayer(killing.nickname, interaction.instance);
             }
 
-            const setMessage = await wipe(global, killing.nickname + " was " + killingPlayer.alignment + "!", game);
+            const setMessage = await wipe(global, killing.nickname + " was " + killingPlayer.alignment + "!", game, interaction.instance);
 
             await setMessage(message.id);
 
-            await unlockGame(false);
+            await unlockGame(interaction.instance, false);
         }
 
         return;
     },
     onMessage: async (message) => {},
-    onEnd: async (global, setup, game) => {
+    onEnd: async (instance, game) => {
         /**
          * Runs during game end processes.
          */
@@ -408,16 +413,16 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onVote: async (global, setup, game, voter, voting, type, users, transaction) => {},
-    onVotes: async (global, setup, game, board ) => { return ""; },
-    onHammer: async (global, setup, game, hammered: string) => {},
-    onRemove: async (global, setup, game, removed: string) => {}
+    onVote: async (instance, game, voter, voting, type, users, transaction) => {},
+    onVotes: async (instance, game, board ) => { return ""; },
+    onHammer: async (instance, game, hammered: string) => {},
+    onRemove: async (instance, game, removed: string) => {}
 } satisfies Extension;
 
-async function getDaykill(id: string) {
+async function getDaykill(id: string, instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    const data = (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('daykill').doc(id).get()).data();
+    const data = (await db.collection('instances').doc(instance.id).collection('daykill').doc(id).get()).data();
     if(data == undefined) return undefined;
 
     return {
@@ -428,10 +433,10 @@ async function getDaykill(id: string) {
     }
 }
 
-async function getSettings() {
+async function getSettings(instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    const data = (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('daykill').doc('settings').get()).data();
+    const data = (await db.collection('instances').doc(instance.id).collection('daykill').doc('settings').get()).data();
 
     let type = "mod";
     let minutes = 20;

@@ -1,16 +1,17 @@
 import { Command } from "commander";
 import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
 import { z } from "zod";
-import { type TextCommand } from '../../discord';
+import { Event, type TextCommand } from '../../discord';
 import { fromZod } from '../../utils/text';
 import { removeReactions } from "../../discord/helpers";
 import { getEnabledExtensions } from "../../utils/extensions";
 import { firebaseAdmin } from "../../utils/firebase";
-import { getGlobal, type Global } from '../../utils/global';
+import { type Global } from '../../utils/global';
 import { getGameByID, getGameSetup, Signups } from "../../utils/mafia/games";
 import { getUserByName } from "../../utils/mafia/user";
 import { getSetup, Setup, } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
+import { Instance } from "../../utils/instance";
 
 export const KillCommand = {
     name: "kill",
@@ -32,7 +33,9 @@ export const KillCommand = {
             .argument('<player>', 'nickname of player', fromZod(z.string().min(1).max(100)));
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
         if(interaction.type != 'text') {
             await interaction.deferReply({ ephemeral: true });
         } else {
@@ -42,10 +45,10 @@ export const KillCommand = {
         const playerInput = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');
         if(playerInput == null) throw new Error("Choose a player.");
 
-        const global = await getGlobal();
-        const setup  = await getSetup();
+        const global = interaction.instance.global;
+        const setup  = interaction.instance.setup;
 
-        await killPlayer(playerInput, global, setup);
+        await killPlayer(playerInput, interaction.instance);
         
         if(interaction.type != 'text') {
             await interaction.editReply({ content: "Player killed."});
@@ -57,12 +60,12 @@ export const KillCommand = {
     }
 } satisfies Subcommand;
 
-export async function onRemove(global: Global, setup: Setup, game: Signups, removed: string) {
-    const extensions = await getEnabledExtensions(global);
+export async function onRemove(instance: Instance, game: Signups, removed: string) {
+    const extensions = await getEnabledExtensions(instance.global);
 
     const promises = [] as Promise<any>[];
 
-    extensions.forEach(extension => { promises.push(extension.onRemove(global, setup, game, removed)) });
+    extensions.forEach(extension => { promises.push(extension.onRemove(instance, game, removed)) });
 
     const results = await Promise.allSettled(promises);
 
@@ -75,33 +78,31 @@ export async function onRemove(global: Global, setup: Setup, game: Signups, remo
     }
 }
 
-export async function killPlayer(name: string, global: Global, setup: Setup) {
+export async function killPlayer(name: string, instance: Instance) {
     if(global.started == false) throw new Error("Game has not started.");
 
-    const game = await getGameByID(global.game ?? "");
-    const gameSetup = await getGameSetup(game, setup);
+    const game = await getGameByID(global.game ?? "", instance);
+    const gameSetup = await getGameSetup(game, instance.setup);
     
-    const user = await getUserByName(name);
+    const user = await getUserByName(name, instance);
     if(!user) throw new Error("Player not found.");
 
-    const main = await setup.primary.guild.members.fetch(user.id).catch(() => undefined);
+    const main = await instance.setup.primary.guild.members.fetch(user.id).catch(() => undefined);
     if(main == null) throw new Error("Member not found.");
-    await main.roles.remove(setup.primary.alive);
+    await main.roles.remove(instance.setup.primary.alive);
 
-    const mafia = await setup.tertiary.guild.members.fetch(user.id).catch(() => undefined);
+    const mafia = await instance.setup.tertiary.guild.members.fetch(user.id).catch(() => undefined);
     if(mafia != null) await mafia.kick();
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
+    const ref = db.collection('instances').doc(instance.id).collection('settings').doc('game');
 
     await db.runTransaction(async t => {
-        const global = await getGlobal(t);
-
         t.update(ref, {
             players: global.players.filter(player => player.id != user.id)
         })
     });
 
-    await onRemove(global, setup, game, user.id);
+    await onRemove(instance, game, user.id);
 }

@@ -1,15 +1,16 @@
 import { Command } from "commander";
 import { ActionRowBuilder, APIActionRowComponent, APIButtonComponent, APISelectMenuComponent, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, ComponentType, EmbedBuilder, Message, ModalBuilder, ModalSubmitInteraction, SelectMenuBuilder, SlashCommandSubcommandBuilder, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
 import { z } from "zod";
-import { type TextCommand } from '../../discord';
+import { Event, type TextCommand } from '../../discord';
 import { fromZod } from '../../utils/text';
 import { firebaseAdmin } from "../../utils/firebase";
-import { getGlobal } from '../../utils/global';
 import { getGameByID, getGameByName, getGameSetup } from "../../utils/mafia/games";
 import { startGame } from "../../utils/mafia/main";
 import { getUsers, getUsersArray } from "../../utils/mafia/user";
-import { getSetup } from "../../utils/setup";
+import { getSetup, Setup } from "../../utils/setup";
 import { Subinteraction } from "../../utils/subcommands";
+import { Global } from "../../utils/global";
+import { Instance } from "../../utils/instance";
 
 export const StartCommand = {
     name: "start",
@@ -32,16 +33,18 @@ export const StartCommand = {
             .argument('<game>', 'name of game', fromZod(z.string().min(1).max(100)));
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
         const name = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
 
         if(name == null) throw new Error("Game needs to be specified.");
 
-        const game = await getGameByName(name);
+        const game = await getGameByName(name, interaction.instance);
         
         if(game == null) throw new Error("")
 
-        const global = await getGlobal();
+        const global = interaction.instance.global;
 
         if(global.started == true) throw new Error("Game has already started."); ;
 
@@ -60,7 +63,7 @@ export const StartCommand = {
 
         url.searchParams.set("id", interaction.user.id);
         url.searchParams.set("token", token);
-        url.searchParams.set("redirect", "/" + (process.env.INSTANCE ?? "---") + "/mod/" + game.id + "/start");
+        url.searchParams.set("redirect", "/" + (interaction.instance.id) + "/mod/" + game.id + "/start");
 
         const embed = new EmbedBuilder()
             .setTitle("Start " + game.name + " Mafia")
@@ -105,22 +108,24 @@ export const WebsiteStartCommand = {
             .argument('<game>', 'name of game', fromZod(z.string().min(1).max(100)));
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
         const name = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
 
         if(name == null) throw new Error("Game needs to be specified.");
 
-        const game = await getGameByName(name);
+        const game = await getGameByName(name, interaction.instance);
         
         if(game == null) throw new Error("")
 
-        const global = await getGlobal();
+        const global = interaction.instance.global;
 
         if(global.started == true) throw new Error("Game has already started."); ;
 
-        await startGame(interaction, game.name as string);
+        await startGame(interaction, game.name as string, interaction.instance);
 
-        await setAlignments();
+        await setAlignments(interaction.instance);
     }
 }
 
@@ -135,14 +140,16 @@ export const StartButton = {
         game: z.string().min(1).max(100)
     }),
 
-    execute: async (interaction: ButtonInteraction) => {
+    execute: async (interaction: Event<ButtonInteraction>) => {
+        interaction.inInstance();
+
         const id = JSON.parse(interaction.customId);
 
         if(id.for != interaction.user.id) throw new Error("This is not for you!");
 
-        await startGame(interaction, id.game as string);
+        await startGame(interaction, id.game as string, interaction.instance);
 
-        await setAlignments();
+        await setAlignments(interaction.instance);
     }
 } satisfies Subinteraction;
 
@@ -156,7 +163,7 @@ export const CancelButton = {
         for: z.string().min(1).max(100),
     }),
 
-    execute: async (interaction: ButtonInteraction) => {
+    execute: async (interaction: Event<ButtonInteraction>) => {
         const id = JSON.parse(interaction.customId);
 
         if(id.for != interaction.user.id) throw new Error("This is not for you!");
@@ -174,19 +181,21 @@ export const DefaultAlignment = {
         name: z.literal('set-default')
     }),
 
-    execute: async (interaction: ButtonInteraction) => {
+    execute: async (interaction: Event<ButtonInteraction>) => {
+        interaction.inInstance();
+        
         const id = JSON.parse(interaction.customId);
 
         const selected = getSelected(interaction);
 
         const db = firebaseAdmin.getFirestore();
 
-        await getUsers(selected);
+        await getUsers(selected, interaction.instance);
 
-        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
+        const ref = db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game');
 
         await db.runTransaction(async t => {
-            const global = await getGlobal(t);
+            const global = interaction.instance.global;
 
             for(let i = 0; i < global.players.length; i++) {
                 if(selected.find(player => global.players[i].id == player)) {
@@ -214,19 +223,21 @@ export const MafiaAlignment = {
         name: z.literal('set-mafia')
     }),
 
-    execute: async (interaction: ButtonInteraction) => {
+    execute: async (interaction: Event<ButtonInteraction>) => {
+        interaction.inInstance();
+
         const id = JSON.parse(interaction.customId);
 
         const selected = getSelected(interaction);
 
         const db = firebaseAdmin.getFirestore();
 
-        await getUsers(selected);
+        await getUsers(selected, interaction.instance);
 
-        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
+        const ref = db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game');
 
         await db.runTransaction(async t => {
-            const global = await getGlobal(t);
+            const global = interaction.instance.global;
 
             for(let i = 0; i < global.players.length; i++) {
                 if(selected.find(player => global.players[i].id == player)) {
@@ -254,19 +265,21 @@ export const NeutralAlignment = {
         name: z.literal('set-neutral')
     }),
 
-    execute: async (interaction: ButtonInteraction) => {
+    execute: async (interaction: Event<ButtonInteraction>) => {
+        interaction.inInstance();
+
         const id = JSON.parse(interaction.customId);
 
         const selected = getSelected(interaction);
 
         const db = firebaseAdmin.getFirestore();
 
-        await getUsers(selected);
+        await getUsers(selected, interaction.instance);
 
-        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
+        const ref = db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game');
 
         await db.runTransaction(async t => {
-            const global = await getGlobal(t);
+            const global = interaction.instance.global;
 
             for(let i = 0; i < global.players.length; i++) {
                 if(selected.find(player => global.players[i].id == player)) {
@@ -294,12 +307,14 @@ export const CustomAlignment = {
         name: z.literal('set-custom')
     }),
 
-    execute: async (interaction: ButtonInteraction) => {
+    execute: async (interaction: Event<ButtonInteraction>) => {
+        interaction.inInstance();
+
         const id = JSON.parse(interaction.customId);
 
         const selected = getSelected(interaction);
 
-        await getUsers(selected);
+        await getUsers(selected, interaction.instance);
 
         const row = new ActionRowBuilder<TextInputBuilder>();
 
@@ -328,13 +343,15 @@ export const CustomModal = {
         message: z.string(),
     }),
 
-    execute: async (interaction: ModalSubmitInteraction) =>{
+    execute: async (interaction: Event<ModalSubmitInteraction>) =>{
+        interaction.inInstance();
+
         const id = JSON.parse(interaction.customId);
 
-        const global = await getGlobal();
+        const global = interaction.instance.global;
         if(global.started == false) throw new Error("Game has not started.");
-        const game = await getGameByID(global.game ?? "---");
-        const setup = await getSetup();
+        const game = await getGameByID(global.game ?? "---", interaction.instance);
+        const setup = interaction.instance.setup;
         if(game == null) throw new Error("Game not found.");
         if(game.signups.length == 0) throw new Error("Game must have more than one player.");
         const gameSetup = await getGameSetup(game, setup);
@@ -347,12 +364,12 @@ export const CustomModal = {
 
         const db = firebaseAdmin.getFirestore();
 
-        await getUsers(selected);
+        await getUsers(selected, interaction.instance);
 
-        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
+        const ref = db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game');
 
         await db.runTransaction(async t => {
-            const global = await getGlobal(t);
+            const global = interaction.instance.global;
 
             for(let i = 0; i < global.players.length; i++) {
                 if(selected.find(player => global.players[i].id == player)) {
@@ -383,7 +400,7 @@ export const AlignmentSelect = {
         page: z.number(),
     }),
 
-    execute: async (interaction: StringSelectMenuInteraction) => {
+    execute: async (interaction: Event<StringSelectMenuInteraction>) => {
         const values = interaction.values;
        
         const rowComponents = (interaction.message.toJSON() as any).components as APIActionRowComponent<APIButtonComponent | APISelectMenuComponent>[]
@@ -410,7 +427,7 @@ export const AlignmentSelect = {
     }
 } satisfies Subinteraction;
 
-function changeSelected(interaction: ButtonInteraction | Message, selected: string[], alignment: string) {
+function changeSelected(interaction: Event<ButtonInteraction> | Message, selected: string[], alignment: string) {
     const rowComponents = ('message' in interaction ? interaction.message.toJSON() as any : interaction.toJSON() as any).components as APIActionRowComponent<APIButtonComponent | APISelectMenuComponent>[];
 
     for(let i = 0; i < rowComponents.length; i++) {
@@ -447,7 +464,7 @@ function changeSelected(interaction: ButtonInteraction | Message, selected: stri
     return rowComponents;
 }
 
-function getSelected(interaction: ButtonInteraction | Message) {
+function getSelected(interaction: Event<ButtonInteraction> | Message) {
     const rowComponents = ('message' in interaction ? interaction.message.toJSON() as any : interaction.toJSON() as any).components as APIActionRowComponent<APIButtonComponent | APISelectMenuComponent>[];
 
     const selected = [] as string[];
@@ -469,30 +486,27 @@ function getSelected(interaction: ButtonInteraction | Message) {
     return selected;
 }
 
-export async function setAlignments() {
+export async function setAlignments(instance: Instance) {
     const embed = new EmbedBuilder()
         .setTitle("Set Alignments")
         .setColor(Colors.Orange)
         .setDescription('Everyone starts at default alignment. Select players to change their alignment. Mafia alignment adds them to mafia server. Custom alignment behave the same default alignment, some extensions may treat this alignment differently.\n\nOnce done setting alignments, click the finish button.')
 
-    const global = await getGlobal();
+    if(instance.global.game == null) throw new Error("Game not found.");
 
-    if(global.game == null) throw new Error("Game not found.");
+    const game = await getGameByID(instance.global.game, instance);
 
-    const game = await getGameByID(global.game);
-    const setup = await getSetup();
-
-    if(setup == undefined) throw new Error("Setup not complete.");
-    if(typeof setup == 'string') throw new Error("An unexpected error occurred.");
-    if(!global.started) throw new Error("Game has not started.");
+    if(instance.setup == undefined) throw new Error("Setup not complete.");
+    if(typeof instance.setup == 'string') throw new Error("An unexpected error occurred.");
+    if(!instance.global.started) throw new Error("Game has not started.");
     if(game == null) throw new Error("Game not found.");
     if(game.signups.length == 0) throw new Error("Game must have more than one player.");
 
-    const gameSetup = await getGameSetup(game, setup);
+    const gameSetup = await getGameSetup(game, instance.setup);
 
     const rows = [] as ActionRowBuilder<SelectMenuBuilder | ButtonBuilder>[];
 
-    const users = await getUsers(game.signups);
+    const users = await getUsers(game.signups, instance);
     const players = game.signups.map(signup => users.get(signup)).filter(player => player != undefined);
 
 

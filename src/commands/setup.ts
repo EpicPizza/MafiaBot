@@ -1,9 +1,8 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChannelType, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandBuilder } from "discord.js";
 import { z } from "zod";
-import { Data } from '../discord';
+import { Data, Event } from '../discord';
 import client from "../discord/client";
 import { firebaseAdmin } from "../utils/firebase";
-import { getGlobal } from '../utils/global';
 import { refreshSignup } from "../utils/mafia/games";
 import { onjoin } from "../utils/mafia/invite";
 import { checkSetup, getSetup } from "../utils/setup";
@@ -138,9 +137,11 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction | ButtonInteraction) => {
+    execute: async (interaction: Event<ChatInputCommandInteraction | ButtonInteraction>) => {
         try {
-            const global = await getGlobal();
+            interaction.inInstance();
+
+            const global = interaction.instance.global;
         
             if(!(global.admin.includes(interaction.user.id))) throw new Error("You're not a mod!");
         } catch(e) {
@@ -148,9 +149,11 @@ module.exports = {
         }
 
         if(interaction.isChatInputCommand() && interaction.options.getSubcommand() == "database") {
+            interaction.inInstance();
+
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings');
+            const ref = db.collection('instances').doc(interaction.instance.id).collection('settings');
 
             await ref.doc('lock').set({
                 increment: false,
@@ -211,8 +214,6 @@ module.exports = {
         
         const db = firebaseAdmin.getFirestore();
 
-        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('setup');
-
         /*if(subcommand == "role") {
             const role = interaction.options.getRole("role");
             const which = interaction.options.getString("which");
@@ -269,9 +270,11 @@ module.exports = {
 
             await interaction.reply({ ephemeral: true, content: "Role set." });
         } else */
+
+        interaction.inInstance();
         
         if(interaction.isChatInputCommand() ? interaction.options.getSubcommand() == "check" : JSON.parse(interaction.customId).name == "setup-retry") {
-            const setup = await checkSetup();
+            const setup = interaction.instance.setup;
 
             if(typeof setup == 'string') {
                 const embed = new EmbedBuilder()
@@ -346,8 +349,8 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
         if(subcommand == "permissions") {
             await interaction.deferReply({ ephemeral: true });
 
-            const setup = await getSetup();
-            const global = await getGlobal();
+            const setup = interaction.instance.setup;
+            const global = interaction.instance.global;
 
             if(typeof setup == 'string' || setup == undefined) return await interaction.editReply({ content: setup ? setup : "Something went wrong." });
 
@@ -416,13 +419,13 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
 
             await interaction.editReply({ content: "Permissions Refreshed" });
         } else if(subcommand == "refresh") {
-            await refreshSignup(interaction.options.getString("game") ?? "12948201380912840192380192840912830912803921312");
+            await refreshSignup(interaction.options.getString("game") ?? "12948201380912840192380192840912830912803921312", interaction.instance);
 
             await interaction.reply({ ephemeral: true, content: "Signups refreshed." });
         } else if(subcommand == "mod") {
             await interaction.deferReply({ ephemeral: true });
 
-            const setup = await getSetup();
+            const setup = interaction.instance.setup;
 
             if(typeof setup == 'string') throw new Error("Setup Incomplete");
 
@@ -465,7 +468,7 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
                         add: ["admin", "spectator"],
                         remove: ["access"]
                     }
-                });
+                }, interaction.instance);
 
                 message += "Dead Chat: https://discord.com/invite/" + invite.code + "\n";
             } else if(dead != undefined && !remove) {
@@ -494,7 +497,7 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
                         add: ["admin", "spectator"],
                         remove: ["access"]
                     }
-                });
+                }, interaction.instance);
 
                 message += "Mafia Chat: https://discord.com/invite/" + invite.code + "\n";
             } else if(mafia != undefined && !remove) {

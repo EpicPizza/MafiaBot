@@ -1,15 +1,15 @@
 import { Command } from "commander";
 import { ActionRowBuilder, AutocompleteInteraction, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandBuilder } from "discord.js";
 import { z } from "zod";
-import { Data } from '../discord';
+import { Data, Event } from '../discord';
 import { TextCommand } from '../discord';
 import { fromZod } from '../utils/text';
 import { firebaseAdmin } from "../utils/firebase";
-import { getGlobal } from '../utils/global';
 import { getGameByName } from "../utils/mafia/games";
 import { getStats } from "../utils/mafia/stats";
 import { getUsersArray, User } from "../utils/mafia/user";
-import { getSetup } from "../utils/setup";
+import { Setup } from "../utils/setup";
+import { Instance } from "../utils/instance";
 
 const Format = z.union([ z.literal('complete'), z.literal('gxe'), z.literal('wr'), z.literal('alphabetical'), z.literal('pronouns') ]);
 
@@ -85,11 +85,13 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction | AutocompleteInteraction | TextCommand) => {
+    execute: async (interaction: Event<ChatInputCommandInteraction | AutocompleteInteraction | TextCommand>) => {
+        interaction.inInstance();
+
         if(interaction.type != 'text' && interaction.isAutocomplete()) {
             const focusedValue = interaction.options.getFocused();
 
-            const games = await getGames();
+            const games = await getGames(interaction.instance);
 
             const filtered = games.filter(choice => choice.name.startsWith(focusedValue)).slice(0, 25);;
 
@@ -104,8 +106,10 @@ module.exports = {
     }
 }
 
-async function handlePlayerList(interaction: ChatInputCommandInteraction | TextCommand | ButtonInteraction) {
-    const global = await getGlobal();
+async function handlePlayerList(interaction: Event<ChatInputCommandInteraction | TextCommand | ButtonInteraction>) {
+    interaction.inInstance();
+
+    const global = interaction.instance.global;
 
     const format = 'customId' in interaction ? JSON.parse(interaction.customId).format as ReturnType<typeof checkType> 
         : interaction.type == 'text' ? checkType(interaction.program.getOptionValue('format'))
@@ -120,35 +124,35 @@ async function handlePlayerList(interaction: ChatInputCommandInteraction | TextC
     
     const day = 'customId' in interaction ? null : interaction.type == 'text' ? (interaction.program.args.length > 0 ? interaction.program.processedArgs[0] as number : null) : interaction.options.getInteger("day");
 
-    const games = await getGames();
+    const games = await getGames(interaction.instance);
 
     if(typeof reference == 'string') {
-        const game = await getGameByName(reference);
+        const game = await getGameByName(reference, interaction.instance);
 
         if(game == null) throw new Error("Game not found.");
 
-        users = await getUsersArray(game.signups);  
+        users = await getUsersArray(game.signups, interaction.instance);  
     } else if(day != null) {
         const db = firebaseAdmin.getFirestore();
 
         if(global.started == false) throw new Error("Game has not started.");
 
-        const game = await getGameByName(global.game ?? "---");
+        const game = await getGameByName(global.game ?? "---", interaction.instance);
 
         if(game == null) throw new Error("Game not found. (current)");
 
-        const currentPlayers = (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc(day.toString()).get()).data()?.players as string[] | undefined ?? [];
+        const currentPlayers = (await db.collection('instances').doc(interaction.instance.id).collection('games').doc(game.id).collection('days').doc(day.toString()).get()).data()?.players as string[] | undefined ?? [];
 
         if(currentPlayers.length == 0) throw new Error("No data available.");
 
-        users = await getUsersArray(currentPlayers);
+        users = await getUsersArray(currentPlayers, interaction.instance);
     } else if(global.started == false && games.length == 1) {
-        const game = await getGameByName(games[0].name);
+        const game = await getGameByName(games[0].name, interaction.instance);
         
         if(game == null) throw new Error("Game not found.");
 
         reference = game.name;
-        users = await getUsersArray(game.signups);  
+        users = await getUsersArray(game.signups, interaction.instance);  
     } else if(global.started == false && !('customId' in interaction)) {
         const embed = new EmbedBuilder()
             .setTitle("Game has not started.")
@@ -188,10 +192,10 @@ async function handlePlayerList(interaction: ChatInputCommandInteraction | TextC
     } else if(global.started == false && 'customId' in interaction) {
         throw new Error("Invalid button!");
     } else {
-        users = await getUsersArray(global.players.map(player => player.id));
+        users = await getUsersArray(global.players.map(player => player.id), interaction.instance);
     }
 
-    const stats = await getStats();
+    const stats = await getStats(interaction.instance);
 
     if(format == 'alphabetical') {
         users.sort((a, b) => {
@@ -236,12 +240,10 @@ async function handlePlayerList(interaction: ChatInputCommandInteraction | TextC
     }
 }
 
-async function getGames() {
+async function getGames(instance: Instance) {
     const db = firebaseAdmin.getFirestore();
-
-    const setup = await getSetup();
         
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games');        
+    const ref = db.collection('instances').doc(instance.id).collection('games');        
     const docs = (await ref.get()).docs;
     
     const games = [] as { name: string, id: string, url: string | null }[];
@@ -261,7 +263,7 @@ async function getGames() {
             games.push({
                 name: data.name,
                 id: docs[doc].id,
-                url: "https://discord.com/channels/" + setup.primary.guild.id + "/" + setup.primary.chat.id + "/" + data.message.id
+                url: "https://discord.com/channels/" + instance.setup.primary.guild.id + "/" + instance.setup.primary.chat.id + "/" + data.message.id
             })
         }
     };

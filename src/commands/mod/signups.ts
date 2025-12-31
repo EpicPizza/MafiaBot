@@ -1,11 +1,9 @@
 import { Command } from "commander";
 import { ButtonInteraction, ChatInputCommandInteraction, Colors, CommandInteraction, EmbedBuilder, SlashCommandSubcommandBuilder } from "discord.js";
 import { z } from "zod";
-import { type TextCommand } from '../../discord';
+import { Event, type TextCommand } from '../../discord';
 import { fromZod } from '../../utils/text';
-import { getGlobal } from '../../utils/global';
 import { activateSignup, closeSignups, getGameByName, openSignups, refreshSignup } from "../../utils/mafia/games";
-import { getSetup } from "../../utils/setup";
 import { Subcommand, Subinteraction } from "../../utils/subcommands";
 
 export const SignupsCommand = {
@@ -29,12 +27,14 @@ export const SignupsCommand = {
             .argument('<game>', 'name of game', fromZod(z.string().min(1).max(100)))
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
         const name = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
 
         if(name == null) throw new Error("Game needs to be specified.");
 
-        await openSignups(name);
+        await openSignups(name, interaction.instance);
 
         return await createSignups(interaction, name);
     }
@@ -61,14 +61,16 @@ export const CloseCommand = {
             .argument('<game>', "name of game", fromZod(z.string().min(1).max(100)));
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
         const name = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
 
         if(name == null) throw new Error("Game needs to be specified.");
 
-        await closeSignups(name);
+        await closeSignups(name, interaction.instance);
 
-        await refreshSignup(name);
+        await refreshSignup(name, interaction.instance);
 
         if(interaction.type == 'text') {
             await interaction.message.react("✅");
@@ -99,14 +101,16 @@ export const OpenCommand = {
             .argument('<game>', "name of game", fromZod(z.string().min(1).max(100)));
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
         const name = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
 
         if(name == null) throw new Error("Game needs to be specified.");
 
-        await openSignups(name);
+        await openSignups(name, interaction.instance);
 
-        await refreshSignup(name);
+        await refreshSignup(name, interaction.instance);
 
         if(interaction.type == 'text') {
             await interaction.message.react("✅");
@@ -126,17 +130,19 @@ export const ReactivateButton = {
         game: z.string().min(1).max(100)
     }),
 
-    execute: async (interaction: ButtonInteraction) => {
+    execute: async (interaction: Event<ButtonInteraction>) => {
         const game = JSON.parse(interaction.customId).game;
 
         createSignups(interaction, game);
     }
 } satisfies Subinteraction;
 
-async function createSignups(interaction: CommandInteraction | ButtonInteraction | TextCommand, name: string) {
-    const global = await getGlobal();
-    const game = await getGameByName(name);
-    const setup = await getSetup();
+async function createSignups(interaction: Event<CommandInteraction | ButtonInteraction | TextCommand>, name: string) {
+    interaction.inInstance();
+
+    const global = interaction.instance.global;
+    const game = await getGameByName(name, interaction.instance);
+    const setup = interaction.instance.setup;
 
     if(global == null || game == null) throw new Error("Could not find game.");
     if(typeof setup == 'string') throw new Error("Setup incomplete.");
@@ -161,5 +167,5 @@ async function createSignups(interaction: CommandInteraction | ButtonInteraction
 
     if(message == undefined || message.guildId == undefined) return;
 
-    await activateSignup({ id: message.id, name: game.name });
+    await activateSignup({ id: message.id, name: game.name }, interaction.instance);
 }

@@ -1,14 +1,12 @@
 import { Command } from "commander";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandBuilder } from "discord.js";
 import { z } from "zod";
-import { Data } from '../discord';
+import { Data, Event } from '../discord';
 import { TextCommand } from '../discord';
 import { fromZod } from '../utils/text';
 import { firebaseAdmin } from "../utils/firebase";
-import { getGlobal } from '../utils/global';
 import { getGameByID } from "../utils/mafia/games";
 import { getAllUsers } from "../utils/mafia/user";
-import { getSetup } from "../utils/setup";
 import { fetchStats } from "../utils/mafia/tracking";
 
 module.exports = {
@@ -65,25 +63,27 @@ module.exports = {
         }*/
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction) => {
+    execute: async (interaction: Event<ChatInputCommandInteraction>) => {
         return handleStatsList(interaction);
     }
 }
 
-async function handleStatsList(interaction: ChatInputCommandInteraction | TextCommand) {
-    const global = await getGlobal();
+async function handleStatsList(interaction: Event<ChatInputCommandInteraction | TextCommand>) {
+    interaction.inInstance();
+
+    const global = interaction.instance.global;
     if(global.started == false) throw new Error("Game has not started.");
-    const game = await getGameByID(global.game != null ? global.game : "bruh");
+    const game = await getGameByID(global.game != null ? global.game : "bruh", interaction.instance);
     if(game == null) throw new Error("Game not found.");
     
     if(interaction.type == 'text' ? interaction.program.getOptionValue('total') : (interaction.options.getBoolean('total') === true)) {
-        const users = await getAllUsers();
+        const users = await getAllUsers(interaction.instance);
         const db = firebaseAdmin.getFirestore();
 
         const cumulativeStats: Map<string, { messages: number, words: number }> = new Map();
 
         for (let d = 1; d <= global.day; d++) {
-            const docs = await fetchStats(process.env.INSTANCE ?? "---", game.id, d);
+            const docs = await fetchStats(interaction.instance.id, game.id, d);
 
             for (const stats of docs) {
                 const current = cumulativeStats.get(stats.id) ?? { messages: 0, words: 0 };
@@ -109,7 +109,7 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | TextCo
             };
         });
 
-        const currentPlayersData = (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc(global.day.toString()).get()).data();
+        const currentPlayersData = (await db.collection('instances').doc(interaction.instance.id).collection('games').doc(game.id).collection('days').doc(global.day.toString()).get()).data();
         const currentPlayers = currentPlayersData?.players as string[] | undefined ?? game.signups;
 
         currentPlayers.forEach(playerId => {
@@ -145,19 +145,19 @@ async function handleStatsList(interaction: ChatInputCommandInteraction | TextCo
         return;
     }
 
-    const setup = await getSetup();
+    const setup = interaction.instance.setup;
 
     const day = interaction.type == 'text' ? (interaction.program.processedArgs.length > 0 ? interaction.program.processedArgs[0] as number | undefined ?? global.day : global.day) : Math.round(interaction.options.getNumber("day") ?? global.day);
 
     if(day > global.day) throw new Error("Not on day " + day + " yet!");
     if(day < 1) throw new Error("Must be at least day 1.");
 
-    const users = await getAllUsers();
+    const users = await getAllUsers(interaction.instance);
 
     const db = firebaseAdmin.getFirestore();
-    const currentPlayers = (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc(day.toString()).get()).data()?.players as string[] | undefined ?? [];
+    const currentPlayers = (await db.collection('instances').doc(interaction.instance.id).collection('games').doc(game.id).collection('days').doc(day.toString()).get()).data()?.players as string[] | undefined ?? [];
     
-    const docs = await fetchStats(process.env.INSTANCE ?? "---", game.id, day);
+    const docs = await fetchStats(interaction.instance.id, game.id, day);
 
     let list = [] as { name: string, id: string, messages: number, words: number, show: boolean, alive: boolean, images: number, /* reactions: { reaction: string, timestamp: number, message: string }[] */}[];
     let aliveList = [] as { name: string, id: string, messages: number, words: number, show: boolean, alive: boolean, images: number, /* reactions: { reaction: string, timestamp: number, message: string }[] */ }[];

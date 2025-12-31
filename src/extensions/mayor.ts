@@ -2,17 +2,18 @@ import { Command } from "commander";
 import { ChannelType, Colors, EmbedBuilder } from "discord.js";
 import { Transaction } from "firebase-admin/firestore";
 import { z } from "zod";
-import { type TextCommand } from '../discord';
+import { Event, type TextCommand } from '../discord';
 import { fromZod } from '../utils/text';
 import { Extension, ExtensionInteraction } from "../utils/extensions";
 import { firebaseAdmin } from "../utils/firebase";
-import { getGlobal, type Global } from '../utils/global';
+import { type Global } from '../utils/global';
 import { Signups, getGameByID, getGameSetup } from "../utils/mafia/games";
 import { deleteCollection } from "../utils/mafia/main";
 import { User, getUserByChannel, getUsersArray } from "../utils/mafia/user";
 import { CustomLog, TransactionResult, Vote, flow, getVotes, handleHammer } from "../utils/mafia/vote";
 import { checkMod } from "../utils/mod";
 import { getSetup } from "../utils/setup";
+import { Instance } from "../utils/instance";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -77,14 +78,14 @@ module.exports = {
         },
     ],
     interactions: [],
-    onStart: async (global, setup, game) => {
+    onStart: async (instance, game) => {
         /**
          * Runs during game start processes.
          */
 
         const db = firebaseAdmin.getFirestore();
 
-        await deleteCollection(db, db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('mayor'), 20);
+        await deleteCollection(db, db.collection('instances').doc(instance.id).collection('mayor'), 20);
 
         return;
 
@@ -92,30 +93,33 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onLock: async (global, setup, game) => {},
-    onUnlock: async (global, setup, game, incremented) => {},
-    onCommand: async (command: TextCommand) => {
+    onLock: async (instance, game) => {},
+    onUnlock: async (instance, game, incremented) => {},
+    onCommand: async (command: Event<TextCommand>) => {
         /**
          * Text commands only for the forseeable future.
          * 
          * command: Command
          */
 
-        const setup = await getSetup();
-        const global = await getGlobal();
+        command.inInstance();
+
+        const setup = command.instance.setup;
+        const global = command.instance.global;
+
         const member = await setup.primary.guild.members.fetch(command.user.id);
-        const game = await getGameByID(global.game ?? "");
+        const game = await getGameByID(global.game ?? "", command.instance);
 
         if(command.name == "set") {
             await checkMod(setup, global, command.user.id, command.message.guildId ?? "");
 
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
 
-            const user = await getUserByChannel(command.message.channel.id);
+            const user = await getUserByChannel(command.message.channel.id, command.instance);
             if(!user) throw new Error("This dm channel is not linked to a user.");
 
             const db = firebaseAdmin.getFirestore();
-            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('mayor').doc(user.id);
+            const ref = db.collection('instances').doc(command.instance.id).collection('mayor').doc(user.id);
 
             const previous = (await ref.get()).data() as MayorEntry | undefined;
             const newEntry = {
@@ -128,9 +132,9 @@ module.exports = {
             await ref.set(newEntry);
 
             if(newEntry.type == "public") {
-                await updateVotes(newEntry.day, game, "is now a mayor!", user.id); //update if new entry has votes that count immediently.
+                await updateVotes(newEntry.day, game, "is now a mayor!", user.id, command.instance); //update if new entry has votes that count immediently.
             } else if(previous && previous.reveal == true) {
-                await updateVotes(newEntry.day, game, "is no longer a mayor!", user.id); //update if new entry doesn't have votes that count immediently.
+                await updateVotes(newEntry.day, game, "is no longer a mayor!", user.id, command.instance); //update if new entry doesn't have votes that count immediently.
             }
 
             //no need to do anything if nothing changes visibly with mayor
@@ -141,17 +145,17 @@ module.exports = {
 
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
 
-            const user = await getUserByChannel(command.message.channel.id);
+            const user = await getUserByChannel(command.message.channel.id, command.instance);
             if(!user) throw new Error("This dm channel is not linked to a user.");
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('mayor').doc(user.id);
+            const ref = db.collection('instances').doc(command.instance.id).collection('mayor').doc(user.id);
             const previous = (await ref.get()).data() as MayorEntry | undefined;
             await ref.delete();
 
             if(previous?.reveal == true) {
-                await updateVotes(previous.day, game, "is no longer a mayor!", user.id);
+                await updateVotes(previous.day, game, "is no longer a mayor!", user.id, command.instance);
             }
 
             await command.message.react("✅");
@@ -160,7 +164,7 @@ module.exports = {
 
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != gameSetup.spec.guildId || command.message.channel.id != gameSetup.spec.id) throw new Error("This command must be run in dead chat.");
 
-            const mayors = await getMayors(await getUsersArray(game.signups));
+            const mayors = await getMayors(command.instance, await getUsersArray(game.signups, command.instance));
 
             let message = mayors.reduce((prev, mayor) => prev + (mayor.nickname ?? "<@" + mayor.id + ">") + " - " + capitalize(mayor.type) + " (Weight: " + mayor.weight + ") (Day: " + mayor.day + ")\n", "");
 
@@ -174,7 +178,7 @@ module.exports = {
             if(command.message.channelId != setup.primary.chat.id) throw new Error("Must be in main chat!");
             if(global.locked == true) throw new Error("Game is locked!");
 
-            const result = await reveal(command.user.id, global, game);
+            const result = await reveal(command.user.id, global, game, command.instance);
 
             if(result == undefined) return;
 
@@ -182,16 +186,16 @@ module.exports = {
 
             await command.message.react("✅");
 
-            await handleHammer(result.hammer, global, setup, game);
+            await handleHammer(result.hammer, game, command.instance);
         } else if(command.name == "votes") {
             await checkMod(setup, global, command.user.id, command.message.guildId ?? "");
 
             const gameSetup = await getGameSetup(game, setup);
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != gameSetup.spec.guildId || command.message.channel.id != gameSetup.spec.id) throw new Error("This command must be run in dead chat.");
 
-            const votes = await getVotes(global.day, game);
-            const users = await getUsersArray(game.signups);
-            const mayors = await getMayors();
+            const votes = await getVotes(global.day, game, command.instance);
+            const users = await getUsersArray(game.signups, command.instance);
+            const mayors = await getMayors(command.instance);
 
             const board = getBoard(votes, users, mayors, global.day, true);
 
@@ -209,7 +213,7 @@ module.exports = {
     },
     onInteraction: async (extensionInteraction: ExtensionInteraction) => {},
     onMessage: async (message) => {},
-    onEnd: async (global, setup, game) => {
+    onEnd: async (instance, game) => {
         /**
          * Runs during game end processes.
          */
@@ -222,32 +226,32 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onVote: async (global, setup, game, voter, voting, type, users, transaction) => {
-        const { reply, vote, votes } = await flow.placeVote(transaction, voter, voting, type, users, global.day, game); // doesn't save vote yet since board needs to be created
+    onVote: async (instance, game, voter, voting, type, users, transaction) => {
+        const { reply, vote, votes } = await flow.placeVote(transaction, voter, voting, type, users, instance.global.day, game, instance); // doesn't save vote yet since board needs to be created
         
         if(vote == undefined) return { reply };
 
-        const mayors = await getMayors();
+        const mayors = await getMayors(instance);
 
-        const board = getBoard(votes, users, mayors, global.day);
+        const board = getBoard(votes, users, mayors, instance.global.day);
 
-        const setMessage = flow.finish(transaction, vote, board, global.day, game); // locks in vote
+        const setMessage = flow.finish(transaction, vote, board, instance.global.day, game, instance); // locks in vote
 
         return {
             reply,
-            hammer: determineHammer(vote, votes, users, mayors, global.day, global),
+            hammer: determineHammer(vote, votes, users, mayors, instance.global.day, instance.global),
             setMessage,
         }
     },
-    onVotes: async (global, setup, game, board ) => {
-        if(global.hammer) {
+    onVotes: async (instance, game, board ) => {
+        if(instance.global.hammer) {
             return "";
         } else {
             return "Hammer disabled."
         }
      }, // no need to change from default behavior
-    onHammer: async (global, setup, game, hammered) => {},
-    onRemove: async (global, setup, game, removed) => {}
+    onHammer: async (instance, game, hammered) => {},
+    onRemove: async (instance, game, removed) => {}
 } satisfies Extension;
 
 function capitalize(input: string) {
@@ -266,10 +270,10 @@ interface Mayor extends MayorEntry {
     nickname?: string,
 }
 
-async function getMayors(users: User[] | undefined = undefined, transaction: Transaction | undefined = undefined) {
+async function getMayors(instance: Instance, users: User[] | undefined = undefined, transaction: Transaction | undefined = undefined) {
     const db = firebaseAdmin.getFirestore();
 
-    const docs = transaction ? (await transaction.get(db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('mayor'))).docs : (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('mayor').get()).docs;
+    const docs = transaction ? (await transaction.get(db.collection('instances').doc(instance.id).collection('mayor'))).docs : (await db.collection('instances').doc(instance.id).collection('mayor').get()).docs;
 
     const mayors = new Array<Mayor>();
 
@@ -369,19 +373,19 @@ function determineHammer(vote: Vote, votes: Vote[], users: User[], mayors: Await
     }
 }
 
-async function updateVotes(day: number, game: Signups, message: string, id: string) {
+async function updateVotes(day: number, game: Signups, message: string, id: string, instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    const users = await getUsersArray(game.signups);
+    const users = await getUsersArray(game.signups, instance);
 
     await db.runTransaction(async t => {
-        const votes = await getVotes(day, game, t);
+        const votes = await getVotes(day, game, instance, t);
 
-        const mayors = await getMayors(users, t);
+        const mayors = await getMayors(instance, users, t);
 
         const board = getBoard(votes, users, mayors, day);
 
-        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc(day.toString()).collection('votes').doc();
+        const ref = db.collection('instances').doc(instance.id).collection('games').doc(game.id).collection('days').doc(day.toString()).collection('votes').doc();
 
         t.create(ref, {
             board,
@@ -397,20 +401,20 @@ async function updateVotes(day: number, game: Signups, message: string, id: stri
     })
 }
 
-async function reveal(id: string, global: Global, game: Signups) {
+async function reveal(id: string, global: Global, game: Signups, instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('mayor').doc(id);
+    const ref = db.collection('instances').doc(instance.id).collection('mayor').doc(id);
 
-    const users = await getUsersArray(game.signups);
+    const users = await getUsersArray(game.signups, instance);
 
     const result = await db.runTransaction(async t => {
-        const votes = await getVotes(global.day, game, t); // no need to actually put a vote, just retrieve votes
+        const votes = await getVotes(global.day, game, instance, t); // no need to actually put a vote, just retrieve votes
 
         const data = (await t.get(ref)).data();
         if(!data || !(data.type == 'secret' || data.type == 'classic') || data.reveal == true) return; //check they are a mayor
 
-        const mayors = await getMayors(users, t);
+        const mayors = await getMayors(instance, users, t);
 
         t.update(ref, {
             reveal: true,
@@ -421,7 +425,7 @@ async function reveal(id: string, global: Global, game: Signups) {
 
         const board = getBoard(votes, users, mayors, global.day);
         
-        const logRef = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc(global.day.toString()).collection('votes').doc();
+        const logRef = db.collection('instances').doc(instance.id).collection('games').doc(game.id).collection('days').doc(global.day.toString()).collection('votes').doc();
 
         const existing = votes.find(v => v.id == id);
         

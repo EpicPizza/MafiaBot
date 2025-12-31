@@ -1,10 +1,9 @@
 import { Events, ClientEvents, Colors, EmbedBuilder, ChannelType, AuditLogEvent } from 'discord.js';
-import { getGlobal } from '../utils/global';
-import { getSetup } from '../utils/setup';
 import { getUser } from '../utils/mafia/user';
 import { firebaseAdmin } from '../utils/firebase';
 import { editOverwrites } from "../utils/mafia/main";
 import { RoleQueue } from '../utils/mafia/invite';
+import { getAuthority } from '../utils/instance';
 
 export async function guildMemberUpdateHandler(...[oldMember, newMember]: ClientEvents[Events.GuildMemberUpdate]) {
     try {
@@ -12,10 +11,12 @@ export async function guildMemberUpdateHandler(...[oldMember, newMember]: Client
             return;
         }
     
-        const global = await getGlobal();
-        if(!global.started) return;
+        const instance = await getAuthority(newMember.guild.id, false);
+        if(instance == undefined) return;
 
-        const setup = await getSetup();
+        const global = instance.global;
+        const setup = instance.setup;
+
         const name = Object.entries(setup).find(entry => entry[1].guild.id == newMember.guild.id)?.[0];
         if(name == undefined) return;
 
@@ -46,7 +47,7 @@ export async function guildMemberUpdateHandler(...[oldMember, newMember]: Client
                 new EmbedBuilder()
                     .setTitle('Member Update')
                     .setColor(Colors.Blue)
-                    .setDescription(`${name.substring(0, 1).toUpperCase() + name.substring(1)} Server - <@${newMember.id}> (${(await getUser(newMember.id))?.nickname ?? "n/a"})\n\n${description}`)
+                    .setDescription(`${name.substring(0, 1).toUpperCase() + name.substring(1)} Server - <@${newMember.id}> (${(await getUser(newMember.id, instance))?.nickname ?? "n/a"})\n\n${description}`)
             ]});
         }
     } catch(e) {
@@ -56,8 +57,12 @@ export async function guildMemberUpdateHandler(...[oldMember, newMember]: Client
 
 export async function guildMemberAddHanlder(...[member]: ClientEvents[Events.GuildMemberAdd]) {
     try {
-        const setup = await getSetup();
-        const global = await getGlobal();
+        const instance = await getAuthority(member.guild.id, false);
+        if(instance == undefined) return;
+
+        const global = instance.global;
+        const setup = instance.setup;
+
         const db = firebaseAdmin.getFirestore();
 
         const name = Object.entries(setup).find(entry => entry[1].guild.id == member.guild.id)?.[0];
@@ -68,11 +73,11 @@ export async function guildMemberAddHanlder(...[member]: ClientEvents[Events.Gui
                 new EmbedBuilder()
                     .setTitle('Member Join')
                     .setColor(Colors.Green)
-                    .setDescription(`${name.substring(0, 1).toUpperCase() + name.substring(1)} Server - <@${member.id}> (${(await getUser(member.id))?.nickname ?? "n/a"})`)
+                    .setDescription(`${name.substring(0, 1).toUpperCase() + name.substring(1)} Server - <@${member.id}> (${(await getUser(member.id, instance))?.nickname ?? "n/a"})`)
             ]});
         }
 
-        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('roles').where('id', '==', member.id).where('server', '==', name);
+        const ref = db.collection('instances').doc(instance.id).collection('roles').where('id', '==', member.id).where('server', '==', name);
         const docs = (await ref.get()).docs
         const roles = docs.map(doc => doc.data()) as RoleQueue[];
 
@@ -126,7 +131,7 @@ export async function guildMemberAddHanlder(...[member]: ClientEvents[Events.Gui
                 new EmbedBuilder()
                     .setTitle('Member Kick')
                     .setColor(Colors.Red)
-                    .setDescription(`An invite entry for <@${member.id}> (${(await getUser(member.id))?.nickname ?? "n/a"}) count not be found.`)
+                    .setDescription(`An invite entry for <@${member.id}> (${(await getUser(member.id, instance))?.nickname ?? "n/a"}) count not be found.`)
             ]});
         }
 
@@ -138,10 +143,12 @@ export async function guildMemberAddHanlder(...[member]: ClientEvents[Events.Gui
 
 export async function guildMemberRemoveHandler(...[member]: ClientEvents[Events.GuildMemberRemove]) {
     try {
-        const global = await getGlobal();
-        if(!global.started) return;
+        const instance = await getAuthority(member.guild.id, false);
+        if(instance == undefined) return;
 
-        const setup = await getSetup();
+        const global = instance.global;
+        const setup = instance.setup;
+
         const name = Object.entries(setup).find(entry => entry[1].guild.id == member.guild.id)?.[0];
         if(name == undefined) return;
 
@@ -160,7 +167,7 @@ export async function guildMemberRemoveHandler(...[member]: ClientEvents[Events.
             new EmbedBuilder()
                 .setTitle('Member Kick')
                 .setColor(Colors.Red)
-                .setDescription(`${name.substring(0, 1).toUpperCase() + name.substring(1)} Server - <@${member.id}> (${(await getUser(member.id))?.nickname ?? "n/a"}) was kicked by ${executor ? `<@${executor.id}>` : 'Unknown'}`)
+                .setDescription(`${name.substring(0, 1).toUpperCase() + name.substring(1)} Server - <@${member.id}> (${(await getUser(member.id, instance))?.nickname ?? "n/a"}) was kicked by ${executor ? `<@${executor.id}>` : 'Unknown'}`)
         ]});
     } catch(e) {
         console.log(e);

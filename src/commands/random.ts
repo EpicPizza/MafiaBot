@@ -2,12 +2,12 @@ import { Command } from "commander";
 import { randomInt } from "crypto";
 import { Colors, EmbedBuilder } from "discord.js";
 import { z } from "zod";
-import { Data } from '../discord';
+import { Data, Event } from '../discord';
 import { TextCommand } from '../discord';
 import { simpleJoin } from '../utils/text';
 import { fromZod } from '../utils/text';
-import { getGlobal } from '../utils/global';
 import { getUserByName, getUsersArray, User } from "../utils/mafia/user";
+import { Instance } from "../utils/instance";
 
 module.exports = {
     data: [
@@ -30,7 +30,9 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: TextCommand) => {
+    execute: async (interaction: Event<TextCommand>) => {
+        interaction.inInstance();
+
         const arg1 = interaction.program.processedArgs[0] as 'pl' | 'number'
         const arg2 = interaction.program.processedArgs[1] as 'list' | 'number' | string;
         const arg3 = interaction.program.processedArgs[2] as number | string;
@@ -88,16 +90,16 @@ module.exports = {
 
             if(plSubcommand == 'number') {
                 if(list != undefined) {
-                    const users = await getUsersByName(list);
+                    const users = await getUsersByName(list, interaction.instance);
 
                     embed.setDescription(users.map(user => {
                         return user.nickname + " - " + getRandom(min, max)
                     }).reduce((prev, curr) => prev + "\n" + curr, ""));
                 } else {
-                    const global = await getGlobal();
+                    const global = interaction.instance.global;
                     if(global.started == false) throw new Error("Game has not started!");
 
-                    const users = await getUsersArray(global.players.map(player => player.id));
+                    const users = await getUsersArray(global.players.map(player => player.id), interaction.instance);
 
                     embed.setDescription(users.map(user => {
                         return user.nickname + " - " + getRandom(min, max)
@@ -105,7 +107,7 @@ module.exports = {
                 }
             } else if(plSubcommand == 'list') {
                 if(list != undefined) {
-                    const users = await getUsersByName(list);
+                    const users = await getUsersByName(list, interaction.instance);
 
                     const shuffled = [...users];
                     for (let i = shuffled.length - 1; i > 0; i--) {
@@ -117,10 +119,10 @@ module.exports = {
 
                     embed.setDescription(selected.map(user => user.nickname).join('\n'));
                 } else if(list == undefined) {
-                    const global = await getGlobal();
+                    const global = interaction.instance.global;
                     if(global.started == false) throw new Error("Game has not started!");
 
-                    const users = await getUsersArray(global.players.map(player => player.id));
+                    const users = await getUsersArray(global.players.map(player => player.id), interaction.instance);
 
                     const shuffled = [...users];
                     for (let i = shuffled.length - 1; i > 0; i--) {
@@ -142,8 +144,8 @@ module.exports = {
     }
 }
 
-async function getUsersByName(names: string[]) {
-    const users = await Promise.all(names.map(name => getUserByName(name)));
+async function getUsersByName(names: string[], instance: Instance) {
+    const users = await Promise.all(names.map(name => getUserByName(name, instance)));
 
     if(users.filter(user => user == undefined).length > 0) throw new Error("User not found!");
 

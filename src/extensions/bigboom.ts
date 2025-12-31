@@ -90,7 +90,7 @@ module.exports = {
         },*/
     ],
     interactions: [],
-    onStart: async (global, setup, game) => {
+    onStart: async (instance, game) => {
         /**
          * Runs during game start processes.
          */
@@ -105,8 +105,8 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onLock: async (global, setup, game) => {},
-    onUnlock: async (global, setup, game, incremented: boolean) => {},
+    onLock: async (instance, game) => {},
+    onUnlock: async (instance, game, incremented: boolean) => {},
     onCommand: async (command: TextCommand) => {
         /**
          * Text commands only for the forseeable future.
@@ -308,11 +308,11 @@ module.exports = {
         }
 
     },
-    onEnd: async (global, setup, game) => {},
-    onVote: async (global, setup, game, voter, voting, type, users, transaction) => {},
-    onVotes: async (global, setup, game, board ) => { return ""; },
-    onHammer: async (global: Global, setup: Setup, game, hammered: string) => {},
-    onRemove: async (global, setup, game, removed: string) => {}
+    onEnd: async (instance, game) => {},
+    onVote: async (instance, game, voter, voting, type, users, transaction) => {},
+    onVotes: async (instance, game, board ) => { return ""; },
+    onHammer: async (instance, game, hammered: string) => {},
+    onRemove: async (instance, game, removed: string) => {}
 } satisfies Extension;
 
 async function wait(milliseconds: number) {

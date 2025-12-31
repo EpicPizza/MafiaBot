@@ -23,7 +23,7 @@ module.exports = {
         }
     ],
     interactions: [],
-    onStart: async (global, setup, game) => {
+    onStart: async (instance, game) => {
         /**
          * Runs during game start processes.
          */
@@ -36,14 +36,14 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onLock: async (global, setup, game) => {
+    onLock: async (instance, game) => {
         /**
          * Runs after game has locked.
          */
 
         console.log("Extension Lock");
     },
-    onUnlock: async (global, setup, game, incremented) => {
+    onUnlock: async (instance, game, incremented) => {
         /**
          * Runa after game has unlocked.
          * 
@@ -103,7 +103,7 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onEnd: async (global, setup, game) => {
+    onEnd: async (instance, game) => {
         /**
          * Runs during game end processes.
          */
@@ -116,24 +116,24 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onVote: async (global, setup, game, voter, voting, type, users, transaction) => {
+    onVote: async (instance, game, voter, voting, type, users, transaction) => {
         /**
          * Control the entire voting logic. This example shows the default voting behavior.
          * 
          * This runs within a database transaction, reading with the transaction blocks other writes, only read with transaction as necessary. Use users or fallback to normal reads.
          */
 
-        const { reply, vote, votes } = await flow.placeVote(transaction, voter, voting, type, users, global.day, game); // doesn't save vote yet since board needs to be created
+        const { reply, vote, votes } = await flow.placeVote(transaction, voter, voting, type, users, instance.global.day, game, instance); // doesn't save vote yet since board needs to be created
         
         if(vote == undefined) return { reply };
 
         const board = flow.board(votes, users);
 
-        const setMessage = flow.finish(transaction, vote, board, global.day, game); // locks in vote
+        const setMessage = flow.finish(transaction, vote, board, instance.global.day, game, instance); // locks in vote
 
         return {
             reply,
-            hammer: flow.determineHammer(vote, votes, users, global),
+            hammer: flow.determineHammer(vote, votes, users, instance.global),
             setMessage,
         }
 
@@ -143,13 +143,13 @@ module.exports = {
          * setMessage?: (id: string) => Promise<void> - Setting the id of the message to keep in logs.
          */
     },
-    onVotes: async (global, setup, game, board ) => { 
+    onVotes: async (instance, game, board ) => { 
         return "Example footer.";
 
         /**
          * Return what is show in the footer in ?votes.
          */
     },
-    onHammer: async (global, setup, game, hammered) => {},
-    onRemove: async (global, setup, game, removed) => {}
+    onHammer: async (instance, game, hammered) => {},
+    onRemove: async (instance, game, removed) => {}
 } satisfies Extension;

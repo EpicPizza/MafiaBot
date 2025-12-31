@@ -1,11 +1,10 @@
 import { Command } from "commander";
 import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
 import { z } from "zod";
-import { type TextCommand } from '../../discord';
+import { Event, type TextCommand } from '../../discord';
 import { fromZod } from '../../utils/text';
 import { removeReactions } from "../../discord/helpers";
 import { firebaseAdmin } from "../../utils/firebase";
-import { getGlobal } from '../../utils/global';
 import { getGameByID } from "../../utils/mafia/games";
 import { deleteCollection } from "../../utils/mafia/main";
 import { getSetup } from "../../utils/setup";
@@ -31,19 +30,21 @@ export const ClearCommand = {
             .argument('<day>', 'which day to clear', fromZod(z.coerce.number()));
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+        
         if(interaction.type != 'text') {
             await interaction.deferReply({ ephemeral: true });
         } else {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
        
-        const global = await getGlobal();
-        const setup  = await getSetup();
+        const global = interaction.instance.global;
+        const setup  = interaction.instance.setup;
         
         if(global.started == false) throw new Error("Game has not started.");
 
-        const game = await getGameByID(global.game ?? "---");
+        const game = await getGameByID(global.game ?? "---", interaction.instance);
         if(game == undefined) throw new Error("Game not found?");
 
 
@@ -53,7 +54,7 @@ export const ClearCommand = {
 
         const db = firebaseAdmin.getFirestore();
 
-        const dayDoc = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc((day).toString());
+        const dayDoc = db.collection('instances').doc(interaction.instance.id).collection('games').doc(game.id).collection('days').doc((day).toString());
 
         await deleteCollection(db, dayDoc.collection('votes'), 20);
         await deleteCollection(db, dayDoc.collection('stats'), 20);
@@ -96,19 +97,21 @@ export const DayCommand = {
             .option('-p, --players', 'whether to or not (re)track players')
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+        
         if(interaction.type != 'text') {
             await interaction.deferReply({ ephemeral: true });
         } else {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
        
-        const global = await getGlobal();
-        const setup  = await getSetup();
+        const global = interaction.instance.global;
+        const setup  = interaction.instance.setup;
         
         if(global.started == false) throw new Error("Game has not started.");
 
-        const game = await getGameByID(global.game ?? "");
+        const game = await getGameByID(global.game ?? "", interaction.instance);
 
         const players = interaction.type == 'text' ? interaction.program.getOptionValue('players') === true : interaction.options.getBoolean('players') ?? false;
         const day = interaction.type == 'text' ? interaction.program.processedArgs[0] as number : interaction.options.getNumber("day");
@@ -117,12 +120,12 @@ export const DayCommand = {
 
         const db = firebaseAdmin.getFirestore();
 
-        await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').update({
+        await db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game').update({
             day: day,
         });
 
         if(players) {
-            await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc((day).toString()).set({
+            await db.collection('instances').doc(interaction.instance.id).collection('games').doc(game.id).collection('days').doc((day).toString()).set({
                 game: global.game,
                 players: global.players.map((player) => player.id),
             });

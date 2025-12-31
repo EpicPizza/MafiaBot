@@ -1,12 +1,11 @@
 import { Command } from "commander";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandBuilder } from "discord.js";
 import { z } from "zod";
-import { Data } from '../discord';
+import { Data, Event } from '../discord';
 import { TextCommand } from '../discord';
 import { fromZod } from '../utils/text';
 import { getEnabledExtensions } from "../utils/extensions";
 import { firebaseAdmin } from "../utils/firebase";
-import { getGlobal } from '../utils/global';
 import { getBoard, retrieveVotes } from "../utils/mafia/fakevotes";
 import { getGameByID } from "../utils/mafia/games";
 import { Log } from "../utils/mafia/vote";
@@ -38,20 +37,22 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction) => {
+    execute: async (interaction: Event<ChatInputCommandInteraction | TextCommand>) => {
         return handleVoteList(interaction);
     }
 }
 
-async function handleVoteList(interaction: ChatInputCommandInteraction | TextCommand) {
-    const global = await getGlobal();
+async function handleVoteList(interaction: Event<ChatInputCommandInteraction | TextCommand>) {
+    interaction.inInstance();
+
+    const global = interaction.instance.global;
     
     if(global.started == false) {
         if(!(interaction.type == 'text')) throw new Error("Use text command!");
 
         const votes = await retrieveVotes(interaction.message.channelId);
 
-        const board = await getBoard(votes);
+        const board = await getBoard(votes, interaction.instance);
 
         const embed = new EmbedBuilder()
             .setTitle("Votes")
@@ -63,10 +64,9 @@ async function handleVoteList(interaction: ChatInputCommandInteraction | TextCom
         return;
     }
 
-
-    const game = await getGameByID(global.game != null ? global.game : "bruh");
+    const game = await getGameByID(global.game != null ? global.game : "bruh", interaction.instance);
     if(game == null) throw new Error("Game not found.");
-    const setup = await getSetup();
+    const setup = interaction.instance.setup;
     
     const day = interaction.type == 'text' ? interaction.program.processedArgs[0] as number ?? global.day : Math.round(interaction.options.getNumber("day") ?? global.day);
     if(day > global.day) throw new Error("Not on day " + day + " yet!");
@@ -77,7 +77,7 @@ async function handleVoteList(interaction: ChatInputCommandInteraction | TextCom
     const half = Math.floor(players / 2);
 
     const db = firebaseAdmin.getFirestore();
-    const docs = (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc(day.toString()).collection('votes').orderBy('timestamp', 'desc').limit(1).get()).docs;
+    const docs = (await db.collection('instances').doc(interaction.instance.id).collection('games').doc(game.id).collection('days').doc(day.toString()).collection('votes').orderBy('timestamp', 'desc').limit(1).get()).docs;
 
     let board = "";
     if(docs.length == 1) board = (docs[0].data() as Log).board;
@@ -93,7 +93,7 @@ async function handleVoteList(interaction: ChatInputCommandInteraction | TextCom
     
     if(global.day == day) {
         const standard = "Hammer is at " + (half + 1) + " votes.";
-        const footer = extension ? await extension.onVotes(global, setup, game, board) : standard;
+        const footer = extension ? await extension.onVotes(interaction.instance, game, board) : standard;
 
         if(extension || global.hammer) embed.setFooter({ text: footer == "" ? standard : footer });
     }

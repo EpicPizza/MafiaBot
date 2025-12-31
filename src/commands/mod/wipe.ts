@@ -1,12 +1,10 @@
 import { Command } from "commander";
 import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
 import { z } from "zod";
-import { type TextCommand } from '../../discord';
+import { Event, type TextCommand } from '../../discord';
 import { fromZod } from '../../utils/text';
 import { removeReactions } from "../../discord/helpers";
-import { getGlobal } from '../../utils/global';
 import { wipe } from "../../utils/mafia/vote";
-import { getSetup } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
 import { getGameByID } from "../../utils/mafia/games";
 
@@ -36,17 +34,19 @@ export const WipeCommand = {
             .argument('[message]', 'message to put in logs')
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
         if(interaction.type != 'text') {
             await interaction.deferReply();
         } else {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
        
-        const global = await getGlobal();
-        const setup  = await getSetup();
+        const global = interaction.instance.global;
+        const setup  = interaction.instance.setup;
 
-        const game = await getGameByID(global.game ?? "---");
+        const game = await getGameByID(global.game ?? "---", interaction.instance);
         if(game == undefined) throw new Error("Game not found!");
 
         if(setup.primary.chat.id != (interaction.type == 'text' ? interaction.message.channelId : interaction.channelId )) throw new Error("Must be in main chat!");
@@ -57,7 +57,7 @@ export const WipeCommand = {
 
         const message = interaction.type == 'text' ? (interaction.program.args.length > 1 ? interaction.program.processedArgs[2] as string ?? "" : "") : interaction.options.getString('message') ?? "";
 
-        const setMessage = await wipe(global, message, game);
+        const setMessage = await wipe(global, message, game, interaction.instance);
 
         if(interaction.type != 'text') {
             const message = await interaction.editReply({ content: "Day wiped."});

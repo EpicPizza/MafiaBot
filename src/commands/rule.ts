@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandBuilder } from "discord.js";
 import { z } from "zod";
-import { Data } from '../discord';
+import { Data, Event } from '../discord';
 import { TextCommand } from '../discord';
 import { fromZod } from '../utils/text';
 import { getRule, getRules } from "../utils/mafia/rules";
@@ -50,7 +50,7 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction | TextCommand) => {
+    execute: async (interaction: Event<ChatInputCommandInteraction | TextCommand>) => {
         const ruleNumber = interaction.type == 'text' ? 
             (interaction.program.processedArgs.length > 0 ? interaction.program.processedArgs[0] as number : -1) :
             Math.floor(interaction.options.getNumber('number') ?? -1);

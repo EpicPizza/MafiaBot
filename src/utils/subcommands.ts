@@ -1,11 +1,10 @@
 import { AutocompleteInteraction, ButtonInteraction, ChatInputCommandInteraction, Interaction, ModalSubmitInteraction, SlashCommandBuilder, SlashCommandSubcommandBuilder, SlashCommandSubcommandGroupBuilder, StringSelectMenuInteraction } from "discord.js";
-import type { Data, TextCommand } from '../discord';
+import type { Data, Event, TextCommand } from '../discord';
 import { unknown, ZodObject } from "zod";
 import { Command } from "commander";
 import path from 'node:path';
 import fs from 'node:fs';
 import { getSetup } from "./setup";
-import { getGlobal } from "./global";
 import { checkMod } from "./mod";
 
 export interface Subcommand { 
@@ -86,7 +85,7 @@ export function subcommandBuilder(subcommandsPath: string, name: string, descrip
         }
     }
 
-    async function handleCommand(interaction: TextCommand | ChatInputCommandInteraction) {
+    async function handleCommand(interaction: Event<TextCommand | ChatInputCommandInteraction>) {
         const name = interaction.type == 'text' ? interaction.program.args[0] as string : interaction.options.getSubcommandGroup() ?? interaction.options.getSubcommand();
 
         let command: Subcommand | undefined;
@@ -127,7 +126,7 @@ export function subcommandBuilder(subcommandsPath: string, name: string, descrip
     }
 }
 
-export function subcommandHandler(builder: ReturnType<typeof subcommandBuilder>, autocomplete: (interaction: AutocompleteInteraction) => unknown, mod: boolean = false) {
+export function subcommandHandler(builder: ReturnType<typeof subcommandBuilder>, autocomplete: (interaction: Event<AutocompleteInteraction>) => unknown, mod: boolean = false) {
     return {
         data: [
             builder.getSlashCommand(),
@@ -135,18 +134,18 @@ export function subcommandHandler(builder: ReturnType<typeof subcommandBuilder>,
             ...builder.getInteractions()
         ] satisfies Data[],
     
-        execute: async (interaction: Interaction | TextCommand) => {
+        execute: async (interaction: Event<Interaction | TextCommand>) => {
             if(interaction.type != 'text' && interaction.isAutocomplete()) {
                 await autocomplete(interaction);
 
                 return;
             } 
     
-            const setup  = await getSetup();
-            const global = await getGlobal();
-            if(typeof setup == 'string') throw new Error("Setup Incomplete");
-    
-            if(mod) await checkMod(setup, global, interaction.user.id, 'message' in interaction ? interaction.message?.guild?.id ?? "" : interaction.guildId ?? "");
+            if(mod) {
+                interaction.inInstance();
+
+                await checkMod(interaction.instance.setup, interaction.instance.global, interaction.user.id, 'message' in interaction ? interaction.message?.guild?.id ?? "" : interaction.guildId ?? "");
+            }
     
             if(interaction.type == 'text' || interaction.isChatInputCommand()) {
                 await builder.handleCommand(interaction)

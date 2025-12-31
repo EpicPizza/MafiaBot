@@ -1,16 +1,14 @@
 import { Command } from "commander";
 import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
 import { z } from "zod";
-import { type TextCommand } from '../../discord';
+import { Event, type TextCommand } from '../../discord';
 import { fromZod } from '../../utils/text';
 import { removeReactions } from "../../discord/helpers";
 import { getEnabledExtensions } from "../../utils/extensions";
 import { firebaseAdmin } from "../../utils/firebase";
-import { getGlobal } from '../../utils/global';
 import { getGameByID, getGameSetup } from "../../utils/mafia/games";
 import { getUserByName, getUsersArray } from "../../utils/mafia/user";
 import { defaultVote, handleHammer, TransactionResult } from "../../utils/mafia/vote";
-import { getSetup } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
 
 export const VoteCommand = {
@@ -50,30 +48,32 @@ export const VoteCommand = {
             .argument('[voting]', 'which player to vote');
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
         if(interaction.type != 'text') {
             await interaction.deferReply({ ephemeral: true });
         } else {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
        
-        const global = await getGlobal();
-        const setup  = await getSetup();
+        const global = interaction.instance.global;
+        const setup  = interaction.instance.setup;
         
         if(global.started == false) throw new Error("Game has not started.");
 
-        const game = await getGameByID(global.game ?? "");
+        const game = await getGameByID(global.game ?? "", interaction.instance);
         const gameSetup = await getGameSetup(game, setup);
 
         const playerInput = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');
         if(playerInput == null) throw new Error("Choose a player.");
-        const playerUser = await getUserByName(playerInput);
+        const playerUser = await getUserByName(playerInput, interaction.instance);
         if(!playerUser) throw new Error("Player not found.");
         const player = game.signups.find(player => player == playerUser.id);
         if(!player) throw new Error("Player is not in this game");
 
         const forInput = interaction.type == 'text' ? (interaction.program.args.length > 2 ? interaction.program.processedArgs[2] as string : null) : interaction.options.getString('for');
-        const forUser = forInput ? await getUserByName(forInput) : undefined;
+        const forUser = forInput ? await getUserByName(forInput, interaction.instance) : undefined;
         const forPlayer = forUser ? game.signups.find(player => player == forUser.id) : undefined;
 
         const advType = interaction.type == 'text' ? interaction.program.processedArgs[1] as string : interaction.options.getString('type');
@@ -87,16 +87,16 @@ export const VoteCommand = {
         const voter = playerUser;
         const voting = forUser;
 
-        const users = await getUsersArray(game.signups);
+        const users = await getUsersArray(game.signups, interaction.instance);
         
         const db = firebaseAdmin.getFirestore();
         
         const result = await db.runTransaction(async t => {
             let result: undefined | TransactionResult = undefined;
 
-            if(extension) result = await extension.onVote(global, setup, game, voter, voting, type, users, t) ?? undefined;
+            if(extension) result = await extension.onVote(interaction.instance, game, voter, voting, type, users, t) ?? undefined;
 
-            if(result == undefined) result = await defaultVote(global, setup, game, voter, voting, type, users, t);
+            if(result == undefined) result = await defaultVote(interaction.instance, game, voter, voting, type, users, t);
 
             return result;
         }) satisfies TransactionResult;
@@ -105,7 +105,7 @@ export const VoteCommand = {
 
         if(result.setMessage) await result.setMessage(message.id);
 
-        await handleHammer(result.hammer, global,setup, game);
+        await handleHammer(result.hammer, game, interaction.instance);
         
         if(interaction.type == 'text') {
             await removeReactions(interaction.message);

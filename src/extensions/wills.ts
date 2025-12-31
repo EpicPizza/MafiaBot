@@ -1,10 +1,9 @@
 import { Command } from "commander";
 import { ChannelType } from "discord.js";
-import { type TextCommand } from '../discord';
+import { Event, type TextCommand } from '../discord';
 import { simpleJoin } from '../utils/text';
 import { Extension, ExtensionInteraction } from "../utils/extensions";
 import { firebaseAdmin } from "../utils/firebase";
-import { getGlobal } from '../utils/global';
 import { deleteCollection } from "../utils/mafia/main";
 import { getUser, getUserByChannel } from "../utils/mafia/user";
 import { checkMod } from "../utils/mod";
@@ -49,14 +48,14 @@ module.exports = {
         }
     ],
     interactions: [],
-    onStart: async (global, setup, game) => {
+    onStart: async (instance, game) => {
         /**
          * Runs during game start processes.
          */
 
         const db = firebaseAdmin.getFirestore();
 
-        await deleteCollection(db, db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('wills'), 20);
+        await deleteCollection(db, db.collection('instances').doc(instance.id).collection('wills'), 20);
 
         return;
 
@@ -64,20 +63,23 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onLock: async (global, setup, game) => {},
-    onUnlock: async (global, setup, game, incremented) => {},
-    onCommand: async (command: TextCommand) => {
+    onLock: async (instance, game) => {},
+    onUnlock: async (instance, game, incremented) => {},
+    onCommand: async (command: Event<TextCommand>) => {
         /**
          * Text commands only for the forseeable future.
          * 
          * command: Command
          */
 
-        const setup = await getSetup();
-        const global = await getGlobal();
+        
+        command.inInstance();
+
+        const global = command.instance.global;
+        const setup = command.instance.setup;
         
         if(command.name == "set") {
-            const user = await getUser(command.user.id);
+            const user = await getUser(command.user.id, command.instance);
 
             if(user == undefined || !global.players.find(player => player.id == user.id)) throw new Error("You must be part of game.");
 
@@ -87,7 +89,7 @@ module.exports = {
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('wills').doc(user.id);
+            const ref = db.collection('instances').doc(command.instance.id).collection('wills').doc(user.id);
 
             if((await ref.get()).data()?.locked == true) throw new Error("You are not allowed to set a will.");
 
@@ -102,13 +104,13 @@ module.exports = {
             
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
 
-            const player = await getUserByChannel(command.message.channelId);
+            const player = await getUserByChannel(command.message.channelId, command.instance);
 
             if(player == undefined) throw new Error("User not found.");
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('wills').doc(player.id);
+            const ref = db.collection('instances').doc(command.instance.id).collection('wills').doc(player.id);
 
             await ref.update({
                 will: "",
@@ -121,13 +123,13 @@ module.exports = {
 
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
 
-            const player = await getUserByChannel(command.message.channelId);
+            const player = await getUserByChannel(command.message.channelId, command.instance);
 
             if(player == undefined) throw new Error("User not found.");
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('wills').doc(player.id);
+            const ref = db.collection('instances').doc(command.instance.id).collection('wills').doc(player.id);
 
             await ref.delete();
 
@@ -140,17 +142,17 @@ module.exports = {
     },
     onInteraction: async (extensionInteraction: ExtensionInteraction) => {},
     onMessage: async (message) => {},
-    onEnd: async (global, setup, game) => {},
-    onVote: async (global, setup, game, voter, voting, type, users, transaction) => {},
-    onVotes: async (global, setup, game, board ) => { return ""; },
-    onHammer: async (global, setup, game, hammered) => {
-        const user = await getUser(hammered);
+    onEnd: async (instance, game) => {},
+    onVote: async (instance, game, voter, voting, type, users, transaction) => {},
+    onVotes: async (instance, game, board ) => { return ""; },
+    onHammer: async (instance, game, hammered) => {
+        const user = await getUser(hammered, instance);
 
         if(!user) return;
 
         const db = firebaseAdmin.getFirestore();
 
-        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('wills').doc(user.id);
+        const ref = db.collection('instances').doc(instance.id).collection('wills').doc(user.id);
 
         const data = (await ref.get()).data();
 
@@ -160,7 +162,7 @@ module.exports = {
         
         await wait(1000);        
 
-        const message = await setup.primary.chat.send(".");
+        const message = await instance.setup.primary.chat.send(".");
 
         await wait(2000);
 
@@ -176,7 +178,7 @@ module.exports = {
 
         await wait(5000);
     },
-    onRemove: async (global, setup, game, removed: string) => {}
+    onRemove: async (instance, game, removed: string) => {}
 } satisfies Extension;
 
 async function wait(milliseconds: number) {

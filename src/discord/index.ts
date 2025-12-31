@@ -1,5 +1,4 @@
-import { Command } from 'commander';
-import { ApplicationCommandOptionType, Collection, ContextMenuCommandBuilder, Message, MessageReaction, PartialMessage, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandBuilder, SlashCommandSubcommandGroupBuilder, SlashCommandSubcommandsOnlyBuilder, User } from 'discord.js';
+import { AnySelectMenuInteraction, ApplicationCommandOptionType, ButtonInteraction, ChatInputCommandInteraction, Collection, ContextMenuCommandBuilder, ContextMenuCommandInteraction, GuildMember, Interaction, Message, MessageReaction, ModalSubmitInteraction, PartialMessage, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandBuilder, SlashCommandSubcommandGroupBuilder, SlashCommandSubcommandsOnlyBuilder, User } from 'discord.js';
 import { ZodObject } from 'zod';
 import { setExtensionInteractions, setExtensionTextCommands } from '../utils/extensions';
 import client from './client';
@@ -7,24 +6,30 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { initHelp } from './help';
 import { firebaseAdmin } from '../utils/firebase';
+import { Instance } from '../utils/instance';
+import { Command } from 'commander';
+
+export type Event<T> = T & {
+    name: string,
+
+    instance?: Instance,
+    inInstance(): asserts this is Event<T> & { instance: Instance },
+};
 
 export interface TextCommand {
-    name: string;
-    program: Command;
-    message: Message;
-    type: 'text';
-    reply: Message["reply"];
-    user: Message["author"];
+    type: 'text',
+    program: Command,
+    message: Message,
+    user: User,
+    reply: Message['reply']
 }
 
 export interface ReactionCommand {
-    name: string;
-    message: Message | PartialMessage;
-    type: 'reaction';
-    reply: Message["reply"];
-    author: Message["author"];
-    user: User;
-    reaction: MessageReaction;
+    type: 'reaction'
+    message: Message | PartialMessage,
+    user: User,
+    reaction: MessageReaction,
+    reply: Message['reply']
 }
 
 export type Data = ({

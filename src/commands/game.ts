@@ -2,12 +2,11 @@ import { Command } from "commander";
 import { ActionRowBuilder, AutocompleteInteraction, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, EmbedBuilder, SlashCommandBuilder } from "discord.js";
 import { FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
-import { Data } from '../discord';
+import { Data, Event } from '../discord';
 import { TextCommand } from '../discord';
 import { fromZod } from '../utils/text';
 import { removeReactions } from "../discord/helpers";
 import { firebaseAdmin } from "../utils/firebase";
-import { getGlobal } from '../utils/global';
 import { addSignup, getGameByName, getGames, refreshSignup, removeSignup } from "../utils/mafia/games";
 import { getUser } from "../utils/mafia/user";
 
@@ -79,11 +78,13 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: CommandInteraction | ButtonInteraction | AutocompleteInteraction | TextCommand) => {
+    execute: async (interaction: Event<CommandInteraction | ButtonInteraction | AutocompleteInteraction | TextCommand>) => {
+        interaction.inInstance();
+
         if(interaction.type != 'text' && interaction.isAutocomplete()) {
             const focusedValue = interaction.options.getFocused();
 
-            const games = await getGames();
+            const games = await getGames(interaction.instance);
 
             const filtered = games.filter(choice => choice.name.startsWith(focusedValue)).slice(0, 25);
 
@@ -105,22 +106,22 @@ module.exports = {
 
             if(id.name == "leave") return await leaveSignup(interaction, id.game);
 
-            const global = await getGlobal();
-            const game = await getGameByName(id.game);
+            const global = interaction.instance.global;
+            const game = await getGameByName(id.game, interaction.instance);
 
             if(global == null || game == null) throw new Error("Game not found.");
 
             if(game.closed) throw new Error("Sign ups are closed.");
             if(global.started && global.game == game.id) throw new Error("Game has started.");
 
-            const user = await getUser(interaction.user.id);
+            const user = await getUser(interaction.user.id, interaction.instance);
 
             if(!user || !game.signups.includes(user.id)) throw new Error("You haven't signed up!");
             if(game.confirmations.includes(user.id)) throw new Error("You've already confirmed!");
 
             const db = firebaseAdmin.getFirestore();
 
-            await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).update({
+            await db.collection('instances').doc(interaction.instance.id).collection('games').doc(game.id).update({
                 confirmations: FieldValue.arrayUnion(user.id)
             });
 
@@ -129,25 +130,27 @@ module.exports = {
     } 
 }
 
-async function leaveSignup(interaction: ButtonInteraction | ChatInputCommandInteraction | TextCommand, name: string) {
+async function leaveSignup(interaction: Event<ButtonInteraction | ChatInputCommandInteraction | TextCommand>, name: string) {
+    interaction.inInstance();
+
     if(interaction.type != 'text') {
         if(!interaction.deferred && interaction.isChatInputCommand()) await interaction.deferReply({ ephemeral: true });
     } else {
         await interaction.message.react("<a:loading:1256150236112621578>");
     }
     
-    const global = await getGlobal();
-    const game = await getGameByName(name);
+    const global = interaction.instance.global;
+    const game = await getGameByName(name, interaction.instance);
 
     if(global == null || game == null) throw new Error("Game not found.");
 
     if(game.closed) throw new Error("Sign ups are closed.");
     if(global.started && global.game == game.id) throw new Error("Game has started.");
 
-    const user = await getUser(interaction.user.id);
+    const user = await getUser(interaction.user.id, interaction.instance);
 
     if(user) {
-        await removeSignup({ id: user.id, game: game.name });
+        await removeSignup({ id: user.id, game: game.name }, interaction.instance);
     } else {
         throw new Error("You haven't signed up to anything!");
     }
@@ -168,25 +171,27 @@ async function leaveSignup(interaction: ButtonInteraction | ChatInputCommandInte
         await interaction.message.react("✅");
     }
 
-    await refreshSignup(game.name);
+    await refreshSignup(game.name, interaction.instance);
 }
 
-async function handleSignup(interaction: ChatInputCommandInteraction | TextCommand, name: string, action: boolean | null = null) {
+async function handleSignup(interaction: Event<ChatInputCommandInteraction | TextCommand>, name: string, action: boolean | null = null) {
+    interaction.inInstance();
+
     if(interaction.type != 'text') {
         await interaction.deferReply({ ephemeral: true });
     } else {
         await interaction.message.react("<a:loading:1256150236112621578>");
     }
 
-    const global = await getGlobal();
-    const game = await getGameByName(name);
+    const global = interaction.instance.global;
+    const game = await getGameByName(name, interaction.instance);
 
     if(global == null || game == null) throw new Error("Game not found.");
 
     if(game.closed) throw new Error("Sign ups are closed.");
     if(global.started && global.game == game.id) throw new Error("Game has started.");
 
-    const user = await getUser(interaction.user.id);
+    const user = await getUser(interaction.user.id, interaction.instance);
 
     if(user == undefined) {
         if(action === false) throw new Error("Uh, why are you leaving a game, you haven't even signed up once.");
@@ -255,7 +260,7 @@ async function handleSignup(interaction: ChatInputCommandInteraction | TextComma
                 await interaction.message.react("✅");
             }
         } else {
-            await addSignup({ id: user.id, game: game.name });
+            await addSignup({ id: user.id, game: game.name }, interaction.instance);
 
             if(interaction.type != 'text') {
                 await interaction.editReply({ content: "You are now signed up!" });
@@ -265,7 +270,7 @@ async function handleSignup(interaction: ChatInputCommandInteraction | TextComma
                 await interaction.message.react("✅");
             }
 
-            await refreshSignup(game.name);
+            await refreshSignup(game.name, interaction.instance);
         }
     }
 }

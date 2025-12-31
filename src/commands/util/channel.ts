@@ -1,7 +1,7 @@
 import { BitField, ChannelType, ChatInputCommandInteraction, GuildBasedChannel, PermissionsBitField, SlashCommandBuilder, SlashCommandSubcommandBuilder, TextChannel } from "discord.js";
 import { Subcommand } from "../../utils/subcommands";
 import { Command } from "commander";
-import { TextCommand } from "../../discord";
+import { Event, TextCommand } from "../../discord";
 import { getSetup } from "../../utils/setup";
 import { fromJSON } from "../../api/spoof";
 
@@ -37,8 +37,10 @@ export const ChannelCommand = {
             .argument('<channel>', 'id of channel');
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
-        const setup = await getSetup();
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
+        const setup = interaction.instance.setup;
 
         let channel: undefined | GuildBasedChannel;
 

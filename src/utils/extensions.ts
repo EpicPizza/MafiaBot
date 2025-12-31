@@ -4,15 +4,16 @@ import type { Transaction } from 'firebase-admin/firestore';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { ZodObject } from 'zod';
-import type { ReactionCommand } from '../discord';
+import type { Event, ReactionCommand } from '../discord';
 import type { TextCommand } from '../discord';
 import type { ExtendedClient } from '../discord/client';
-import { getGlobal, type Global } from './global';
+import { type Global } from './global';
 import type { Signups } from './mafia/games';
 import type { User } from './mafia/user';
 import type { TransactionResult } from './mafia/vote';
 import type { Setup } from './setup';
 import { initHelp } from '../discord/help';
+import { Instance } from './instance';
 
 const extensions = [] as Extension[]; 
 const extensionsPath = path.join(__dirname, '../extensions');
@@ -46,10 +47,10 @@ export type ExtensionInteractions = {
 export type ExtensionInteraction = {
     customId: any,
     name: string,
-    interaction: ButtonInteraction | ModalSubmitInteraction | AnySelectMenuInteraction | ReactionCommand,
+    interaction: Event<ButtonInteraction | ModalSubmitInteraction | AnySelectMenuInteraction | ReactionCommand>,
 } | {
     name: string,
-    interaction: ReactionCommand,
+    interaction: Event<ReactionCommand>,
 }
 
 export interface Extension {
@@ -63,16 +64,16 @@ export interface Extension {
     commands: (() => Command)[],
     interactions: ExtensionInteractions[],
     onInteraction: (extensionInteraction: ExtensionInteraction) => Promise<unknown>,
-    onStart: { (global: Global, setup: Setup, game: Signups): Promise<unknown> },
-    onLock: { (global: Global, setup: Setup, game: Signups): Promise<unknown> },
-    onUnlock: { (global: Global, setup: Setup, game: Signups, incremented: boolean): Promise<unknown> },
-    onCommand: { (command: TextCommand): Promise<unknown> },
+    onStart: { (instance: Instance, game: Signups): Promise<unknown> },
+    onLock: { (instance: Instance, game: Signups): Promise<unknown> },
+    onUnlock: { (instance: Instance, game: Signups, incremented: boolean): Promise<unknown> },
+    onCommand: { (command: Event<TextCommand>): Promise<unknown> },
     onMessage: { (message: Message): Promise<unknown> },
-    onEnd: { (global: Global, setup: Setup, game: Signups): Promise<unknown> },
-    onVote: { (global: Global, setup: Setup, game: Signups, voter: User, voting: User | undefined, type: 'vote' | 'unvote', users: User[], transaction: Transaction): Promise<TransactionResult> | Promise<void> },
-    onVotes: { (global: Global, setup: Setup, game: Signups, board: string ): string | Promise<string> },
-    onHammer: { (global: Global, setup: Setup, game: Signups, hammered: string): Promise<unknown> },
-    onRemove: { (global: Global, setup: Setup, game: Signups, removed: string): Promise<unknown> },
+    onEnd: { (instance: Instance, game: Signups): Promise<unknown> },
+    onVote: { (instance: Instance, game: Signups, voter: User, voting: User | undefined, type: 'vote' | 'unvote', users: User[], transaction: Transaction): Promise<TransactionResult> | Promise<void> },
+    onVotes: { (instance: Instance, game: Signups, board: string ): string | Promise<string> },
+    onHammer: { (instance: Instance, game: Signups, hammered: string): Promise<unknown> },
+    onRemove: { (instance: Instance, game: Signups, removed: string): Promise<unknown> },
 }
 
 export async function getEnabledExtensions(global: Global) {
@@ -107,10 +108,12 @@ export function getExtensionTextCommands() {
 
                 return group;
             },
-            execute: async (interaction: TextCommand) => {
-                const global = await getGlobal();
+            execute: async (interaction: Event<TextCommand>) => {
+                interaction.inInstance();
 
-                const enabledExtensions = await getEnabledExtensions(global);
+                const global = interaction.inInstance();
+
+                const enabledExtensions = await getEnabledExtensions(interaction.instance.global);
 
                 if(!enabledExtensions.map(extension => extension.name).includes(extension.name)) throw new Error("Extension not enabled!");
 
@@ -154,7 +157,7 @@ export function setExtensionInteractions(commands: ExtendedClient["commands"]) {
             if(extensionInteraction.type == 'reaction') {
                 commands.set(extensionInteraction.command, {
                     name: extensionInteraction.name,
-                    execute: async (reaction: ReactionCommand) => {
+                    execute: async (reaction: Event<ReactionCommand>) => {
                         await extension.onInteraction({
                             name: extensionInteraction.name,
                             interaction: reaction,
@@ -165,7 +168,7 @@ export function setExtensionInteractions(commands: ExtendedClient["commands"]) {
             } else {
                 commands.set(extensionInteraction.name, {
                     zod: extensionInteraction.command,
-                    execute: async (interaction: ButtonInteraction | ModalSubmitInteraction | AnySelectMenuInteraction) => {
+                    execute: async (interaction: Event<ButtonInteraction | ModalSubmitInteraction | AnySelectMenuInteraction>) => {
                         await extension.onInteraction({
                             name: extensionInteraction.name,
                             customId: JSON.parse(interaction.customId),

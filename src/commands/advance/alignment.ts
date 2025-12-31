@@ -1,17 +1,18 @@
 import { Command } from "commander";
 import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
 import { z } from "zod";
-import { type TextCommand } from '../../discord';
+import { Event, type TextCommand } from '../../discord';
 import { fromZod } from '../../utils/text';
 import { removeReactions } from "../../discord/helpers";
 import { getEnabledExtensions } from "../../utils/extensions";
 import { firebaseAdmin } from "../../utils/firebase";
-import { getGlobal, type Global } from '../../utils/global';
+import { type Global } from '../../utils/global';
 import { getGameByID, getGameSetup, Signups } from "../../utils/mafia/games";
 import { getUser, User } from "../../utils/mafia/user";
 import { getSetup, Setup, } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
 import { setAlignments } from "../mod/start";
+import { Instance } from "../../utils/instance";
 
 export const AlignmentCommand = {
     name: "alignment",
@@ -39,19 +40,21 @@ export const AlignmentCommand = {
             .argument('<alignment>', 'alignment to set', fromZod(z.string().min(1).max(100)));
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
         if(interaction.type != 'text') {
             await interaction.deferReply({ ephemeral: true });
         } else {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
        
-        const global = await getGlobal();
-        const setup  = await getSetup();
+        const global = interaction.instance.global;
+        const setup  = interaction.instance.setup;
         
         if(global.started == false) throw new Error("Game has not started.");
 
-        const game = await getGameByID(global.game ?? "");
+        const game = await getGameByID(global.game ?? "", interaction.instance);
          const gameSetup = await getGameSetup(game, setup);
 
         const player = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');
@@ -63,7 +66,7 @@ export const AlignmentCommand = {
         const list = [] as User[];
         
         for(let i = 0; i < global.players.length; i++) {
-            const user = await getUser(global.players[i].id);
+            const user = await getUser(global.players[i].id, interaction.instance);
 
             if(user == null) throw new Error("User not registered.");
 
@@ -76,11 +79,9 @@ export const AlignmentCommand = {
 
         const db = firebaseAdmin.getFirestore();
 
-        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
+        const ref = db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game');
 
         await db.runTransaction(async t => {
-            const global = await getGlobal(t);
-
             for(let i = 0; i < global.players.length; i++) {
                 if(global.players[i].id == user.id) {
                     global.players[i].alignment = alignment == "null" || alignment == "default" ? null : alignment;
@@ -115,14 +116,16 @@ export const InitialCommand = {
             .description('resend alignment picker');
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
         if(interaction.type != 'text') {
             await interaction.deferReply();
         } else {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
        
-        await setAlignments();
+        await setAlignments(interaction.instance);
 
         if(interaction.type != 'text') {
             await interaction.editReply({ content: "Message sent."});
@@ -135,12 +138,12 @@ export const InitialCommand = {
 } satisfies Subcommand;
 
 
-async function hammerExtensions(global: Global, setup: Setup, game: Signups, hammered: string) {
-    const extensions = await getEnabledExtensions(global);
+async function hammerExtensions(instance: Instance, game: Signups, hammered: string) {
+    const extensions = await getEnabledExtensions(instance.global);
 
     const promises = [] as Promise<any>[];
 
-    extensions.forEach(extension => { promises.push(extension.onHammer(global, setup, game, hammered)) });
+    extensions.forEach(extension => { promises.push(extension.onHammer(instance, game, hammered)) });
 
     const results = await Promise.allSettled(promises);
 

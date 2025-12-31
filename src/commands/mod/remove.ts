@@ -1,18 +1,19 @@
 import { Command } from "commander";
 import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
 import { z } from "zod";
-import { type TextCommand } from '../../discord';
+import { Event, type TextCommand } from '../../discord';
 import { fromZod } from '../../utils/text';
 import { removeReactions } from "../../discord/helpers";
 import { getEnabledExtensions } from "../../utils/extensions";
 import { firebaseAdmin } from "../../utils/firebase";
-import { getGlobal, type Global } from '../../utils/global';
+import { type Global } from '../../utils/global';
 import { Signups, getGameByID, getGameSetup } from "../../utils/mafia/games";
 import { setMafiaSpectator } from "../../utils/mafia/main";
 import { getUserByName } from "../../utils/mafia/user";
 import { checkMod } from "../../utils/mod";
 import { Setup, getSetup } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
+import { Instance } from "../../utils/instance";
 
 export const RemoveCommand = {
     name: "remove",
@@ -36,22 +37,24 @@ export const RemoveCommand = {
             .argument('<player>', 'which player', fromZod(z.string().min(1).max(100)));
     },
     
-    execute: async (interaction: ChatInputCommandInteraction | TextCommand) => {
+    execute: async (interaction: Event<ChatInputCommandInteraction | TextCommand>) => {
+        interaction.inInstance();
+
         if(interaction.type != 'text') {
             await interaction.deferReply({ ephemeral: true });
         } else {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
 
-        const global = await getGlobal();
-        const setup  = await getSetup();
+        const global = interaction.instance.global;
+        const setup  = interaction.instance.setup;
 
         checkMod(setup, global, interaction.user.id, 'message' in interaction ? interaction.message?.guild?.id ?? "" : interaction.guildId ?? "");
 
         const player = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');
         if(player == null) throw new Error("Choose a player.");
 
-        await removePlayer(player, global, setup);
+        await removePlayer(player, interaction.instance);
 
         if(interaction.type != 'text') {
             await interaction.editReply({ content: "Player removed."});
@@ -63,49 +66,47 @@ export const RemoveCommand = {
     }
 } satisfies Subcommand;
 
-export async function removePlayer(name: string, global: Global, setup: Setup) {
+export async function removePlayer(name: string, instance: Instance) {
     if(global.started == false) throw new Error("Game has not started.");
 
-    const game = await getGameByID(global.game ?? "");
-    const gameSetup = await getGameSetup(game, setup);
+    const game = await getGameByID(global.game ?? "", instance);
+    const gameSetup = await getGameSetup(game, instance.setup);
 
-    const user = await getUserByName(name);
+    const user = await getUserByName(name, instance);
     if(!user) throw new Error("Player not found.");
 
-    if(typeof setup == 'string') throw new Error("Incomplete Setup");
+    if(typeof instance.setup == 'string') throw new Error("Incomplete Setup");
 
-    const main = await setup.primary.guild.members.fetch(user.id).catch(() => undefined);
+    const main = await instance.setup.primary.guild.members.fetch(user.id).catch(() => undefined);
     if(main == null) throw new Error("Member not found.");
-    await main.roles.remove(setup.primary.alive);
+    await main.roles.remove(instance.setup.primary.alive);
 
-    const dead = await setup.secondary.guild.members.fetch(user.id).catch(() => undefined);
+    const dead = await instance.setup.secondary.guild.members.fetch(user.id).catch(() => undefined);
     if(dead == null) throw new Error("Member not found.");
-    await dead.roles.add(setup.secondary.spec);
+    await dead.roles.add(instance.setup.secondary.spec);
 
-    const mafia = await setup.tertiary.guild.members.fetch(user.id).catch(() => undefined);
-    await setMafiaSpectator(mafia, main.id, setup, gameSetup, user);
+    const mafia = await instance.setup.tertiary.guild.members.fetch(user.id).catch(() => undefined);
+    await setMafiaSpectator(mafia, main.id, instance.setup, gameSetup, user, instance);
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
+    const ref = db.collection('instances').doc(instance.id).collection('settings').doc('game');
 
     await db.runTransaction(async t => {
-        const global = await getGlobal(t);
-
         t.update(ref, {
             players: global.players.filter(player => player.id != user.id)
         })
     });
 
-    await onRemove(global, setup, game, user.id);
+    await onRemove(instance, game, user.id);
 }
 
-export async function onRemove(global: Global, setup: Setup, game: Signups, removed: string) {
-    const extensions = await getEnabledExtensions(global);
+export async function onRemove(instance: Instance, game: Signups, removed: string) {
+    const extensions = await getEnabledExtensions(instance.global);
 
     const promises = [] as Promise<any>[];
 
-    extensions.forEach(extension => { promises.push(extension.onRemove(global, setup, game, removed)) });
+    extensions.forEach(extension => { promises.push(extension.onRemove(instance, game, removed)) });
 
     const results = await Promise.allSettled(promises);
 

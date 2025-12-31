@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandBuilder } from "discord.js";
-import { Data } from '../discord';
+import { Data, Event } from '../discord';
 import { TextCommand } from '../discord';
 import { firebaseAdmin } from "../utils/firebase";
 import { getSetup } from "../utils/setup";
@@ -25,14 +25,16 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction | TextCommand) => {
-        const setup = await getSetup();
+    execute: async (interaction: Event<ChatInputCommandInteraction | TextCommand>) => {
+        interaction.inInstance();
+
+        const setup = interaction.instance.setup;
 
         if(typeof setup == 'string') throw new Error("Setup Incomplete");
         
         const db = firebaseAdmin.getFirestore();
 
-        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games');
+        const ref = db.collection('instances').doc(interaction.instance.id).collection('games');
 
         const docs = (await ref.get()).docs;
 

@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
 import { z } from "zod";
-import { type TextCommand } from '../../discord';
+import { Event, type TextCommand } from '../../discord';
 import { fromZod } from '../../utils/text';
 import { firebaseAdmin } from "../../utils/firebase";
 import { Subcommand } from "../../utils/subcommands";
@@ -26,14 +26,16 @@ export const HammerCommand = {
             .argument('<mode>', 'on or off', fromZod(z.union([ z.literal('on'), z.literal('off') ])));
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
         const type = interaction.type == 'text' ? interaction.program.processedArgs[0] == 'on' : interaction.options.getBoolean('hammer') ?? false;
 
         console.log(interaction.type == 'text' ? interaction.program.processedArgs : null);
 
         const db = firebaseAdmin.getFirestore();
 
-        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
+        const ref = db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game');
 
         await ref.update({
             hammer: type,

@@ -7,6 +7,7 @@ import { Setup } from "../setup";
 import { Signups } from "./games";
 import { lockGame } from "./main";
 import { User } from "./user";
+import { Instance } from '../instance';
 
 export interface Vote {
     id: string,
@@ -51,10 +52,10 @@ export interface TransactionResult {
     setMessage?: ReturnType<(typeof flow)["finish"]>,
 }
 
-export async function getVotes(day: number, game: Signups, transaction: Transaction | undefined = undefined) {
+export async function getVotes(day: number, game: Signups, instance: Instance, transaction: Transaction | undefined = undefined,) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc(day.toString()).collection('votes');
+    const ref = db.collection('instances').doc(instance.id).collection('games').doc(game.id).collection('days').doc(day.toString()).collection('votes');
     const docs = transaction ? (await transaction.get(ref)).docs : (await ref.get()).docs;
     const logs = (docs.map(doc => doc.data()) as (Log | ResetLog | CustomLog)[]).filter(l => l.type != 'custom'); 
 
@@ -84,8 +85,8 @@ export async function getVotes(day: number, game: Signups, transaction: Transact
 }
 
 export const flow = {
-    placeVote: async (t: Transaction, voter: User, voting: User | undefined, type: 'unvote' | 'vote', users: User[], day: number, game: Signups) => {
-        const votes = await getVotes(day, game, t);
+    placeVote: async (t: Transaction, voter: User, voting: User | undefined, type: 'unvote' | 'vote', users: User[], day: number, game: Signups, instance: Instance) => {
+        const votes = await getVotes(day, game, instance, t);
 
         if(type != 'unvote' && voting == undefined) throw new Error("Voter must be specified!");
  
@@ -171,10 +172,10 @@ export const flow = {
 
         return board;
     },
-    finish: (t: Transaction, vote: Vote, board: string, day: number, game: Signups) => {
+    finish: (t: Transaction, vote: Vote, board: string, day: number, game: Signups, instance: Instance) => {
         const db = firebaseAdmin.getFirestore();
 
-        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc(day.toString()).collection('votes').doc();
+        const ref = db.collection('instances').doc(instance.id).collection('games').doc(game.id).collection('days').doc(day.toString()).collection('votes').doc();
 
         t.create(ref, {
             board,
@@ -211,26 +212,26 @@ export const flow = {
     }
 }
 
-export async function defaultVote(global: Global, setup: Setup, game: Signups, voter: User, voting: User | undefined, type: 'vote' | 'unvote', users: User[], transaction: Transaction): Promise<TransactionResult> {
-    const { reply, vote, votes } = await flow.placeVote(transaction, voter, voting, type, users, global.day, game); // doesn't save vote yet since board needs to be created
+export async function defaultVote(instance: Instance, game: Signups, voter: User, voting: User | undefined, type: 'vote' | 'unvote', users: User[], transaction: Transaction): Promise<TransactionResult> {
+    const { reply, vote, votes } = await flow.placeVote(transaction, voter, voting, type, users, instance.global.day, game, instance); // doesn't save vote yet since board needs to be created
     
     if(vote == undefined) return { reply };
 
     const board = flow.board(votes, users);
 
-    const setMessage = flow.finish(transaction, vote, board, global.day, game); // locks in vote
+    const setMessage = flow.finish(transaction, vote, board, instance.global.day, game, instance); // locks in vote
 
     return {
         reply,
-        hammer: flow.determineHammer(vote, votes, users, global),
+        hammer: flow.determineHammer(vote, votes, users, instance.global),
         setMessage,
     }
 }
 
-export async function handleHammer(hammer: TransactionResult["hammer"], global: Global, setup: Setup, game: Signups) {
+export async function handleHammer(hammer: TransactionResult["hammer"], game: Signups, instance: Instance) {
     if(hammer?.hammered) {
-        await lockGame();
-        await hammerExtensions(global, setup, game, hammer.id);
+        await lockGame(instance);
+        await hammerExtensions(instance, game, hammer.id);
 
         await new Promise(resolve => {
             setTimeout(() => {
@@ -238,16 +239,16 @@ export async function handleHammer(hammer: TransactionResult["hammer"], global: 
             }, 2000);
         });
 
-        await setup.primary.chat.send(hammer.message);
+        await instance.setup.primary.chat.send(hammer.message);
     }
 }
 
-async function hammerExtensions(global: Global, setup: Setup, game: Signups, hammered: string) {
-    const extensions = await getEnabledExtensions(global);
+async function hammerExtensions(instance: Instance, game: Signups, hammered: string) {
+    const extensions = await getEnabledExtensions(instance.global);
 
     const promises = [] as Promise<any>[];
 
-    extensions.forEach(extension => { promises.push(extension.onHammer(global, setup, game, hammered)) });
+    extensions.forEach(extension => { promises.push(extension.onHammer(instance, game, hammered)) });
 
     const results = await Promise.allSettled(promises);
 
@@ -265,15 +266,15 @@ function getNickname(id: string, users: User[]) {
     return users.find(user => user.id == id)?.nickname ?? "<@" + id + ">";
 }
 
-export async function wipe(global: Global, message: string, game: Signups) {
+export async function wipe(global: Global, message: string, game: Signups, instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
     return await db.runTransaction(async (t) => {
-        await getVotes(global.day, game, t); //just need to lock documents
+        await getVotes(global.day, game, instance, t); //just need to lock documents
 
         const board = "";
 
-        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc(global.day.toString()).collection('votes').doc();
+        const ref = db.collection('instances').doc(instance.id).collection('games').doc(game.id).collection('days').doc(global.day.toString()).collection('votes').doc();
 
         t.create(ref, {
             messageId: null,

@@ -1,12 +1,11 @@
 import { Command } from "commander";
 import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 import { z } from "zod";
-import { Data } from '../discord';
+import { Data, Event } from '../discord';
 import { TextCommand } from '../discord';
 import { simpleJoin } from '../utils/text';
 import { fromZod } from '../utils/text';
 import client from "../discord/client";
-import { getGlobal } from '../utils/global';
 import { checkMod } from "../utils/mod";
 import { getSetup } from "../utils/setup";
 
@@ -52,9 +51,11 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
-        const setup = await getSetup();
-        const global = await getGlobal();
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
+        const setup = interaction.instance.setup;
+        const global = interaction.instance.global;
 
         let guildId: string;
         let channelId: string;

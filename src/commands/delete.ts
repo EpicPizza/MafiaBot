@@ -1,11 +1,9 @@
 import { Command } from "commander";
 import { ApplicationCommandType, ContextMenuCommandBuilder, ContextMenuCommandInteraction } from "discord.js";
-import { Data } from '../discord';
+import { Data, Event } from '../discord';
 import { TextCommand } from '../discord';
 import { firebaseAdmin } from "../utils/firebase";
-import { getGlobal } from '../utils/global';
 import { checkMod } from "../utils/mod";
-import { getSetup } from "../utils/setup";
 import { purgeMessage } from "../utils/mafia/tracking";
 
 module.exports = {
@@ -28,9 +26,11 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async function(interaction: ContextMenuCommandInteraction | TextCommand) {
-        const setup = await getSetup();
-        const global = await getGlobal();
+    execute: async function(interaction: Event<ContextMenuCommandInteraction | TextCommand>) {
+        interaction.inInstance();
+
+        const setup = interaction.instance.setup;
+        const global = interaction.instance.global;
 
         await checkMod(setup, global, interaction.user.id, 'message' in interaction ? interaction.message?.guild?.id ?? "" : interaction.guildId ?? "");
 

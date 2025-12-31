@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { ActionRowBuilder, ApplicationCommandType, ButtonBuilder, ButtonStyle, Colors, ContextMenuCommandBuilder, ContextMenuCommandInteraction, EmbedBuilder } from "discord.js";
-import { Data } from '../discord';
+import { Data, Event } from '../discord';
 import { TextCommand } from '../discord';
 import { firebaseAdmin } from "../utils/firebase";
 import { snipeMessage } from "../utils/google/doc";
@@ -28,10 +28,10 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async function(interaction: ContextMenuCommandInteraction | TextCommand) {
-        const instance = await getAuthority((interaction.type == 'text' ? interaction.message.guildId : interaction.guildId) ?? "---");
-        
-        if(!instance) throw new Error("Server not set up!");
+    execute: async function(interaction: Event<ContextMenuCommandInteraction | TextCommand>) {
+        interaction.inInstance();
+        const instance = interaction.instance;
+
         if(interaction.type != 'text' && !interaction.isMessageContextMenuCommand()) throw new Error("Unable to fetch message.");
 
         const message = interaction.type == 'text' ? await interaction.message.fetchReference() : interaction.targetMessage;

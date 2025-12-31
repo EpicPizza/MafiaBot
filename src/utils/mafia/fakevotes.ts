@@ -1,4 +1,5 @@
 import { firebaseAdmin } from "../firebase";
+import { Instance } from "../instance";
 import { getAllUsers } from "./user";
 
 interface FakeVote {
@@ -54,12 +55,12 @@ export async function storeVotes(channel: string, votes: Map<string, FakeVote[]>
     });
 }
 
-export async function getBoard(votes: Map<string, FakeVote[]>) {
+export async function getBoard(votes: Map<string, FakeVote[]>, instance: Instance) {
     const placed = getVotes(votes);
 
     if(placed.length == 0) return "No votes recorded.";
 
-    const nicknames = await getAllUsers();
+    const nicknames = await getAllUsers(instance);
 
     const board = placed.reduce((prev, curr) => prev += (curr.votes.length + " - " + curr.name + " « " + curr.votes.map(vote => {
         const user = nicknames.find(user => user.id == vote.id);

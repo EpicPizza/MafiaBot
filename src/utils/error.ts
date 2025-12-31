@@ -1,10 +1,10 @@
 export class SafeError {
     code: number;
     access: number;
-    message: string;
+    message: string | undefined;
     safe = true;
 
-    constructor(code: number, access: number, message: string) {
+    constructor(code: number, access: number, message?: string) {
         this.code = code;
         this.access = access;
         this.message = message;

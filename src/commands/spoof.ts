@@ -1,9 +1,7 @@
 import { Command } from "commander";
 import { fromJSON, runCommand } from "../api/spoof";
-import { Data, TextCommand } from '../discord';
-import { getGlobal } from "../utils/global";
+import { Data, Event, TextCommand } from '../discord';
 import { checkMod } from "../utils/mod";
-import { getSetup } from "../utils/setup";
 
 module.exports = {
     data: [
@@ -19,13 +17,15 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: TextCommand) => {
-        const setup = await getSetup();
-        const global = await getGlobal();
+    execute: async (interaction: Event<TextCommand>) => {
+        interaction.inInstance();
+
+        const setup = interaction.instance.setup
+        const global = interaction.instance.global;
 
         await checkMod(setup, global, interaction.user.id, interaction.message.guildId ?? "---");
 
-        const result = await runCommand(interaction.program.processedArgs[0], setup);
+        const result = await runCommand(interaction.program.processedArgs[0], interaction.instance.id);
 
         await interaction.reply({
             files: fromJSON(result),

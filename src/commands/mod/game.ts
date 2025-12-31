@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandSubcommandBuilder } from "discord.js";
 import { z } from "zod";
-import { type TextCommand } from '../../discord';
+import { Event, type TextCommand } from '../../discord';
 import { fromZod } from '../../utils/text';
 import client from "../../discord/client";
 import { removeReactions } from "../../discord/helpers";
@@ -31,12 +31,14 @@ export const CreateCommand = {
             .argument('<name>', 'name of game', fromZod(z.string().min(1).max(100)));
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
         const name = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
 
         if(name == null) throw new Error("Game needs to be specified.");
 
-        await createGame(interaction, name);
+        await createGame(interaction, name, interaction.instance);
     }
 } satisfies Subcommand;
 
@@ -61,12 +63,14 @@ export const ArchiveCommand = {
             .argument('<name>', 'name of game', fromZod(z.string().min(1).max(100)));
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
         const name = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
 
         if(name == null) throw new Error("Game needs to be specified.");
 
-        await archiveGame(interaction, name);
+        await archiveGame(interaction, name, interaction.instance);
     }
 } satisfies Subcommand;
 
@@ -98,7 +102,9 @@ export const ResendConfirmationsCommand = {
             .option('-p, --player <name>', 'nickname of specific player', fromZod(z.string().min(1).max(100)));
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
         if(interaction.type != 'text') {
             await interaction.deferReply({ ephemeral: true });
         } else {
@@ -110,13 +116,13 @@ export const ResendConfirmationsCommand = {
 
         if(gameName == null) throw new Error("Game needs to be specified.");
 
-        const setup = await getSetup();
-        const game = await getGameByName(gameName);
+        const setup = interaction.instance.setup;
+        const game = await getGameByName(gameName, interaction.instance);
         const gameSetup = await getGameSetup(game, setup);
 
-        const player = playerName ? await getUserByName(playerName) : undefined;
+        const player = playerName ? await getUserByName(playerName, interaction.instance) : undefined;
         if(player == undefined && playerName != undefined) throw new Error("Player not found!");
-        const players = player ? [ player ] : await getUsersArray(game.signups);
+        const players = player ? [ player ] : await getUsersArray(game.signups, interaction.instance);
 
         console.log(players);
 
@@ -181,13 +187,15 @@ export const ConfirmationsCommand = {
             .argument('<game>', 'name of game', fromZod(z.string().min(1).max(100)));
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
         const name = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
 
         if(name == null) throw new Error("Game needs to be specified.");
 
-        const game = await getGameByName(name);
-        const users = await getUsersArray(game.signups);
+        const game = await getGameByName(name, interaction.instance);
+        const users = await getUsersArray(game.signups, interaction.instance);
 
         const confirmations = users.map(user => ({ name: user.nickname, confirmed: game.confirmations.includes(user.id) }));
 

@@ -4,7 +4,6 @@ import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 import { Data } from '../discord';
 import { TextCommand } from '../discord';
 import { firebaseAdmin } from "../utils/firebase";
-import { getGlobal } from '../utils/global';
 import { getUser, User } from "../utils/mafia/user";
 
 module.exports = {

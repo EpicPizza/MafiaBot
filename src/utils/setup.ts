@@ -32,10 +32,10 @@ const PartialSetup = z.object({
     })
 })
 
-export async function getPartialSetup(instance: string | undefined = undefined) {
+export async function getPartialSetup(instance: string) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(instance ? instance : process.env.INSTANCE ?? "---").collection('settings').doc('setup');
+    const ref = db.collection('instances').doc(instance).collection('settings').doc('setup');
 
     const data = (await ref.get()).data();
 
@@ -48,7 +48,7 @@ export async function getPartialSetup(instance: string | undefined = undefined) 
 
 export type Setup = Exclude<Awaited<ReturnType<typeof getSetup>>, string>;
 
-export async function getSetup(instance: string | undefined = undefined, admin: typeof firebaseAdmin | undefined = undefined) {
+export async function getSetup(instance: string, admin: typeof firebaseAdmin | undefined = undefined) {
     const setup = await checkSetup(instance, admin);
 
     if(typeof setup == 'string') {
@@ -58,10 +58,10 @@ export async function getSetup(instance: string | undefined = undefined, admin: 
     }
 }
 
-export async function checkSetup(instance: string | undefined = undefined, admin: typeof firebaseAdmin | undefined = undefined) {
+export async function checkSetup(instance: string, admin: typeof firebaseAdmin | undefined = undefined) {
     const db = admin ? admin.getFirestore() : firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(instance ? instance : process.env.INSTANCE ?? "---").collection('settings').doc('setup')
+    const ref = db.collection('instances').doc(instance).collection('settings').doc('setup')
 
     const data = (await ref.get()).data();
 

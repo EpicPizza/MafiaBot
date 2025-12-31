@@ -1,11 +1,10 @@
 import { Command } from "commander";
 import { ChatInputCommandInteraction, Guild, GuildMember, SlashCommandSubcommandBuilder } from "discord.js";
 import { z } from "zod";
-import { type TextCommand } from '../../discord';
+import { Event, type TextCommand } from '../../discord';
 import { fromZod } from '../../utils/text';
 import client from "../../discord/client";
 import { removeReactions } from "../../discord/helpers";
-import { getGlobal } from '../../utils/global';
 import { getUserByName } from "../../utils/mafia/user";
 import { getSetup } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
@@ -27,11 +26,13 @@ export const CreateCommand = {
             .option('--color <hex>', 'which color to set this role to');
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
         if(interaction.type != 'text') return;
 
-        const global = await getGlobal();
-        const setup = await getSetup();
+        const global = interaction.instance.global;
+        const setup = interaction.instance.setup;
 
         if(!global.admin.includes(interaction.user.id)) throw new Error("You don't have permission to do this!");
 
@@ -103,19 +104,21 @@ export const RoleCommand = {
             .option('--bypass', 'bypass role hierarchy protections');
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
         if(interaction.type != 'text') { 
             await interaction.deferReply({ ephemeral: true });
         } else {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
        
-        const global = await getGlobal();
-        const setup  = await getSetup();
+        const global = interaction.instance.global;
+        const setup  = interaction.instance.setup;
 
         const player = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');
         if(player == null) throw new Error("Choose a player.");
-        const user = await getUserByName(player);
+        const user = await getUserByName(player, interaction.instance);
         if(!user) throw new Error("Player not found.");
 
         const server = interaction.type == 'text' ? interaction.program.getOptionValue("server") as string : interaction.options.getString('server');

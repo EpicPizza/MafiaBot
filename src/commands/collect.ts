@@ -1,5 +1,5 @@
 import { ActionRow, ActionRowBuilder, ApplicationCommandType, ButtonBuilder, ButtonStyle, ChannelType, cleanContent, Colors, CommandInteraction, ContextMenuCommandBuilder, ContextMenuCommandInteraction, Embed, EmbedBuilder, Message, MessageType, SlashCommandBuilder, TextChannel } from "discord.js";
-import { Data } from "../discord";
+import { Data, Event } from "../discord";
 import { firebaseAdmin } from "../utils/firebase";
 import dnt from 'date-and-time';
 import meridiem from 'date-and-time/plugin/meridiem'
@@ -7,7 +7,7 @@ import { DateTime } from "luxon";
 import { TextCommand } from "../discord";
 import { getSetup } from "../utils/setup";
 import { checkMod } from "../utils/mod";
-import { getGlobal, type Global } from '../utils/global';
+import { type Global } from '../utils/global';
 import { Command } from "commander";
 import { getReactions, getReactionsString } from "../utils/archive";
 import { addStatsAction, catchupChannel, setInitialized, TrackedMessage } from "../utils/mafia/tracking";
@@ -45,9 +45,11 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async function(interaction: TextCommand) {
-        const setup = await getSetup();
-        const global = await getGlobal();
+    execute: async function(interaction: Event<TextCommand>) {
+        interaction.inInstance();
+
+        const setup = interaction.instance.setup;
+        const global = interaction.instance.global;
 
         if(!(global.admin.includes(interaction.user.id))) throw new Error("You're not a mod!");
 

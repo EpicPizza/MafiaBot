@@ -44,8 +44,8 @@ export type Transform = ReturnType<typeof transform>;
 
 export type CommandResult = Transform | { reaction: EmojiIdentifierResolvable } | { content: string } | { error: string };
 
-export async function runCommand(content: string, setup: Setup | undefined = undefined) {
-    if(setup == undefined) setup = await getSetup();
+export async function runCommand(content: string, instance: string, setup: Setup | undefined = undefined) {
+    if(setup == undefined) setup = await getSetup(instance);
 
     const user = client.user;
 

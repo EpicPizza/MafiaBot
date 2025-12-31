@@ -3,7 +3,7 @@ import { firebaseAdmin, phoneAdmin } from "./firebase";
 import { Global } from "./global";
 import { getSetup, Setup } from "./setup";
 
-interface Instance {
+export interface Instance {
     setup: Setup,
     global: Global,
     name: string,

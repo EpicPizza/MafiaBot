@@ -4,14 +4,12 @@ import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 import { Readable } from "stream";
 import { finished } from "stream/promises";
 import { z } from "zod";
-import { Data } from '../discord';
+import { Data, Event } from '../discord';
 import { TextCommand } from '../discord';
 import { removeReactions } from "../discord/helpers";
 import { firebaseAdmin } from "../utils/firebase";
-import { getGlobal } from '../utils/global';
 import { Stat } from "../utils/mafia/stats";
 import { checkMod } from "../utils/mod";
-import { getSetup } from "../utils/setup";
 
 module.exports = {
     data: [
@@ -45,15 +43,17 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction | TextCommand) => {
+    execute: async (interaction: Event<ChatInputCommandInteraction | TextCommand>) => {
+        interaction.inInstance();
+
         if(interaction.type != 'text') {
             await interaction.deferReply();
         } else {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
 
-        const setup = await getSetup();
-        const global = await getGlobal();
+        const setup = interaction.instance.setup;
+        const global = interaction.instance.global;
 
         await checkMod(setup, global, interaction.user.id, (interaction.type == 'text' ? interaction.message.guildId : interaction.guildId) ?? "---");
 
@@ -77,7 +77,7 @@ module.exports = {
         });
 
         const db = firebaseAdmin.getFirestore();
-        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('stats');
+        const ref = db.collection('instances').doc(interaction.instance.id).collection('settings').doc('stats');
         await ref.set({
             overall
         });

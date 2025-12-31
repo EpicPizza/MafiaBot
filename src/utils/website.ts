@@ -23,13 +23,12 @@ export async function websiteListener() {
 
         if(new Date().valueOf() - call.timestamp > (1000 * 60 * 5)) return; //old call
         if(call.received) return;
-        if(call.instance != process.env.INSTANCE) return;
 
         console.log("received")
 
         await snapshot.docs[0].ref.update({ received: true });
 
-        const result = await runCommand(call.command);
+        const result = await runCommand(call.command, call.instance);
 
         console.log("result")
 

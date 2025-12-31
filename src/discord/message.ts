@@ -3,17 +3,17 @@ import stringArgv from "string-argv";
 import client from "./client";
 import { getAllExtensions, getExtensions } from "../utils/extensions";
 import { addReaction, createMessage, deleteMessage, removeAllReactions, removeReactionEmoji, removeReaction, updateMessage, fetchMessage, transformMessage, updateSnipeMessage } from "../utils/mafia/tracking";
-import type { TextCommand, ReactionCommand } from ".";
+import type { TextCommand, ReactionCommand, Event } from ".";
 import { removeReactions } from "./helpers";
 import { firebaseAdmin } from "../utils/firebase";
 import { DocumentReference, FieldValue } from "firebase-admin/firestore";
 import { getSetup } from "../utils/setup";
-import { archiveMessage } from "../utils/archive";
-import { getGlobal } from "../utils/global";
+import { archiveMessage, Reaction } from "../utils/archive";
 import { Command } from "commander";
 import { getHelpEmbed } from "./help";
 import { getAuthority } from "../utils/instance";
 import { getWebhook } from "../utils/webhook";
+import { SafeError } from "../utils/error";
 
 export async function messageCreateHandler(...[message, throws]: [...ClientEvents[Events.MessageCreate], throws?: boolean]) {
     try {
@@ -95,15 +95,21 @@ export async function messageCreateHandler(...[message, throws]: [...ClientEvent
         const command = client.commands.get(`text-${parsedCommand.name()}`);
         if(command == undefined) throw new Error("Command not found!");
 
+        const instance = await getAuthority(message.guildId ?? "---", false);
+
         try {
             await command.execute({
                 name: parsedCommand.name(),
+
+                inInstance: () => { if(instance == undefined) throw new Error("Server not setup!"); },
+                instance: instance,
+
+                user: message.author,
+                type: 'text',
                 program: parsedCommand,
                 message: message,
-                type: 'text',
                 reply: (options: MessageReplyOptions) => { return message.reply(options); }, //for consistency with interactions
-                user: message.author,
-            } satisfies TextCommand);
+            } satisfies Event<TextCommand>);
         } catch (e: any) {
             if(throws) throw e;
 
@@ -228,19 +234,24 @@ export async function messageReactionAddHandler(...[reaction, user]: ClientEvent
             return;
         }
 
+        const instance = await getAuthority(reaction.message.guildId ?? "---", false);
+
         reaction.message = await reaction.message.fetch(true);
         user = await user.fetch(true);
 
         try {
             await command.execute({
                 name: command.name,
-                message: reaction.message,
+
+                inInstance: () => { if(instance == undefined) throw new Error("Server not setup!"); },
+                instance: instance,
+
                 type: 'reaction',
+                message: reaction.message,
                 reply: (options: MessageReplyOptions) => { return reaction.message.reply(options); }, //for consistency with interactions
-                author: reaction.message.author,
                 user: user,
                 reaction: reaction,
-            } satisfies ReactionCommand);
+            } satisfies Event<ReactionCommand>);
         } catch (e: any) {
             try {
                 console.log(e);

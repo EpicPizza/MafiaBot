@@ -2,11 +2,10 @@ import { Command } from "commander";
 import { ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandSubcommandGroupBuilder } from "discord.js";
 import { FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
-import { type TextCommand } from '../../discord';
+import { Event, type TextCommand } from '../../discord';
 import { fromZod } from '../../utils/text';
 import { getAllExtensions } from "../../utils/extensions";
 import { firebaseAdmin } from "../../utils/firebase";
-import { getGlobal } from '../../utils/global';
 import { Subcommand } from "../../utils/subcommands";
 
 export const ExtensionCommand = {
@@ -53,8 +52,10 @@ export const ExtensionCommand = {
             .argument('[name]', 'name of extension', fromZod(z.string().min(1).max(100)))
     },
     
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
-        const global = await getGlobal();
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
+        const global = interaction.instance.global;
 
         const extension = interaction.type == 'text' ? interaction.program.processedArgs[1] as string | undefined ?? null : interaction.options.getString("extension");
         const command = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getSubcommand();
@@ -91,7 +92,7 @@ export const ExtensionCommand = {
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
+            const ref = db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game');
 
             await ref.update({
                 extensions: FieldValue.arrayUnion(extension.substring(0, 1).toUpperCase() + extension.substring(1, extension.length).toLowerCase())
@@ -109,7 +110,7 @@ export const ExtensionCommand = {
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
+            const ref = db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game');
 
             await ref.update({
                 extensions: FieldValue.arrayRemove(extension.substring(0, 1).toUpperCase() + extension.substring(1, extension.length).toLowerCase())

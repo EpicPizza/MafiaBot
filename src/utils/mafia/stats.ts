@@ -1,4 +1,5 @@
 import { firebaseAdmin } from "../firebase";
+import { Instance } from "../instance";
 
 export interface Stat {
     player: string,
@@ -6,9 +7,9 @@ export interface Stat {
     wr: string,
 }
 
-export async function getStats() {
+export async function getStats(instance: Instance) {
     const db = firebaseAdmin.getFirestore();
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('stats');
+    const ref = db.collection('instances').doc(instance.id).collection('settings').doc('stats');
     const doc = await ref.get();
     const data = doc.data();
 

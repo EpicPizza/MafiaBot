@@ -5,9 +5,9 @@ import type { TextCommand } from '../../discord';
 import client from "../../discord/client";
 import { register } from "../../register";
 import { firebaseAdmin } from "../firebase";
-import { getGlobal } from '../global';
 import { getSetup } from "../setup";
 import { getPlayerObjects, getUser } from "./user";
+import { Instance } from "../instance";
 
 export interface Signups { 
     name: string, 
@@ -50,16 +50,15 @@ interface MaterialLink {
     url: string,
 }
 
-export async function addSignup(options: { id: string, game: string }) {
+export async function addSignup(options: { id: string, game: string }, instance: Instance) {
     const db = firebaseAdmin.getFirestore();
-    const setup = await getSetup();
 
-    const game = await getGameByName(options.game);
-    const gameSetup = await getGameSetup(game, setup);
+    const game = await getGameByName(options.game, instance);
+    const gameSetup = await getGameSetup(game, instance.setup);
 
     if(game == null) return false;
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id);
+    const ref = db.collection('instances').doc(instance.id).collection('games').doc(game.id);
 
     const confirmed = await db.runTransaction(async t => {
         const doc = await t.get(ref);
@@ -79,13 +78,13 @@ export async function addSignup(options: { id: string, game: string }) {
         return confirmed;
     });
     
-    const playerObjects = await getPlayerObjects(options.id, setup);
+    const playerObjects = await getPlayerObjects(options.id, instance);
 
     if(playerObjects.player) {
         const member = playerObjects.player;
 
-        if(member.roles.cache.get(setup.primary.gang.id) == undefined) {
-            await member.roles.add(setup.primary.gang.id);
+        if(member.roles.cache.get(instance.setup.primary.gang.id) == undefined) {
+            await member.roles.add(instance.setup.primary.gang.id);
         }
     }
 
@@ -123,14 +122,14 @@ export async function addSignup(options: { id: string, game: string }) {
     return true;
 }
 
-export async function removeSignup(options: { id: string, game: string }) {
+export async function removeSignup(options: { id: string, game: string }, instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    const id = await getGameID(options.game);
+    const id = await getGameID(options.game, instance);
 
     if(id == null) return false;
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(id);
+    const ref = db.collection('instances').doc(instance.id).collection('games').doc(id);
 
     await db.runTransaction(async t => {
         const doc = await t.get(ref);
@@ -147,46 +146,46 @@ export async function removeSignup(options: { id: string, game: string }) {
     return true;
 }
 
-export async function openSignups(name: string) {
-    const game = await getGameByName(name);
-    const global = await getGlobal();
+export async function openSignups(name: string, instance: Instance) {
+    const game = await getGameByName(name, instance);
+    const global = instance.global;
 
     if(game == null) throw new Error("Game not found." );
     if(global.started && global.game == game.id) throw new Error("Game has already started, sign ups are closed.");
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id);
+    const ref = db.collection('instances').doc(instance.id).collection('games').doc(game.id);
 
     await ref.update({
         closed: false,
     })
 }
 
-export async function closeSignups(name: string) {
-    const game = await getGameByName(name);
-    const global = await getGlobal();
+export async function closeSignups(name: string, instance: Instance) {
+    const game = await getGameByName(name, instance);
+    const global = instance.global;
 
     if(game == null) throw new Error("Game not found.")
     if(global.started && game.id == global.game) throw new Error("Game has already started, sign ups are closed.");
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id);
+    const ref = db.collection('instances').doc(instance.id).collection('games').doc(game.id);
 
     await ref.update({
         closed: true,
     })
 }
 
-export async function activateSignup(options: { id: string, name: string }) {
-    const game = await getGameByName(options.name);
+export async function activateSignup(options: { id: string, name: string }, instance: Instance) {
+    const game = await getGameByName(options.name, instance);
 
     if(game == null) throw new Error("Game not found.");
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id);
+    const ref = db.collection('instances').doc(instance.id).collection('games').doc(game.id);
 
     const signup = game.message;
 
@@ -196,10 +195,10 @@ export async function activateSignup(options: { id: string, name: string }) {
         }
     })
 
-    refreshSignup(options.name);
+    refreshSignup(options.name, instance);
 
     if(signup) {
-        const setup = await getSetup();
+        const setup = instance.setup;
 
         if(typeof setup == 'string') throw new Error("Setup incomplete.");
 
@@ -227,9 +226,9 @@ export async function activateSignup(options: { id: string, name: string }) {
     }
 }
 
-export async function refreshSignup(name: string) {
-    const game = await getGameByName(name);
-    const setup = await getSetup();
+export async function refreshSignup(name: string, instance: Instance) {
+    const game = await getGameByName(name, instance);
+    const setup = instance.setup;
 
     if(typeof setup == 'string') throw new Error("Setup Incomplete");
     if(game == null) throw new Error("Game not found.");
@@ -242,7 +241,7 @@ export async function refreshSignup(name: string) {
     let list = "";
 
     for(let i = 0; i < game.signups.length; i++) {
-        const user = await getUser(game.signups[i]);
+        const user = await getUser(game.signups[i], instance);
 
         if(user) {
             list += user.nickname + "\n";
@@ -266,10 +265,10 @@ export async function refreshSignup(name: string) {
 }
 
 
-export async function archiveGame(interaction: ChatInputCommandInteraction | TextCommand, name: string) {
-    const setup = await getSetup();
-    const game = await getGameByName(name);
-    const global = await getGlobal();
+export async function archiveGame(interaction: ChatInputCommandInteraction | TextCommand, name: string, instance: Instance) {
+    const setup = instance.setup;
+    const game = await getGameByName(name, instance);
+    const global = instance.global;
 
     if(typeof setup == 'string') throw new Error("Setup Incomplete");
     if(game == null || global == null) throw new Error("Game not found.");
@@ -283,7 +282,7 @@ export async function archiveGame(interaction: ChatInputCommandInteraction | Tex
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id);
+    const ref = db.collection('instances').doc(instance.id).collection('games').doc(game.id);
 
     await ref.update({ state: 'completed '});
 
@@ -292,16 +291,16 @@ export async function archiveGame(interaction: ChatInputCommandInteraction | Tex
     await interaction.reply({ ephemeral: true, content: "Game archived." });
 }
 
-export async function createGame(interaction: ChatInputCommandInteraction | TextCommand, name: string) {
-    const setup = await getSetup();
+export async function createGame(interaction: ChatInputCommandInteraction | TextCommand, name: string, instance: Instance) {
+    const setup = instance.setup;
 
     if(typeof setup == 'string') throw new Error("Setup Incomplete");
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games');
+    const ref = db.collection('instances').doc(instance.id).collection('games');
 
-    const exists = await getGameByName(name).catch(() => { return undefined; });
+    const exists = await getGameByName(name, instance).catch(() => { return undefined; });
 
     if(exists) throw new Error("Duplicate game names not allowed.");
 
@@ -375,10 +374,10 @@ function getRandom(min: number, max: number) {
     return Math.floor((Math.random() * (max - min) + min)).toString();
 }
 
-export async function getGames() {    
+export async function getGames(instance: Instance) {    
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games');
+    const ref = db.collection('instances').doc(instance.id).collection('games');
 
     const docs = (await ref.get()).docs;
 
@@ -398,10 +397,10 @@ export async function getGames() {
     return games;
 }
 
-export async function getGameByName(name: string) {
+export async function getGameByName(name: string, instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    const docs = (await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').get()).docs;
+    const docs = (await db.collection('instances').doc(instance.id).collection('games').get()).docs;
     const games = docs.map(doc => doc.data());
     
     for(let i = 0; i < games.length; i++) {
@@ -413,10 +412,10 @@ export async function getGameByName(name: string) {
     throw new Error("Game not found in database.");
 }
 
-export async function getGameByID(id: string) {
+export async function getGameByID(id: string, instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(id);
+    const ref = db.collection('instances').doc(instance.id).collection('games').doc(id);
 
     console.log(id)
 
@@ -427,8 +426,8 @@ export async function getGameByID(id: string) {
     return { ... doc.data(), id: doc.id } as Signups;
 }
 
-export async function getGameID(name: string) {
-    const game = await getGameByName(name);
+export async function getGameID(name: string, instance: Instance) {
+    const game = await getGameByName(name, instance);
 
     if(game == null) return null;
 

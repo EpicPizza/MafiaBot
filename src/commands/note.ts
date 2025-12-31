@@ -1,11 +1,10 @@
 import { Command } from "commander";
 import { ApplicationCommandType, ChannelType, CommandInteraction, ContextMenuCommandBuilder, ContextMenuCommandInteraction, SlashCommandBuilder, SlashCommandStringOption, WebhookClient } from "discord.js";
-import { Data } from '../discord';
+import { Data, Event } from '../discord';
 import { ReactionCommand } from '../discord';
 import { TextCommand } from '../discord';
 import { archiveMessage } from "../utils/archive";
 import { firebaseAdmin } from "../utils/firebase";
-import { getGlobal } from '../utils/global';
 import { getGameByID, getGameSetup } from "../utils/mafia/games";
 import { getUser } from "../utils/mafia/user";
 import { getSetup } from "../utils/setup";
@@ -54,14 +53,16 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async function(interaction: ContextMenuCommandInteraction | TextCommand | CommandInteraction | ReactionCommand) {
-        const global = await getGlobal();
-        const setup = await getSetup();
+    execute: async function(interaction: Event<ContextMenuCommandInteraction | TextCommand | CommandInteraction | ReactionCommand>) {
+        interaction.inInstance();
+
+        const global = interaction.instance.global;
+        const setup = interaction.instance.setup;
         
         if(interaction.type == 'reaction' && interaction.message.guild?.id != setup.primary.guild.id) return;
         if(interaction.type != "text" && interaction.type != 'reaction') await interaction.deferReply({ ephemeral: true });
 
-        const user = await getUser(interaction.user.id);
+        const user = await getUser(interaction.user.id, interaction.instance);
         if(user == undefined || !global.players.find(player => player.id == user.id)) {
             if(interaction.type == 'reaction') {
                 return;
@@ -89,7 +90,7 @@ module.exports = {
 
             if(alignment != 'mafia' && sendTo == 'mafia') throw new Error("Not allowed! You're not mafia!");
 
-            await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('notes').doc(user.id).set({
+            await db.collection('instances').doc(interaction.instance.id).collection('notes').doc(user.id).set({
                 sendTo,
             });
 
@@ -111,13 +112,13 @@ module.exports = {
 
         if(interaction.type == 'text' || interaction.type == 'reaction' ? interaction.message.channelId != setup.primary.chat.id : interaction.channelId != setup.primary.chat.id) return;
 
-        const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('notes').doc(user.id); 
+        const ref = db.collection('instances').doc(interaction.instance.id).collection('notes').doc(user.id); 
         const sendTo = ((await ref.get()).data()?.sendTo ?? 'DM') as 'DM' | 'mafia';
 
         const channel = setup.secondary.guild.channels.cache.get(user.channel ?? "");
         if(channel == undefined || !(channel.type == ChannelType.GuildText)) throw new Error("Channel not found.");
 
-        const mafiaChannel = (await getGameSetup(await getGameByID(global.game ?? "---"), setup)).mafia;
+        const mafiaChannel = (await getGameSetup(await getGameByID(global.game ?? "---", interaction.instance), setup)).mafia;
 
         if(interaction.type == 'text') await interaction.message.react("✅");
 

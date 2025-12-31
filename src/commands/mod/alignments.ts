@@ -1,14 +1,15 @@
 import { Command } from "commander";
 import { APIActionRowComponent, APIButtonComponent, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandSubcommandBuilder, TextChannel } from "discord.js";
 import { z } from "zod";
-import { type TextCommand } from '../../discord';
+import { Event, type TextCommand } from '../../discord';
 import { firebaseAdmin } from "../../utils/firebase";
-import { getGlobal, type Global } from '../../utils/global';
+import { type Global } from '../../utils/global';
 import { getGameByID, getGameSetup } from "../../utils/mafia/games";
 import { onjoin } from "../../utils/mafia/invite";
 import { getUser, getUsers } from "../../utils/mafia/user";
 import { Setup, getSetup } from "../../utils/setup";
 import { Subinteraction } from "../../utils/subcommands";
+import { Instance } from "../../utils/instance";
 
 export const ShowAlignments = {
     name: "alignments",
@@ -23,17 +24,19 @@ export const ShowAlignments = {
             .description('Shows alignments of all players, must be run in spectator chat.')
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
-        const global = await getGlobal();
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
+        const global = interaction.instance.global;
         if(global.started == false) throw new Error("Game has not started!");
-        const game = await getGameByID(global.game ?? "---");
-        const setup = await getSetup();
+        const game = await getGameByID(global.game ?? "---", interaction.instance);
+        const setup = interaction.instance.setup;
         if(game == null) throw new Error("Game not found.");
         const gameSetup = await getGameSetup(game, setup);
 
         if(gameSetup.spec.id != (interaction.type == 'text' ? interaction.message.channelId : interaction.channelId)) throw new Error("Uh, this shouldn't be run outside of spectator channel.");
 
-        const users = await getUsers(game.signups);
+        const users = await getUsers(game.signups, interaction.instance);
         const players = global.players.map(player => ({ user: users.get(player.id), alignment: player.alignment })).filter(player => player.user != undefined);
 
         const embed = new EmbedBuilder()
@@ -66,7 +69,9 @@ export const ConfirmAlignmentsButton = {
         name: z.literal('confirm-alignments'),
     }),
 
-    execute: async (interaction: ButtonInteraction) => {
+    execute: async (interaction: Event<ButtonInteraction>) => {
+        interaction.inInstance();
+
         const components = (interaction.message.toJSON() as any).components as APIActionRowComponent<APIButtonComponent>[]
 
         for(let i = 0; i < components.length; i++) {
@@ -81,9 +86,9 @@ export const ConfirmAlignmentsButton = {
 
         await interaction.update({ components: components });
 
-        const global = await getGlobal();
-        const setup = await getSetup();
-        const which = await getGameByID(global.game ?? "");
+        const global = interaction.instance.global;
+        const setup = interaction.instance.setup;
+        const which = await getGameByID(global.game ?? "", interaction.instance);
         
         if(typeof setup == 'string') throw new Error("Setup Incomplete");
         if(which == null) throw new Error("Game not found.");
@@ -92,7 +97,7 @@ export const ConfirmAlignmentsButton = {
 
         for(let i = 0; i < global.players.length; i++) {
             if(global.players[i].alignment == 'mafia') {
-                await addMafiaPlayer(global.players[i], setup);
+                await addMafiaPlayer(global.players[i], interaction.instance);
             }
         }
 
@@ -102,31 +107,31 @@ export const ConfirmAlignmentsButton = {
 
         const db = firebaseAdmin.getFirestore();
 
-        await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').update({
+        await db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game').update({
             day: 1,
         });
 
-        await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(which.id).collection('days').doc((1).toString()).set({
+        await db.collection('instances').doc(interaction.instance.id).collection('games').doc(which.id).collection('days').doc((1).toString()).set({
             game: global.game,
             players: global.players.map((player) => player.id),
         });
     }
 } satisfies Subinteraction;
 
-export async function addMafiaPlayer(player: Global["players"][0], setup: Setup) {
-    const mafiaMember = await setup.tertiary.guild.members.fetch(player.id).catch(() => undefined);
+export async function addMafiaPlayer(player: Global["players"][0], instance: Instance) {
+    const mafiaMember = await instance.setup.tertiary.guild.members.fetch(player.id).catch(() => undefined);
 
-    const user = await getUser(player.id);
+    const user = await getUser(player.id, instance);
 
     if(user == undefined || user.channel == null) throw new Error("User not found/setup.");
 
-    const channel = await setup.secondary.guild.channels.fetch(user.channel).catch(() => null) as TextChannel | null;
+    const channel = await instance.setup.secondary.guild.channels.fetch(user.channel).catch(() => null) as TextChannel | null;
 
     if(channel == null) throw new Error("Channel not found.");
 
     if(mafiaMember?.joinedTimestamp) {
-        await mafiaMember.roles.remove(setup.tertiary.spec);
-        await mafiaMember.roles.add(setup.tertiary.access);
+        await mafiaMember.roles.remove(instance.setup.tertiary.spec);
+        await mafiaMember.roles.add(instance.setup.tertiary.access);
     } else {
         const db = firebaseAdmin.getFirestore();
 
@@ -136,7 +141,7 @@ export async function addMafiaPlayer(player: Global["players"][0], setup: Setup)
             roles: {
                 add: ["access"],
             }
-        });
+        }, instance);
         
     }
 }

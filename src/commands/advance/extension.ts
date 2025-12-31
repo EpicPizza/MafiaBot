@@ -2,11 +2,10 @@ import { Command } from "commander";
 import { ChatInputCommandInteraction, SlashCommandSubcommandGroupBuilder } from "discord.js";
 import { FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
-import { type TextCommand } from '../../discord';
+import { Event, type TextCommand } from '../../discord';
 import { fromZod } from '../../utils/text';
 import { getAllExtensions } from "../../utils/extensions";
 import { firebaseAdmin } from "../../utils/firebase";
-import { getGlobal } from '../../utils/global';
 import { getGameByID } from "../../utils/mafia/games";
 import { getSetup } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
@@ -61,11 +60,13 @@ export const ExtensionCommand = {
             .description('Manage extensions midgame.')
             .argument('<action>', 'enable, disable', fromZod(z.string().min(1).max(100)))
             .argument('<name>', 'name of extension', fromZod(z.string().min(1).max(100)))
-            .option('--setup', 'to run start/end fucntion', fromZod(z.string().min(1).max(100)))
+            .option('--setup', 'to run start/end fucntion')
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
-        const global = await getGlobal();
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
+        const global = interaction.instance.global;
 
         const extension = interaction.type == 'text' ? interaction.program.processedArgs[1] as string : interaction.options.getString("extension");
         const command = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getSubcommand();
@@ -96,17 +97,17 @@ export const ExtensionCommand = {
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
+            const ref = db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game');
 
             await ref.update({
                 extensions: FieldValue.arrayUnion(extension.substring(0, 1).toUpperCase() + extension.substring(1, extension.length).toLowerCase())
             });          
             
             if(start === true) {
-                const setup = await getSetup();
-                const game = await getGameByID(global.game ?? "---");
+                const setup = interaction.instance.setup;
+                const game = await getGameByID(global.game ?? "---", interaction.instance);
                 
-                await enabling.onStart(global, setup, game);
+                await enabling.onStart(interaction.instance, game);
             }
 
             if(interaction.type == 'text') {
@@ -123,17 +124,17 @@ export const ExtensionCommand = {
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
+            const ref = db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game');
 
             await ref.update({
                 extensions: FieldValue.arrayRemove(extension.substring(0, 1).toUpperCase() + extension.substring(1, extension.length).toLowerCase())
             });     
 
             if(end === true) {
-                const setup = await getSetup();
-                const game = await getGameByID(global.game ?? "---");
+                const setup = interaction.instance.setup;
+                const game = await getGameByID(global.game ?? "---", interaction.instance);
                 
-                await disabling.onEnd(global, setup, game);
+                await disabling.onEnd(interaction.instance, game);
             }
 
             if(interaction.type == 'text') {

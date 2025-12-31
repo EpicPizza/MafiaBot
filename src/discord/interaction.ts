@@ -1,12 +1,17 @@
-import { ClientEvents, Events } from "discord.js";
+import { AutocompleteInteraction, ButtonInteraction, ChatInputCommandInteraction, ClientEvents, ContextMenuCommandInteraction, Events, InteractionType, ModalSubmitInteraction, StringSelectMenuInteraction } from "discord.js";
 import client from "./client";
 import { z } from "zod";
+import { Event } from ".";
+import { getAuthority } from "../utils/instance";
+import { SafeError } from "../utils/error";
 
 const CustomId = z.object({
     name: z.string(),
 });
 
 export async function interactionCreateHandler(...[interaction]: ClientEvents[Events.InteractionCreate]) {
+    const instance = await getAuthority(interaction.guildId ?? "---", false);
+
     if (interaction.isButton()) {
         let name: string;
 
@@ -41,7 +46,13 @@ export async function interactionCreateHandler(...[interaction]: ClientEvents[Ev
         }
 
         try {
-            await command.execute(interaction);
+            const event = interaction as unknown as Event<ButtonInteraction>;
+
+            event.name = name;
+            event.inInstance = () => { if(instance == undefined) throw new Error("Server not setup!"); };
+            event.instance = instance;
+
+            await command.execute(event);
         } catch (e: any) {
             try {
                 console.log(e);
@@ -87,7 +98,13 @@ export async function interactionCreateHandler(...[interaction]: ClientEvents[Ev
         }
 
         try {
-            await command.execute(interaction);
+            const event = interaction as unknown as Event<ModalSubmitInteraction>;
+
+            event.name = name;
+            event.inInstance = () => { if(instance == undefined) throw new Error("Server not setup!"); };
+            event.instance = instance;
+
+            await command.execute(event);
         } catch (e: any) {
             try {
                 console.log(e);
@@ -133,7 +150,13 @@ export async function interactionCreateHandler(...[interaction]: ClientEvents[Ev
         }
 
         try {
-            await command.execute(interaction);
+            const event = interaction as unknown as Event<ButtonInteraction>;
+
+            event.name = name;
+            event.inInstance = () => { if(instance == undefined) throw new Error("Server not setup!"); };
+            event.instance = instance;
+
+            await command.execute(event);
         } catch (e: any) {
             try {
                 console.log(e);
@@ -155,7 +178,13 @@ export async function interactionCreateHandler(...[interaction]: ClientEvents[Ev
         }
 
         try {
-            await command.execute(interaction);
+            const event = interaction as unknown as Event<ChatInputCommandInteraction>;
+
+            event.name = interaction.commandName;
+            event.inInstance = () => { if(instance == undefined) throw new Error("Server not setup!"); };
+            event.instance = instance;
+            
+            await command.execute(event);
         } catch (e: any) {
             try {
                 console.log(e);
@@ -177,7 +206,13 @@ export async function interactionCreateHandler(...[interaction]: ClientEvents[Ev
         }
 
         try {
-            await command.execute(interaction);
+            const event = interaction as unknown as Event<ContextMenuCommandInteraction>;
+
+            event.name = interaction.commandName;
+            event.inInstance = () => { if(instance == undefined) throw new Error("Server not setup!"); };
+            event.instance = instance;
+            
+            await command.execute(event);
         } catch (e: any) {
             try {
                 console.log(e);
@@ -198,7 +233,14 @@ export async function interactionCreateHandler(...[interaction]: ClientEvents[Ev
         }
 
         try {
-            await command.execute(interaction);
+
+            const event = interaction as unknown as Event<any>;
+
+            event.name = interaction.commandName;
+            event.inInstance = () => { if(instance == undefined) throw new Error("Server not setup!"); };
+            event.instance = instance;
+
+            await command.execute(event);
         } catch (e: any) {
             try {
                 console.log(e);

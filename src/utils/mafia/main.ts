@@ -6,12 +6,13 @@ import { removeReactions } from "../../discord/helpers";
 import { type TextCommand } from '../../discord';
 import { getEnabledExtensions } from "../extensions";
 import { firebaseAdmin } from "../firebase";
-import { getGlobal, type Global } from '../global';
+import { type Global } from '../global';
 import { clearFiles } from "../google/doc";
-import { Setup, getSetup } from "../setup";
+import { type Setup } from "../setup";
 import { GameSetup, Signups, getGameByID, getGameByName, getGameSetup, refreshSignup } from "./games";
 import { onjoin } from "./invite";
 import { User, getPlayerObjects, getUsersArray } from "./user";
+import { Instance } from "../instance";
 
 const pings = true;
 
@@ -72,12 +73,12 @@ export function viewOverwrites() {
     }
 }
 
-export async function unlockExtensions(global: Global, setup: Setup, game: Signups, increment: boolean) {
-    const extensions = await getEnabledExtensions(global);
+export async function unlockExtensions(instance: Instance, game: Signups, increment: boolean) {
+    const extensions = await getEnabledExtensions(instance.global);
 
     const promises = [] as Promise<any>[];
 
-    extensions.forEach(extension => { promises.push(extension.onUnlock(global, setup, game, increment)) });
+    extensions.forEach(extension => { promises.push(extension.onUnlock(instance, game, increment)) });
 
     const results = await Promise.allSettled(promises);
 
@@ -90,10 +91,10 @@ export async function unlockExtensions(global: Global, setup: Setup, game: Signu
     }
 }
 
-export async function unlockGame(increment: boolean = false, ping: boolean = true) {
-    const global = await getGlobal();
-    const setup = await getSetup();
-    const game = await getGameByID(global.game ?? "");
+export async function unlockGame(instance: Instance, increment: boolean = false, ping: boolean = true) {
+    const global = instance.global;
+    const setup = instance.setup;
+    const game = await getGameByID(global.game ?? "", instance);
 
     if(setup == undefined) throw new Error("Setup not complete.");
     if(typeof setup == 'string') throw new Error("An unexpected error occurred.");
@@ -129,7 +130,7 @@ export async function unlockGame(increment: boolean = false, ping: boolean = tru
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
+    const ref = db.collection('instances').doc(instance.id).collection('settings').doc('game');
 
     await ref.update({
         started: true,
@@ -137,12 +138,12 @@ export async function unlockGame(increment: boolean = false, ping: boolean = tru
         day: increment ? global.day + 1 : global.day,
     });
 
-    await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc((increment ? global.day + 1 : global.day).toString()).set({
+    await db.collection('instances').doc(instance.id).collection('games').doc(game.id).collection('days').doc((increment ? global.day + 1 : global.day).toString()).set({
         game: global.game,
     }, { merge: true });
 
     if(increment == true) {
-        await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc((global.day + 1).toString()).set({
+        await db.collection('instances').doc(instance.id).collection('games').doc(game.id).collection('days').doc((global.day + 1).toString()).set({
             game: global.game,
             players: global.players.map((player) => player.id),
         });
@@ -154,15 +155,15 @@ export async function unlockGame(increment: boolean = false, ping: boolean = tru
         await setup.primary.chat.send("Game has unlocked!");
     }
 
-    await unlockExtensions(global, setup, game, increment);
+    await unlockExtensions(instance, game, increment);
 }
 
-export async function lockExtensions(global: Global, setup: Setup, game: Signups) {
-    const extensions = await getEnabledExtensions(global);
+export async function lockExtensions(instance: Instance, game: Signups) {
+    const extensions = await getEnabledExtensions(instance.global);
 
     const promises = [] as Promise<any>[];
 
-    extensions.forEach(extension => { promises.push(extension.onLock(global, setup, game)) });
+    extensions.forEach(extension => { promises.push(extension.onLock(instance, game)) });
 
     const results = await Promise.allSettled(promises);
 
@@ -175,10 +176,10 @@ export async function lockExtensions(global: Global, setup: Setup, game: Signups
     }
 }
 
-export async function lockGame() {
-    const global = await getGlobal();
-    const setup = await getSetup();
-    const game = await getGameByID(global.game ?? "");
+export async function lockGame(instance: Instance) {
+    const global = instance.global;
+    const setup = instance.setup;
+    const game = await getGameByID(global.game ?? "", instance);
 
     if(setup == undefined) throw new Error("Setup not complete.");
     if(typeof setup == 'string') throw new Error("An unexpected error occurred.");
@@ -204,7 +205,7 @@ export async function lockGame() {
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
+    const ref = db.collection('instances').doc(instance.id).collection('settings').doc('game');
 
     await ref.update({
         started: true,
@@ -213,7 +214,7 @@ export async function lockGame() {
 
     await setup.primary.chat.send("Game has locked!");
 
-    await lockExtensions(global, setup, game);
+    await lockExtensions(instance, game);
 }
 
 export async function checkSignups(signups: string[], setup: Setup) { //probably could be optimized in a better way but who cares :)
@@ -261,10 +262,10 @@ export async function deleteInvites(setup: Setup) {
     }
 }
 
-export async function prepareGame(game: Signups) {
+export async function prepareGame(game: Signups, instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
+    const ref = db.collection('instances').doc(instance.id).collection('settings').doc('game');
 
     await ref.update({
         started: true,
@@ -275,16 +276,16 @@ export async function prepareGame(game: Signups) {
     });
 }
 
-export async function finishSignups(game: Signups) {
+export async function finishSignups(game: Signups, instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id);
+    const ref = db.collection('instances').doc(instance.id).collection('games').doc(game.id);
 
     await ref.update({
         closed: true,
     })
 
-    await refreshSignup(game.name);
+    await refreshSignup(game.name, instance);
 }
 
 export async function setupPermissions(setup: Setup, lock: boolean) {
@@ -375,10 +376,12 @@ async function setTag(userProfile: User, player: GuildMember) {
     });
 }
 
-export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup) {
+export async function setupPlayer(id: string, gameSetup: GameSetup, instance: Instance) {
+    const setup = instance.setup;
+
     const db = firebaseAdmin.getFirestore();
 
-    const { deadPlayer, userProfile, player, mafiaPlayer } = await getPlayerObjects(id, setup);
+    const { deadPlayer, userProfile, player, mafiaPlayer } = await getPlayerObjects(id, instance);
 
     if(player) await setupMainPlayer(player, setup);
     await setupDeadPlayer(deadPlayer, setup)
@@ -394,7 +397,7 @@ export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup
             name: userProfile.nickname.toLowerCase()
         });
 
-        await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('users').doc(userProfile.id).update({
+        await db.collection('instances').doc(instance.id).collection('users').doc(userProfile.id).update({
             channel: channel.id,
         });
     }
@@ -419,7 +422,7 @@ export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup
                 channel: channel.id,
                 content: "Welcome <@" + userProfile.id + ">! Check out the pins in the main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod."
             }
-        });
+        }, instance);
 
         const dm = await client.users.cache.get(id)?.createDM();
 
@@ -437,12 +440,12 @@ export async function setupPlayer(id: string, setup: Setup, gameSetup: GameSetup
     }
 }
 
-export async function startExtensions(global: Global, setup: Setup, game: Signups) {
-    const extensions = await getEnabledExtensions(global);
+export async function startExtensions(instance: Instance, game: Signups) {
+    const extensions = await getEnabledExtensions(instance.global);
 
     const promises = [] as Promise<any>[];
 
-    extensions.forEach(extension => { promises.push(extension.onStart(global, setup, game)) });
+    extensions.forEach(extension => { promises.push(extension.onStart(instance, game)) });
 
     const results = await Promise.allSettled(promises);
 
@@ -455,19 +458,19 @@ export async function startExtensions(global: Global, setup: Setup, game: Signup
     }
 }
 
-export async function startGame(interaction: ChatInputCommandInteraction | TextCommand | ButtonInteraction, name: string) {
+export async function startGame(interaction: ChatInputCommandInteraction | TextCommand | ButtonInteraction, name: string, instance: Instance) {
     if(interaction.type != 'text') {
         await interaction.deferReply({ ephemeral: true });
     } else {
         await interaction.message.react("<a:loading:1256150236112621578>");
     }
 
-    const global = await getGlobal();
+    const global = instance.global;
 
     if(global.started) throw new Error("Game has already started.");
 
-    const game = await getGameByName(name);
-    const setup = await getSetup();
+    const game = await getGameByName(name, instance);
+    const setup = instance.setup;
     const db = firebaseAdmin.getFirestore();
 
     if(setup == undefined) throw new Error("Setup not complete.");
@@ -479,7 +482,7 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
 
     await checkSignups(game.signups, setup);
 
-    await prepareGame(game);
+    await prepareGame(game, instance);
 
     //at this point, things have been checked and accounted for and we can do multiple things at once now!
 
@@ -488,10 +491,10 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
     promises.push((async () => {
         const db = firebaseAdmin.getFirestore();
 
-        const days = await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').listDocuments();
+        const days = await db.collection('instances').doc(instance.id).collection('games').doc(game.id).collection('days').listDocuments();
 
         for(let i = 0; i < days.length; i++) {
-            const dayDoc = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(game.id).collection('days').doc((days[i].id).toString());
+            const dayDoc = db.collection('instances').doc(instance.id).collection('games').doc(game.id).collection('days').doc((days[i].id).toString());
 
             await deleteCollection(db, dayDoc.collection('votes'), 20);
             await deleteCollection(db, dayDoc.collection('players'), 20);
@@ -499,17 +502,17 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
         }  
     })());
 
-    promises.push(deleteCollection(db, db.collection('instances').doc(process.env.INSTANCE ?? "---").collection("notes"), 20));
+    promises.push(deleteCollection(db, db.collection('instances').doc(instance.id).collection("notes"), 20));
     promises.push(deleteCollection(db, db.collection("edits"), 20));
-    promises.push(deleteCollection(db, db.collection('instances').doc(process.env.INSTANCE ?? "---").collection("roles"), 20));
+    promises.push(deleteCollection(db, db.collection('instances').doc(instance.id).collection("roles"), 20));
     promises.push(deleteInvites(setup));
-    promises.push(finishSignups(game));
+    promises.push(finishSignups(game, instance));
     promises.push(setupPermissions(setup, true));
-    promises.push(startExtensions(global, setup, game));
+    promises.push(startExtensions(instance, game));
     promises.push(setup.secondary.dms.permissionOverwrites.edit(setup.secondary.spec.id, viewOverwrites()));
 
     for(let i = 0; i < game.signups.length; i++) {
-        promises.push(setupPlayer(game.signups[i], setup, gameSetup));
+        promises.push(setupPlayer(game.signups[i], gameSetup, instance));
     }
 
     const results = await Promise.allSettled(promises);
@@ -550,8 +553,8 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
     //await startLog(setup, global, game);
 }
 
-export async function startLog(setup: Setup, global: Global, game: Signups) {
-    const users = await getUsersArray(game.signups);
+export async function startLog(setup: Setup, global: Global, game: Signups, instance: Instance) {
+    const users = await getUsersArray(game.signups, instance);
 
     const embed = new EmbedBuilder()
         .setTitle('Game Started')
@@ -621,10 +624,10 @@ export async function startLog(setup: Setup, global: Global, game: Signups) {
     await setup.secondary.logs.send({ embeds: [ tertiaryEmbed ] });
 }
 
-export async function clearGame(global: Global) {
+export async function clearGame(global: Global, instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
+    const ref = db.collection('instances').doc(instance.id).collection('settings').doc('game');
 
     await ref.update({
         started: false,
@@ -634,7 +637,7 @@ export async function clearGame(global: Global) {
         game: null,
     });
 
-    const gameRef = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('games').doc(global.game ?? "---");
+    const gameRef = db.collection('instances').doc(instance.id).collection('games').doc(global.game ?? "---");
 
     await gameRef.update({
         state: "completed",
@@ -670,7 +673,7 @@ export async function archiveChannels(setup: Setup) {
     }
 }
 
-export async function setMafiaSpectator(mafiaPlayer: GuildMember | undefined, id: string, setup: Setup, gameSetup: GameSetup, userProfile: User, dm: boolean = true) {
+export async function setMafiaSpectator(mafiaPlayer: GuildMember | undefined, id: string, setup: Setup, gameSetup: GameSetup, userProfile: User, instance: Instance, dm: boolean = true) {
     const db = firebaseAdmin.getFirestore();
     
     if(mafiaPlayer) {
@@ -686,7 +689,7 @@ export async function setMafiaSpectator(mafiaPlayer: GuildMember | undefined, id
                 add: ["spectator"],
                 remove: ["access"],
             }
-        });
+        }, instance);
             
         const dm = await client.users.cache.get(id)?.createDM();
 
@@ -698,10 +701,10 @@ export async function setMafiaSpectator(mafiaPlayer: GuildMember | undefined, id
     }
 }
 
-export async function clearPlayer(id: string, setup: Setup, gameSetup: GameSetup) {
+export async function clearPlayer(id: string, setup: Setup, gameSetup: GameSetup, instance: Instance) {
     const promises = [] as Promise<any>[];
 
-    const { deadPlayer, userProfile, player, mafiaPlayer } = await getPlayerObjects(id, setup);
+    const { deadPlayer, userProfile, player, mafiaPlayer } = await getPlayerObjects(id, instance);
 
     if(player) promises.push(player.roles.remove(setup.primary.alive));
 
@@ -710,7 +713,7 @@ export async function clearPlayer(id: string, setup: Setup, gameSetup: GameSetup
         promises.push(deadPlayer.roles.remove(setup.secondary.access));
     }
 
-    promises.push(setMafiaSpectator(mafiaPlayer, id, setup, gameSetup, userProfile, true));
+    promises.push(setMafiaSpectator(mafiaPlayer, id, setup, gameSetup, userProfile, instance, true));
 
     const results = await Promise.allSettled(promises);
 
@@ -723,12 +726,12 @@ export async function clearPlayer(id: string, setup: Setup, gameSetup: GameSetup
     }
 }
 
-export async function endExtensions(global: Global, setup: Setup, game: Signups) {
-    const extensions = await getEnabledExtensions(global);
+export async function endExtensions(instance: Instance, game: Signups) {
+    const extensions = await getEnabledExtensions(instance.global);
 
     const promises = [] as Promise<any>[];
 
-    extensions.forEach(extension => { promises.push(extension.onEnd(global, setup, game)) });
+    extensions.forEach(extension => { promises.push(extension.onEnd(instance, game)) });
 
     const results = await Promise.allSettled(promises);
 
@@ -741,19 +744,19 @@ export async function endExtensions(global: Global, setup: Setup, game: Signups)
     }
 }
 
-export async function endGame(interaction: ChatInputCommandInteraction | TextCommand) {
+export async function endGame(interaction: ChatInputCommandInteraction | TextCommand, instance: Instance) {
     if(interaction.type != 'text') {
         await interaction.deferReply({ ephemeral: true });
     } else {
         await interaction.message.react("<a:loading:1256150236112621578>");
     }
 
-    const global = await getGlobal();
+    const global = instance.global;
 
     if(global.started == false) throw new Error("Game has not started." );
 
-    const game = await getGameByID(global.game ?? "bruh");
-    const setup = await getSetup();
+    const game = await getGameByID(global.game ?? "bruh", instance);
+    const setup = instance.setup;
     
     if(setup == undefined) throw new Error("Setup not complete.");
     if(typeof setup == 'string') throw new Error("An unexpected error occurred." );
@@ -763,7 +766,7 @@ export async function endGame(interaction: ChatInputCommandInteraction | TextCom
 
     //await checkSignups(game.signups, setup);
 
-    await clearGame(global);
+    await clearGame(global, instance);
 
     const promises = [] as Promise<any>[];
 
@@ -775,11 +778,11 @@ export async function endGame(interaction: ChatInputCommandInteraction | TextCom
     
     promises.push(setupPermissions(setup, false));
     promises.push(archiveChannels(setup));
-    promises.push(endExtensions(global, setup, game));
+    promises.push(endExtensions(instance, game));
     promises.push(clearFiles());
 
     for(let i = 0; i < game.signups.length; i++) {
-        promises.push(clearPlayer(game.signups[i], setup, gameSetup));
+        promises.push(clearPlayer(game.signups[i], setup, gameSetup, instance));
     }
 
     const results = await Promise.allSettled(promises);
@@ -810,13 +813,13 @@ export async function endGame(interaction: ChatInputCommandInteraction | TextCom
     }
 }
 
-export async function editPlayer(options: { id: string, alignment: 'mafia' | null }) {
+export async function editPlayer(options: { id: string, alignment: 'mafia' | null }, instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game');
+    const ref = db.collection('instances').doc(instance.id).collection('settings').doc('game');
 
     await db.runTransaction(async t => {
-        const global = await getGlobal(t);
+        const global = instance.global;
 
         const player = global.players.find((value) => { value.id == options.id });
 
@@ -828,14 +831,6 @@ export async function editPlayer(options: { id: string, alignment: 'mafia' | nul
             players: global.players
         })
     })
-}
-
-async function getPlayer(id: string, game: Awaited<ReturnType<typeof getGlobal>>) {
-    for(let i = 0; i < game.players.length; i++) {
-        if(game.players[i].id == id) {
-            return game.players[i];
-        }
-    }
 }
 
 

@@ -617,7 +617,7 @@ export async function startup() {
         return;
     }
 
-    const setup = await getSetup();
+    const setup = await getSetup(process.env.INSTANCE ?? "---");
 
     const messagesFetched = await catchupChannel(setup.primary.chat, async (length: number) => {
         console.log("Fetching messages... (" + length + ")");

@@ -1,10 +1,9 @@
 import { Command } from "commander";
 import { randomInt } from "crypto";
 import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
-import { Data } from '../discord';
+import { Data, Event } from '../discord';
 import { TextCommand } from '../discord';
 import { firebaseAdmin } from "../utils/firebase";
-import { getGlobal } from '../utils/global';
 import { getUser, User } from "../utils/mafia/user";
 
 module.exports = {
@@ -27,17 +26,19 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction | TextCommand) => {
+    execute: async (interaction: Event<ChatInputCommandInteraction | TextCommand>) => {
+        interaction.inInstance();
+
         const random = getRandom(1, 11);
 
         let user = null as null | User;
 
-        const global = await getGlobal();
+        const global = interaction.instance.global;
 
         if(global.started == true) {
             const randomPlayer = getRandom(0, global.players.length);
 
-            user = await getUser(global.players[randomPlayer].id) ?? null;
+            user = await getUser(global.players[randomPlayer].id, interaction.instance) ?? null;
         } else {
             const db = firebaseAdmin.getFirestore();
 
@@ -45,7 +46,7 @@ module.exports = {
 
             const randomPlayer = getRandom(0, count);
 
-            user = await getUser((await db.collection("users").offset(randomPlayer).limit(1).get()).docs[0].data().id) ?? null;
+            user = await getUser((await db.collection("users").offset(randomPlayer).limit(1).get()).docs[0].data().id, interaction.instance) ?? null;
         }
 
         if(user == null) throw new Error("User not found.");

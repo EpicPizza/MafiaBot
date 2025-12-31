@@ -2,9 +2,8 @@ import { Command } from "commander";
 import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
 import { fromZod } from "../../utils/text";
 import { z } from "zod";
-import { TextCommand } from "../../discord";
+import { Event, TextCommand } from "../../discord";
 import { firebaseAdmin } from "../../utils/firebase";
-import { getGlobal } from "../../utils/global";
 import { createUser, editUser, getUser, getUserByName } from "../../utils/mafia/user";
 import { Subcommand } from "../../utils/subcommands";
 import { removeReactions } from "../../discord/helpers";
@@ -45,7 +44,9 @@ export const NicknameCommmand = {
             .argument('[pronouns]', 'pronouns to set', fromZod(requirements));
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
         if(interaction.type != 'text') {
             await interaction.deferReply({ ephemeral: true });
         } else {
@@ -56,18 +57,18 @@ export const NicknameCommmand = {
         const pronouns = interaction.type == 'text' ? (interaction.program.processedArgs.length > 2 ? interaction.program.processedArgs[2] as string : undefined) : ( interaction.options.getString('pronouns') ? requirements.parse(interaction.options.getString('pronouns')) : undefined);
 
         const id: string = interaction.type == 'text' ? interaction.program.processedArgs[0].substring(2, interaction.program.processedArgs[0].length - 1) : interaction.options.getUser('member')?.id
-        const user = await getUser(id);
+        const user = await getUser(id, interaction.instance);
 
-        const fetch = await getUserByName(nickname);
+        const fetch = await getUserByName(nickname, interaction.instance);
 
         console.log(nickname);
 
         if(user != undefined && fetch != undefined && fetch.id != user.id) throw new Error("Unknown user / Duplicate names not allowed.");
 
         if(user) {
-            await editUser(id, { nickname: nickname, ... (pronouns ? { pronouns: pronouns } : {}) } );
+            await editUser(id, { nickname: nickname, ... (pronouns ? { pronouns: pronouns } : {}) }, interaction.instance);
         } else {
-            await createUser(id, nickname, pronouns ?? null);
+            await createUser(id, nickname, pronouns ?? null, interaction.instance);
         }
     
         if(interaction.type != 'text') {

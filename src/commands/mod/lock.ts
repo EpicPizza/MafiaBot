@@ -2,13 +2,11 @@ import { Command } from "commander";
 import { ActionRowBuilder, APIActionRowComponent, APIButtonComponent, APISelectMenuComponent, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, ComponentType, EmbedBuilder, Interaction, SlashCommandSubcommandBuilder, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { DateTime } from "luxon";
 import { z } from "zod";
-import { type TextCommand } from '../../discord';
+import { Event, type TextCommand } from '../../discord';
 import { fromZod } from '../../utils/text';
 import { firebaseAdmin } from "../../utils/firebase";
-import { getGlobal } from '../../utils/global';
 import { lockGame, unlockGame } from "../../utils/mafia/main";
 import { getFuture, getGrace, setFuture, setGrace } from "../../utils/mafia/timing";
-import { getSetup } from "../../utils/setup";
 import { Subcommand, Subinteraction } from "../../utils/subcommands";
 
 export const LockingSelect = {
@@ -53,14 +51,16 @@ export const LockCommand = {
             .argument('<now>', 'now', fromZod(z.literal('now')))
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
-        const global = await getGlobal();
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
+        const global = interaction.instance.global;
 
         if(!global.started) throw new Error("Game not started.");
         if(global.locked) throw new Error("Game is already locked.");
 
         if(interaction.type == 'text') {
-            await lockGame();
+            await lockGame(interaction.instance);
 
             await interaction.message.react('✅');
 
@@ -86,15 +86,17 @@ export const UnlockCommand = {
             .argument('<type>', 'to advance or stay day (advance, stay)', fromZod(z.union([z.literal('stay'), z.literal('advance')])));
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
-        const global = await getGlobal();
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
+        const global = interaction.instance.global;
 
         if(!global.started) throw new Error("Game not started.");
         if(global.day == 0) throw new Error("Setup alignments first.");
         if(!global.locked) throw new Error("Game is already unlocked.");
 
         if(interaction.type == 'text') {
-            await unlockGame((interaction.program.processedArgs[1] as string) == 'stay' ? false : true);
+            await unlockGame(interaction.instance, (interaction.program.processedArgs[1] as string) == 'stay' ? false : true);
 
             await interaction.message.react('✅');
 
@@ -124,8 +126,10 @@ export const GraceCommand = {
             .argument("<type>", "on, off", fromZod(z.union([z.literal('on'), z.literal('off')])));
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
-        const global = await getGlobal();
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
+        const global = interaction.instance.global;
 
         if(!global.started) throw new Error("Game not started.");
         
@@ -134,7 +138,7 @@ export const GraceCommand = {
         let grace = interaction.type == 'text' ? interaction.program.processedArgs[0] == 'on' : interaction.options.getBoolean('grace') ?? false;
 
         if(interaction.type == 'text') {
-            await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').update({
+            await db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game').update({
                 grace: grace
             });
 
@@ -143,7 +147,7 @@ export const GraceCommand = {
             return;
         }
 
-        const timing = await getGrace();
+        const timing = await getGrace(interaction.instance);
 
         const embed = new EmbedBuilder()
             .setTitle('Choose a time to set grace to ' + (grace ? "on" : "off") + ".")
@@ -229,7 +233,7 @@ export const Minute = {
         name: z.literal("minute"),
     }),
 
-    execute: async (interaction: StringSelectMenuInteraction) => {
+    execute: async (interaction: Event<StringSelectMenuInteraction>) => {
         const value = interaction.values[0];
 
         const rowComponents = (interaction.message.toJSON() as any).components as APIActionRowComponent<APIButtonComponent | APISelectMenuComponent>[]
@@ -254,8 +258,10 @@ export const Minute = {
     }
 } satisfies Subinteraction;
 
-async function handleLocking(interaction: ChatInputCommandInteraction, type: boolean) {
-    const timing = await getFuture();
+async function handleLocking(interaction: Event<ChatInputCommandInteraction>, type: boolean) {
+    interaction.inInstance();
+
+    const timing = await getFuture(interaction.instance);
 
     const embed = new EmbedBuilder()
         .setTitle('Choose a time to ' + (type ? "lock" : "unlock") + " channel.")
@@ -315,7 +321,7 @@ async function handleLocking(interaction: ChatInputCommandInteraction, type: boo
     })
 }
 
-async function handleLockingSelect(interaction: StringSelectMenuInteraction) {
+async function handleLockingSelect(interaction: Event<StringSelectMenuInteraction>) {
     const id = JSON.parse(interaction.customId) as { name: "future", type: boolean };
 
     const value = interaction.values[0];
@@ -379,9 +385,11 @@ async function handleLockingSelect(interaction: StringSelectMenuInteraction) {
     })
 }
 
-async function handleGraceButton(interaction: ButtonInteraction) {
-    const setup = await getSetup();
-    const global = await getGlobal();
+async function handleGraceButton(interaction: Event<ButtonInteraction>) {
+    interaction.inInstance();
+
+    const setup = interaction.instance.setup;
+    const global = interaction.instance.global;
     const db = firebaseAdmin.getFirestore();
 
     const id = JSON.parse(interaction.customId) as { name: "set-grace", grace: boolean, type: boolean, value: string, };
@@ -412,9 +420,9 @@ async function handleGraceButton(interaction: ButtonInteraction) {
         })
     } else {
         if(date == "now") {
-            await lockGame();
+            await lockGame(interaction.instance);
 
-            db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').update({
+            db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game').update({
                 grace: id.grace
             });
 
@@ -424,7 +432,7 @@ async function handleGraceButton(interaction: ButtonInteraction) {
                 embeds: [],
             });
         } else {
-            await setFuture(date, false, true, id.grace);
+            await setFuture(date, false, true, id.grace, interaction.instance);
 
             await interaction.update({
                 content: "Channel will lock at <t:" + Math.round(date.valueOf() / 1000) + ":T>, <t:" + Math.round(date.valueOf() / 1000) + ":d>.",
@@ -437,8 +445,10 @@ async function handleGraceButton(interaction: ButtonInteraction) {
     }
 }
 
-async function handleUnlockButton(interaction: ButtonInteraction) {
-    const setup = await getSetup();
+async function handleUnlockButton(interaction: Event<ButtonInteraction>) {
+    interaction.inInstance();
+
+    const setup = interaction.instance.setup;
     const db = firebaseAdmin.getFirestore();
 
     const id = JSON.parse(interaction.customId) as { name: "unlock", value: string, type: boolean, grace: boolean };
@@ -446,9 +456,9 @@ async function handleUnlockButton(interaction: ButtonInteraction) {
     const date = id.value == "now" ? "now" : new Date(parseInt(id.value ?? new Date().valueOf()));
 
     if(date == "now") {
-        await unlockGame(id.type);
+        await unlockGame(interaction.instance, id.type);
 
-        db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').update({
+        db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game').update({
             grace: id.grace
         });
 
@@ -458,7 +468,7 @@ async function handleUnlockButton(interaction: ButtonInteraction) {
             content: "Channel unlocked.",
         });
     } else {
-        await setFuture(date, id.type, false, id.grace);
+        await setFuture(date, id.type, false, id.grace, interaction.instance);
 
         await interaction.update({
             content: "Channel will unlock at <t:" + Math.round(date.valueOf() / 1000) + ":T>, <t:" + Math.round(date.valueOf() / 1000) + ":d>.",
@@ -470,8 +480,10 @@ async function handleUnlockButton(interaction: ButtonInteraction) {
     }
 }
 
-async function handleLockingGrace(interaction: StringSelectMenuInteraction) {
-    const setup = await getSetup();
+async function handleLockingGrace(interaction: Event<StringSelectMenuInteraction>) {
+    interaction.inInstance();
+
+    const setup = interaction.instance.setup;
     const db = firebaseAdmin.getFirestore();
 
     const id = JSON.parse(interaction.customId) as { name: "grace", grace: boolean };
@@ -484,7 +496,7 @@ async function handleLockingGrace(interaction: StringSelectMenuInteraction) {
     const date = value == "now" ? "now" : new Date(parseInt((value ?? new Date().valueOf())) + minuteOffset);
 
     if(date == "now") {
-        await db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('settings').doc('game').update({
+        await db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game').update({
             grace: id.grace
         });
 
@@ -494,7 +506,7 @@ async function handleLockingGrace(interaction: StringSelectMenuInteraction) {
             embeds: [],
         });
     } else {
-        await setGrace(id.grace, date);
+        await setGrace(id.grace, date, interaction.instance);
 
         await interaction.update({
             content: "Grace will be set to " + (id.grace ? "on" : "off") + " at <t:" + Math.round(date.valueOf() / 1000) + ":T>, <t:" + Math.round(date.valueOf() / 1000) + ":d>.",
@@ -507,7 +519,7 @@ async function handleLockingGrace(interaction: StringSelectMenuInteraction) {
 }
 
 
-function getMinute(interaction: Interaction) {
+function getMinute(interaction: Event<Interaction>) {
     if(!('message' in interaction) || interaction.message == null) return 0;
 
     const rowComponents = (interaction.message.toJSON() as any).components as APIActionRowComponent<APIButtonComponent | APISelectMenuComponent>[];

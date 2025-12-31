@@ -1,13 +1,11 @@
 import { Command } from "commander";
 import { ActionRowBuilder, AutocompleteInteraction, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Colors, CommandInteraction, EmbedBuilder, ModalBuilder, ModalSubmitInteraction, SlashCommandBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
 import { z } from "zod";
-import { Data } from '../discord';
+import { Data, Event } from '../discord';
 import { TextCommand } from '../discord';
 import { fromZod } from '../utils/text';
-import { getGlobal } from '../utils/global';
 import { addSignup, refreshSignup } from "../utils/mafia/games";
 import { User, createUser, editUser, getAllNicknames, getUser, getUserByName } from "../utils/mafia/user";
-import { getSetup } from "../utils/setup";
 
 const setNickname = z.object({
     name: z.literal('set-nickname'),
@@ -78,7 +76,9 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: CommandInteraction | ButtonInteraction | ModalSubmitInteraction | AutocompleteInteraction | TextCommand) => {
+    execute: async (interaction: Event<CommandInteraction | ButtonInteraction | ModalSubmitInteraction | AutocompleteInteraction | TextCommand>) => {
+        interaction.inInstance();
+
         if(interaction.type == 'text' && interaction.name == 'nickname') {
             const embed = new EmbedBuilder()
                 .setTitle("Set a nickname.")
@@ -100,7 +100,7 @@ module.exports = {
         } else if(interaction.type != 'text' && interaction.isAutocomplete()) {
             const focusedValue = interaction.options.getFocused();
 
-            const nicknames = await getAllNicknames();
+            const nicknames = await getAllNicknames(interaction.instance);
 
             const filtered = nicknames.filter(choice => choice.toLowerCase().startsWith(focusedValue.toLowerCase())).slice(0, 25);;
 
@@ -125,15 +125,15 @@ module.exports = {
             let user: User | undefined = undefined;
 
             if(userOption == null && nicknameOption == null) {
-                user = await getUser(interaction.user.id);
+                user = await getUser(interaction.user.id, interaction.instance);
             }
             
             if(nicknameOption != null) {
-                user = await getUserByName(nicknameOption);
+                user = await getUserByName(nicknameOption, interaction.instance);
             }
             
             if(userOption != null && user == undefined) {
-                user = await getUser(typeof userOption == 'string' ? (userOption.length > 4 ? userOption.substring(2, userOption.length - 1) : userOption) : userOption.id);
+                user = await getUser(typeof userOption == 'string' ? (userOption.length > 4 ? userOption.substring(2, userOption.length - 1) : userOption) : userOption.id, interaction.instance);
             }
 
             if(user == undefined) return await interaction.reply({ content: "User not found.", ephemeral: true });
@@ -144,7 +144,7 @@ module.exports = {
                 .setDescription("Nickname: " + user.nickname + "\nUser: <@" + user.id + ">" + (user.pronouns ? "\nPronouns: " + user.pronouns : ""));
 
             if(extra) {
-                const setup = await getSetup();
+                const setup = interaction.instance.setup;
 
                 const member = await setup.primary.guild.members.fetch({ user: user?.id, cache: true });
 
@@ -160,7 +160,7 @@ module.exports = {
         } else if(interaction.type != 'text' && interaction.isChatInputCommand() && interaction.commandName == "nickname") {
             await showModal(interaction, false, "command");
         } else if(interaction.type != 'text' && interaction.isModalSubmit()) {
-            const global = await getGlobal();
+            const global = interaction.instance.global;
 
             if(global.started) throw new Error("Nickname cannot be edited durring a game.");
 
@@ -175,9 +175,9 @@ module.exports = {
             if(!nicknameParse.success) throw new Error(nicknameParse.error.flatten().formErrors.join(" "));
             if(!pronounsParse.success) throw new Error(pronounsParse.error.flatten().formErrors.join(" "));
 
-            const user = await getUser(interaction.user.id);
+            const user = await getUser(interaction.user.id, interaction.instance);
 
-            const fetch = await getUserByName(interaction.fields.getTextInputValue('nickname'));
+            const fetch = await getUserByName(interaction.fields.getTextInputValue('nickname'), interaction.instance);
 
             if(fetch != undefined && fetch.id != interaction.user.id) throw new Error("Duplicate names not allowed.");
 
@@ -185,9 +185,9 @@ module.exports = {
             const pronouns = pronounsParse.data.toLowerCase();
 
             if(user) {
-                await editUser(interaction.user.id, { nickname: nickname, pronouns: pronouns });
+                await editUser(interaction.user.id, { nickname: nickname, pronouns: pronouns }, interaction.instance);
             } else {
-                await createUser(interaction.user.id, nickname, pronouns);
+                await createUser(interaction.user.id, nickname, pronouns, interaction.instance);
             }
 
             const id = JSON.parse(interaction.customId) as z.infer<typeof setNickname>;
@@ -197,9 +197,9 @@ module.exports = {
             if(id.autoSignUp) {
                 if(id.game == null) return await interaction.reply({ ephemeral: true, content: "Game not found." });
 
-                await addSignup({ id: interaction.user.id, game: id.game });
+                await addSignup({ id: interaction.user.id, game: id.game }, interaction.instance);
 
-                await refreshSignup(id.game);
+                await refreshSignup(id.game, interaction.instance);
 
                 if(interaction.isFromMessage()) {
                     console.log(id, (!('type' in id) || id.type == 'text'));
@@ -231,12 +231,14 @@ module.exports = {
     }
 }
 
-async function showModal(interaction: ButtonInteraction | ChatInputCommandInteraction,autoSignUp: boolean, type: string, game: string | undefined = undefined) {
-    const global = await getGlobal();
+async function showModal(interaction: Event<ButtonInteraction | ChatInputCommandInteraction>, autoSignUp: boolean, type: string, game: string | undefined = undefined) {
+    interaction.inInstance();
+
+    const global = interaction.instance.global;
 
     if(global.players.find(player => player.id == interaction.user.id)) throw new Error("Cannot change nickname while you're in a game.");
 
-    const user = await getUser(interaction.user.id);
+    const user = await getUser(interaction.user.id, interaction.instance);
     
     const modal = new ModalBuilder()
         .setCustomId(JSON.stringify({ name: 'set-nickname', type: type == 'text' ? 'text' : 'command', autoSignUp: autoSignUp, ...(game ? { game: game} : {}) }))

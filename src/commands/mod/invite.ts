@@ -1,16 +1,14 @@
 import { Command } from "commander";
 import { ChannelType, ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
 import { z } from "zod";
-import { type TextCommand } from '../../discord';
+import { Event, type TextCommand } from '../../discord';
 import { fromZod } from '../../utils/text';
 import client from "../../discord/client";
 import { removeReactions } from "../../discord/helpers";
 import { firebaseAdmin } from "../../utils/firebase";
-import { getGlobal } from '../../utils/global';
 import { getGameByName, refreshSignup, removeSignup } from "../../utils/mafia/games";
 import { onjoin } from "../../utils/mafia/invite";
 import { getUser } from "../../utils/mafia/user";
-import { getSetup } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
 
 export const SpectatorCommand = {
@@ -47,7 +45,9 @@ export const SpectatorCommand = {
             .option('-i, --invite', 'to send invite back to you instead of dm');
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
         if(interaction.type != 'text') {
             await interaction.deferReply({ ephemeral: true });
         } else {
@@ -56,7 +56,7 @@ export const SpectatorCommand = {
 
         const db = firebaseAdmin.getFirestore();
 
-        const setup = await getSetup();
+        const setup = interaction.instance.setup;
 
         const spectator = interaction.type == 'text' ? (interaction.program.processedArgs[0] as string).substring(2, (interaction.program.processedArgs[0] as string).length - 1) : interaction.options.getUser('member')?.id;
 
@@ -64,7 +64,7 @@ export const SpectatorCommand = {
 
         const remove = interaction.type == 'text' ? interaction.program.getOptionValue('remove') === true : interaction.options.getBoolean('remove') === true;
 
-        const global = await getGlobal();
+        const global = interaction.instance.global;
 
         if(global.players.filter(player => player.id == spectator).length > 0) throw new Error("Cannot give/remove spectator to a player.");
 
@@ -98,7 +98,7 @@ export const SpectatorCommand = {
                     add: ["spectator"],
                     remove: ["access"]
                 }
-            });
+            }, interaction.instance);
 
             message += "Dead Chat: https://discord.com/invite/" + invite.code + "\n";
         } else if(dead != undefined) {
@@ -128,7 +128,7 @@ export const SpectatorCommand = {
                     add: ["spectator"],
                     remove: ["access"]
                 }
-            });
+            }, interaction.instance);
 
             message += "Mafia Chat: https://discord.com/invite/" + invite.code + "\n";
         } else if(mafia != undefined) {
@@ -206,7 +206,9 @@ export const KickCommand = {
     },
     
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
         const name = interaction.type == 'text' ? interaction.program.processedArgs[1] as string : interaction.options.getString('game');
 
         if(name == null) throw new Error("Game needs to be specified.");
@@ -217,21 +219,21 @@ export const KickCommand = {
 
         if(name.length < 2) throw new Error("Member id or nickname too short.");
 
-        const game = await getGameByName(name);
+        const game = await getGameByName(name, interaction.instance);
 
         if(game == null) throw new Error("Game not found.");
 
         let ping = "";
 
         for(let i = 0; i < game.signups.length; i++) {
-            const user = await getUser(game.signups[i]);
+            const user = await getUser(game.signups[i], interaction.instance);
 
             if(game.signups[i] == value) {
-                await removeSignup({ id: value, game: game.name });
+                await removeSignup({ id: value, game: game.name }, interaction.instance);
 
                 ping = "<@" + value + ">";
             } else if(user?.nickname.toLowerCase() == value.toLowerCase()) {
-                await removeSignup({ id: user.id, game: game.name });
+                await removeSignup({ id: user.id, game: game.name }, interaction.instance);
 
                 ping = "<@" + user.id + ">"
             }
@@ -239,7 +241,7 @@ export const KickCommand = {
 
         if(ping == "") return await interaction.reply({ ephemeral: true, content: "Signup not found." });
 
-        await refreshSignup(game.name);
+        await refreshSignup(game.name, interaction.instance);
 
         return await interaction.reply({ content: ping + " has been kicked from " + game.name + ".", ephemeral: true, allowedMentions: { repliedUser: true } });
     }

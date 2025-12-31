@@ -1,10 +1,9 @@
 import { Command } from "commander";
 import { Colors, EmbedBuilder } from "discord.js";
 import { z } from "zod";
-import { Data, TextCommand } from '../discord';
+import { Data, Event, TextCommand } from '../discord';
 import client from "../discord/client";
 import { getEnabledExtensions } from "../utils/extensions";
-import { getGlobal } from '../utils/global';
 import { isMod } from "../utils/mod";
 import { getSetup } from "../utils/setup";
 import { fromZod } from "../utils/text";
@@ -24,12 +23,14 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: TextCommand ) => {
-        const global = await getGlobal();
+    execute: async (interaction: Event<TextCommand> ) => {
+        interaction.inInstance();
+
+        const global = interaction.instance.global;
 
         const extensions = await getEnabledExtensions(global);
 
-        const mod = await isMod(await getSetup(), global, interaction.user.id, (interaction.message.guildId) ?? "");
+        const mod = await isMod(interaction.instance.setup, global, interaction.user.id, (interaction.message.guildId) ?? "");
 
         const command = interaction.program.processedArgs[0] ?? null;
 

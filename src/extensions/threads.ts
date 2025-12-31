@@ -2,12 +2,11 @@ import { Command } from "commander";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Channel, ChannelType, Colors, EmbedBuilder, GuildChannel, GuildChannelOverwriteOptions, PermissionOverwriteOptions } from "discord.js";
 import { FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
-import { type TextCommand } from '../discord';
+import { Event, type TextCommand } from '../discord';
 import { simpleJoin } from '../utils/text';
 import { fromZod } from '../utils/text';
 import { Extension, ExtensionInteraction } from "../utils/extensions";
 import { firebaseAdmin } from "../utils/firebase";
-import { getGlobal } from '../utils/global';
 import { getGameByID } from "../utils/mafia/games";
 import { deleteCollection } from "../utils/mafia/main";
 import { getUserByName, User } from "../utils/mafia/user";
@@ -62,18 +61,18 @@ module.exports = {
         },
     ],
     interactions: [],
-    onStart: async (global, setup, game) => {
+    onStart: async (instance, game) => {
         /**
          * Runs during game start processes.
          */
 
         const db = firebaseAdmin.getFirestore();
-        const col = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('threads');
+        const col = db.collection('instances').doc(instance.id).collection('threads');
 
         await deleteCollection(db, col, 20);
         
-        const channel = await setup.secondary.guild.channels.create({ name: "creating" });
-        await channel.setParent(setup.secondary.dms.id);
+        const channel = await instance.setup.secondary.guild.channels.create({ name: "creating" });
+        await channel.setParent(instance.setup.secondary.dms.id);
         await channel.permissionOverwrites.create(channel.guild.roles.everyone, readOverwrites());
         await channel.setName("threads");
         await channel.setTopic(game.name + " Mafia");
@@ -93,17 +92,19 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onLock: async (global, setup, game) => {},
-    onUnlock: async (global, setup, game, incremented) => {},
-    onCommand: async (command: TextCommand) => {
+    onLock: async (instance, game) => {},
+    onUnlock: async (instance, game, incremented) => {},
+    onCommand: async (command: Event<TextCommand>) => {
         /**
          * Text commands only for the forseeable future.
          * 
          * command: Command
          */
 
-        const setup = await getSetup();
-        const global = await getGlobal();
+        command.inInstance();
+
+        const setup = command.instance.setup;
+        const global = command.instance.global;
 
         checkMod(setup, global, command.user.id, command.message.guildId ?? "");
         
@@ -111,7 +112,7 @@ module.exports = {
 
         const db = firebaseAdmin.getFirestore();
 
-        const col = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('threads');
+        const col = db.collection('instances').doc(command.instance.id).collection('threads');
         
         const channelId = (await col.doc('main').get()).data()?.channel as string | undefined;
         if(channelId == undefined) throw new Error("Threads incomplete setup.");
@@ -119,13 +120,12 @@ module.exports = {
         if(channel == null || channel.type != ChannelType.GuildText) throw new Error("Threads channel not found!");
 
         if(command.name == "create") {
-            const global = await getGlobal();
-            const game = await getGameByID(global.game ?? "");
+            const game = await getGameByID(global.game ?? "", command.instance);
 
             const chats = [] as User[];
 
             for(let i = 1; i < command.program.args.length; i++) {
-                const user = await getUserByName(command.program.args[i] as string);
+                const user = await getUserByName(command.program.args[i] as string, command.instance);
 
                 if(user == undefined) throw new Error(command.program.args[i] + " not found.");
 
@@ -170,7 +170,7 @@ module.exports = {
 
             const chats = data.chats;
 
-            const user = await getUserByName(command.program.processedArgs[0] as string);
+            const user = await getUserByName(command.program.processedArgs[0] as string, command.instance);
 
             if(user == undefined) throw new Error(command.program.processedArgs[0] + "not found.");
 
@@ -215,14 +215,14 @@ module.exports = {
     },
     onInteraction: async (extensionInteraction: ExtensionInteraction) => {},
     onMessage: async (message) => {},
-    onEnd: async (global, setup, game) => {
+    onEnd: async (instance, game) => {
         const db = firebaseAdmin.getFirestore();
 
-        const col = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('threads');
+        const col = db.collection('instances').doc(instance.id).collection('threads');
         
         const channelId = (await col.doc('main').get()).data()?.channel as string | undefined;
         if(channelId == undefined) throw new Error("Threads incomplete setup.");
-        const channel = await setup.secondary.guild.channels.fetch(channelId, { cache: true });
+        const channel = await instance.setup.secondary.guild.channels.fetch(channelId, { cache: true });
         if(channel == null || channel.type != ChannelType.GuildText) throw new Error("Threads channel not found!");
 
         const threads = (await col.get()).docs.filter(doc => doc.id != "main").map(doc => doc.data());
@@ -250,17 +250,17 @@ module.exports = {
             await channel.send({ embeds: [embed], components: [row] });
         }
     },
-    onVote: async (global, setup, game, voter, voting, type, users, transaction) => {},
-    onVotes: async (global, setup, game, board ) => { return ""; },
-    onHammer: async (global, setup, game, hammered) => {},
-    onRemove: async (global, setup, game, removed) => {
+    onVote: async (instance, game, voter, voting, type, users, transaction) => {},
+    onVotes: async (instance, game, board ) => { return ""; },
+    onHammer: async (instance, game, hammered) => {},
+    onRemove: async (instance, game, removed) => {
         const db = firebaseAdmin.getFirestore();
 
-        const col = db.collection('instances').doc(process.env.INSTANCE ?? "---").collection('threads');
+        const col = db.collection('instances').doc(instance.id).collection('threads');
         
         const channelId = (await col.doc('main').get()).data()?.channel as string | undefined;
         if(channelId == undefined) throw new Error("Threads incomplete setup.");
-        const channel = await setup.secondary.guild.channels.fetch(channelId, { cache: true });
+        const channel = await instance.setup.secondary.guild.channels.fetch(channelId, { cache: true });
         if(channel == null || channel.type != ChannelType.GuildText) throw new Error("Threads channel not found!");
 
         const threads = (await col.get()).docs.filter(doc => doc.id != "main").map(doc => doc.data());
@@ -272,7 +272,7 @@ module.exports = {
 
             if(thread == undefined) throw new Error("Not a thread?")
 
-            const member = await setup.secondary.guild.members.fetch(removed);
+            const member = await instance.setup.secondary.guild.members.fetch(removed);
 
             if(!threads[i].chats.includes(member.id)) await thread.members.add(member);
 

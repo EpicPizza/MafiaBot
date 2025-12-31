@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
-import { type TextCommand } from '../../discord';
+import { Event, type TextCommand } from '../../discord';
 import { endGame } from "../../utils/mafia/main";
 import { Subcommand } from "../../utils/subcommands";
 
@@ -17,7 +17,9 @@ export const EndCommand = {
             .description('Ends the game. Gives spectator perms to everyone, and invites to mafia server if they are not already in mafia server.')
     },
 
-    execute: async (interaction: TextCommand | ChatInputCommandInteraction) => {
-        await endGame(interaction);
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
+        await endGame(interaction, interaction.instance);
     }
 } satisfies Subcommand;

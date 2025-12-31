@@ -1,12 +1,11 @@
 import { Command } from "commander";
 import { ApplicationCommandType, AutocompleteInteraction, ChatInputCommandInteraction, ContextMenuCommandBuilder, ContextMenuCommandInteraction, PermissionsBitField, SlashCommandBuilder } from "discord.js";
 import { z } from "zod";
-import { Data } from '../discord';
+import { Data, Event } from '../discord';
 import { TextCommand } from '../discord';
 import { fromZod } from '../utils/text';
 import { getEnabledExtensions } from "../utils/extensions";
 import { firebaseAdmin } from "../utils/firebase";
-import { getGlobal } from '../utils/global';
 import { capitalize, placeVote, removeVote, retrieveVotes, storeVotes, wipeVotes } from "../utils/mafia/fakevotes";
 import { getGameByID } from "../utils/mafia/games";
 import { getAllNicknames, getUsersArray } from "../utils/mafia/user";
@@ -64,8 +63,10 @@ module.exports = {
         }
     ] satisfies Data[],
 
-    execute: async (interaction: ChatInputCommandInteraction | ContextMenuCommandInteraction | TextCommand | AutocompleteInteraction) => {
-        const global = await getGlobal();
+    execute: async (interaction: Event<ChatInputCommandInteraction | ContextMenuCommandInteraction | TextCommand | AutocompleteInteraction>) => {
+        interaction.inInstance();
+
+        const global = interaction.instance.global;
         
         if(interaction.type != 'text' && interaction.isAutocomplete()) {
             if(global.started == false) {
@@ -76,7 +77,7 @@ module.exports = {
 
             const focusedValue = interaction.options.getFocused();
 
-            const nicknames = await getAllNicknames();
+            const nicknames = await getAllNicknames(interaction.instance);
 
             const filtered = nicknames.filter(choice => choice.toLowerCase().startsWith(focusedValue.toLowerCase())).slice(0, 25);;
 
@@ -133,8 +134,8 @@ module.exports = {
 
         if(interaction.type != 'text') await interaction.deferReply();
         
-        const setup = await getSetup();
-        const game = await getGameByID(global.game ?? "");
+        const setup = interaction.instance.setup;
+        const game = await getGameByID(global.game ?? "", interaction.instance);
 
         if(interaction.type == 'text') {
             if(interaction.message.channelId != setup.primary.chat.id) throw new Error("Must vote in main chat.");
@@ -142,7 +143,7 @@ module.exports = {
             if(interaction.channelId != setup.primary.chat.id) throw new Error("Must vote in main chat.");
         }
 
-        const users = await getUsersArray(game.signups);
+        const users = await getUsersArray(game.signups, interaction.instance);
 
         const author = (interaction.type == 'text') ? interaction.message.author : interaction.user;
         const voter = users.find(user => user.id == author.id);
@@ -163,9 +164,9 @@ module.exports = {
         const result = await db.runTransaction(async t => {
             let result: undefined | TransactionResult = undefined;
 
-            if(extension) result = await extension.onVote(global, setup, game, voter, voting, type, users, t) ?? undefined;
+            if(extension) result = await extension.onVote(interaction.instance, game, voter, voting, type, users, t) ?? undefined;
 
-            if(result == undefined) result = await defaultVote(global, setup, game, voter, voting, type, users, t);
+            if(result == undefined) result = await defaultVote(interaction.instance, game, voter, voting, type, users, t);
 
             return result;
         }) satisfies TransactionResult;
@@ -180,7 +181,7 @@ module.exports = {
             if(result.setMessage) await result.setMessage(message.id);
         }
 
-        await handleHammer(result.hammer, global,setup, game);
+        await handleHammer(result.hammer, game, interaction.instance);
     }
 }
 
