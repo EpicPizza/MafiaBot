@@ -230,7 +230,7 @@ async function handleStatsList(interaction: Event<ChatInputCommandInteraction | 
             new ButtonBuilder()
                 .setLabel("More")
                 .setStyle(ButtonStyle.Link)
-                .setURL((process.env.DEV == "TRUE" ? process.env.DEVDOMAIN as string : process.env.DOMAIN as string) + "/stats/" + id)
+                .setURL((process.env.DEV == "TRUE" ? process.env.DEVDOMAIN as string : process.env.DOMAIN as string) + "/" + interaction.instance.id + "/" + game.id + "?tab=Stats&pit=" + id)
         ])
 
     await interaction.reply({ embeds: [embed], components: [row] });
