@@ -2,7 +2,7 @@ import { ActivityType, ClientEvents, Events } from "discord.js";
 import client from "./client";
 import { checkFutureGrace, checkFutureLock } from "../utils/mafia/timing";
 import { dumpTracking, startup } from "../utils/mafia/tracking";
-import { getAuthority, getInstance } from "../utils/instance";
+import { getAuthority, getCachedInstances, getInstance, getInstances } from "../utils/instance";
 import { websiteListener } from "../utils/website";
 
 export async function clientReadyHandler(...[]: ClientEvents[Events.ClientReady]) {
@@ -11,7 +11,9 @@ export async function clientReadyHandler(...[]: ClientEvents[Events.ClientReady]
     client.user?.setActivity({ type: ActivityType.Watching, name: "/games", });
 
     try {
-        await startup();
+        const instances = await getCachedInstances();
+
+        await startup(instances);
         await websiteListener();
     } catch(e) {
         console.log(e);
@@ -19,11 +21,13 @@ export async function clientReadyHandler(...[]: ClientEvents[Events.ClientReady]
 
     setInterval(async () => {
         try {
-            const instance = await getInstance(process.env.INSTANCE ?? "---");
-            if(instance == undefined) throw new Error("Instance not found!");
+            const instances = await getCachedInstances();
 
-            await checkFutureLock(instance);
-            await checkFutureGrace(instance);
+            Promise.all(instances.map(async instance => {
+                await checkFutureLock(instance);
+                await checkFutureGrace(instance);
+            }));
+
             await dumpTracking();
 
             if (process.env.DEV == "FALSE") client.user?.setActivity({ type: ActivityType.Watching, name: "/games", });

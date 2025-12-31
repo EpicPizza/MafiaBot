@@ -1,7 +1,7 @@
 import { APIMessage, Attachment, FetchMessageOptions, Message, MessageReaction, MessageType, PartialMessage, PartialMessageReaction, PartialUser, TextChannel, User } from "discord.js";
 import { FieldValue } from "firebase-admin/firestore";
 import { firebaseAdmin } from "../firebase";
-import { getAuthority } from "../instance";
+import { getAuthority, Instance } from "../instance";
 import { getReactions, Reaction } from "../archive";
 import { getSetup } from "../setup";
 
@@ -606,7 +606,7 @@ export async function transformMessage(message: Message, reactions: boolean = tr
     } satisfies Partial<TrackedMessage> as TrackedMessage;
 }
 
-export async function startup() {
+export async function startup(instances: Instance[]) {
     const db = firebaseAdmin.getFirestore();
     const ref = db.collection('channels').doc('tracking');
     const lastFetched = (await ref.get()).data()?.timestamp as number | undefined ?? undefined;
@@ -617,13 +617,15 @@ export async function startup() {
         return;
     }
 
-    const setup = await getSetup(process.env.INSTANCE ?? "---");
+    await Promise.all(instances.map(async instance => {
+        const setup = await getSetup(instance.id);
 
-    const messagesFetched = await catchupChannel(setup.primary.chat, async (length: number) => {
-        console.log("Fetching messages... (" + length + ")");
-    }, true);
+        const messagesFetched = await catchupChannel(setup.primary.chat, async (length: number) => {
+            console.log("(" + instance.id + ") Fetching messages... (" + length + ")");
+        }, true);
 
-    console.log("Fetched " + messagesFetched + " messages.");
+        console.log("Fetched " + messagesFetched + " messages.");
+    }))
 
     initialized = true;
 }
