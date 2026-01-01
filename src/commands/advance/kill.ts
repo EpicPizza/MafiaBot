@@ -79,6 +79,8 @@ export async function onRemove(instance: Instance, game: Signups, removed: strin
 }
 
 export async function killPlayer(name: string, instance: Instance) {
+    const global = instance.global;
+
     if(global.started == false) throw new Error("Game has not started.");
 
     const game = await getGameByID(global.game ?? "", instance);
