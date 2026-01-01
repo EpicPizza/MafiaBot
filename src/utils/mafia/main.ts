@@ -536,11 +536,9 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
             }
     }
 
-    if(pings) {
-        await setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game has locked!");
-    } else {
-        await setup.primary.chat.send("Game has locked!");
-    }
+    const message = await setup.primary.chat.send((pings ? "<@&" + setup.primary.alive.id + "> " : "") + "Game has locked!");
+
+    await markGame(message.createdTimestamp, game.id, instance, 'start');
 
     if(interaction.type != 'text') {
         await interaction.editReply({ content: "Game is starting!" });
@@ -551,6 +549,17 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
     }
 
     //await startLog(setup, global, game);
+}
+
+export async function markGame(timestamp: number, gameId: string, instance: Instance, type: 'start' | 'end') {
+    const db = firebaseAdmin.getFirestore();
+
+    const ref = db.collection('instances').doc(instance.id).collection('games').doc(gameId);
+
+    await ref.update({
+        [type]: timestamp,
+        state: type == 'end' ? 'completed' : undefined,
+    });
 }
 
 export async function startLog(setup: Setup, global: Global, game: Signups, instance: Instance) {
@@ -768,13 +777,13 @@ export async function endGame(interaction: ChatInputCommandInteraction | TextCom
 
     await clearGame(global, instance);
 
-    const promises = [] as Promise<any>[];
+    const promises = [] as Promise<unknown>[];
 
-    if(pings) {
-        promises.push(setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game has ended!"));
-    } else {
-        promises.push(setup.primary.chat.send("Game has ended!"));
-    }
+    promises.push((async () => {
+        const message = await setup.primary.chat.send((pings ? "<@&" + setup.primary.alive.id + "> " : "") + "Game has ended!");
+
+        await markGame(message.createdTimestamp, game.id, instance, 'end');
+    })())
     
     promises.push(setupPermissions(setup, false));
     promises.push(archiveChannels(setup));

@@ -1,5 +1,5 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, ChatInputCommandInteraction, Colors, EmbedBuilder, TextChannel } from "discord.js";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, Query } from "firebase-admin/firestore";
 import { z } from "zod";
 import type { TextCommand } from '../../discord';
 import client from "../../discord/client";
@@ -280,14 +280,6 @@ export async function archiveGame(interaction: ChatInputCommandInteraction | Tex
     const mafia = await setup.tertiary.guild.channels.fetch(game.channels.mafia).catch(() => undefined);
     if(mafia != undefined && mafia.type == ChannelType.GuildText) await mafia.setParent(setup.tertiary.archive, { lockPermissions: true });
 
-    const db = firebaseAdmin.getFirestore();
-
-    const ref = db.collection('instances').doc(instance.id).collection('games').doc(game.id);
-
-    await ref.update({ state: 'completed '});
-
-    await register();
-
     await interaction.reply({ ephemeral: true, content: "Game archived." });
 }
 
@@ -374,12 +366,12 @@ function getRandom(min: number, max: number) {
     return Math.floor((Math.random() * (max - min) + min)).toString();
 }
 
-export async function getGames(instance: Instance) {    
+export async function getGames(instance: Instance, allowCompleted: boolean = false) {    
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(instance.id).collection('games');
-
-    const docs = (await ref.get()).docs;
+    let query = db.collection('instances').doc(instance.id).collection('games') as Query;
+    if(allowCompleted === false) query = query.where('state', '==', 'active');
+    const docs = (await query.get()).docs;
 
     const games = [] as { name: string, id: string }[];
 
@@ -397,10 +389,12 @@ export async function getGames(instance: Instance) {
     return games;
 }
 
-export async function getGameByName(name: string, instance: Instance) {
+export async function getGameByName(name: string, instance: Instance, allowCompleted: boolean = false) {
     const db = firebaseAdmin.getFirestore();
 
-    const docs = (await db.collection('instances').doc(instance.id).collection('games').get()).docs;
+    let query = db.collection('instances').doc(instance.id).collection('games') as Query;
+    if(allowCompleted === false) query = query.where('state', '==', 'active');
+    const docs = (await query.get()).docs;
     const games = docs.map(doc => doc.data());
     
     for(let i = 0; i < games.length; i++) {
@@ -412,22 +406,21 @@ export async function getGameByName(name: string, instance: Instance) {
     throw new Error("Game not found in database.");
 }
 
-export async function getGameByID(id: string, instance: Instance) {
+export async function getGameByID(id: string, instance: Instance, allowCompleted: boolean = false) {
     const db = firebaseAdmin.getFirestore();
 
     const ref = db.collection('instances').doc(instance.id).collection('games').doc(id);
 
-    console.log(id)
-
     const doc = (await ref.get());
 
     if(doc.data() == undefined) throw new Error("Game not found in database.");
+    if(allowCompleted === false && doc.data()?.state != 'active') throw new Error("Game completed!");
 
     return { ... doc.data(), id: doc.id } as Signups;
 }
 
-export async function getGameID(name: string, instance: Instance) {
-    const game = await getGameByName(name, instance);
+export async function getGameID(name: string, instance: Instance, allowCompleted: boolean = false) {
+    const game = await getGameByName(name, instance, allowCompleted);
 
     if(game == null) return null;
 

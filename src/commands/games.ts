@@ -34,7 +34,7 @@ module.exports = {
         
         const db = firebaseAdmin.getFirestore();
 
-        const ref = db.collection('instances').doc(interaction.instance.id).collection('games');
+        const ref = db.collection('instances').doc(interaction.instance.id).collection('games').where('state', '==', 'active');
 
         const docs = (await ref.get()).docs;
 

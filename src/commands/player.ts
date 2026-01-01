@@ -144,7 +144,7 @@ module.exports = {
             allUsers.push({ id: interaction.instance.id, user: user });
 
             const singular = "Nickname: " + user.nickname + "\nUser: <@" + user.id + ">" + (user.pronouns ? "\nPronouns: " + user.pronouns : "");
-            const multiple = "Nickname: " + allUsers.reduce((prev, curr) => "(" + curr.id + ") " + curr.user?.nickname + prev , "") + "\nUser: <@" + user.id + ">\nPronouns: " + allUsers.reduce((prev, curr) => "(" + curr.id + "): " + (curr.user?.pronouns ?? "None Set") + prev , "");
+            const multiple = "Nickname: " + allUsers.reduce((prev, curr) => "(" + curr.id + "): " + curr.user?.nickname + " " + prev, "") + "\nUser: <@" + user.id + ">\nPronouns: " + allUsers.reduce((prev, curr) => "(" + curr.id + "): " + (curr.user?.pronouns ?? "None Set") + " " + prev , "");
 
             
             const embed = new EmbedBuilder()
