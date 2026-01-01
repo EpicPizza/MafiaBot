@@ -142,17 +142,14 @@ export async function unlockGame(instance: Instance, increment: boolean = false,
         game: global.game,
     }, { merge: true });
 
+    const message = await setup.primary.chat.send((pings && ping ? "<@&" + setup.primary.alive.id + ">" : "") + " Game has unlocked!");
+
     if(increment == true) {
         await db.collection('instances').doc(instance.id).collection('games').doc(game.id).collection('days').doc((global.day + 1).toString()).set({
             game: global.game,
             players: global.players.map((player) => player.id),
+            start: message.createdTimestamp,
         });
-    }
-
-    if(pings && ping) {
-        await setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game has unlocked!");
-    } else {
-        await setup.primary.chat.send("Game has unlocked!");
     }
 
     await unlockExtensions(instance, game, increment);
@@ -267,13 +264,17 @@ export async function prepareGame(game: Signups, instance: Instance) {
 
     const ref = db.collection('instances').doc(instance.id).collection('settings').doc('game');
 
-    await ref.update({
+    const updatedGlobal = {
         started: true,
         locked: true,
         game: game.id,
         players: game.signups.map((signup) => { return { id: signup, alignment: null } }),
         day: 0,
-    });
+    }
+
+    instance.global = { ...instance.global, ...updatedGlobal };
+
+    await ref.update(updatedGlobal);
 }
 
 export async function finishSignups(game: Signups, instance: Instance) {

@@ -327,7 +327,7 @@ function getBoard(votes: Vote[], users: User[], mayors: Awaited<ReturnType<typeo
 
             })();
 
-            return (users.find(user => user.id == vote.id)?.nickname ?? "<@" + vote + ">") + indicator;
+            return (users.find(user => user.id == vote.id)?.nickname ?? "<@" + vote.id + ">") + indicator;
         });
 
 

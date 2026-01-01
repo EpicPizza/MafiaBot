@@ -114,6 +114,7 @@ export const ConfirmAlignmentsButton = {
         await db.collection('instances').doc(interaction.instance.id).collection('games').doc(which.id).collection('days').doc((1).toString()).set({
             game: global.game,
             players: global.players.map((player) => player.id),
+            start: new Date().valueOf(),
         });
     }
 } satisfies Subinteraction;

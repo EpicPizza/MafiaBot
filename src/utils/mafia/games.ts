@@ -292,7 +292,7 @@ export async function createGame(interaction: ChatInputCommandInteraction | Text
 
     const ref = db.collection('instances').doc(instance.id).collection('games');
 
-    const exists = await getGameByName(name, instance).catch(() => { return undefined; });
+    const exists = await getGameByName(name, instance, true).catch(() => { return undefined; });
 
     if(exists) throw new Error("Duplicate game names not allowed.");
 
