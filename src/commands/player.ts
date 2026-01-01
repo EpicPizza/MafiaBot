@@ -6,6 +6,7 @@ import { TextCommand } from '../discord';
 import { fromZod } from '../utils/text';
 import { addSignup, refreshSignup } from "../utils/mafia/games";
 import { User, createUser, editUser, getAllNicknames, getUser, getUserByName } from "../utils/mafia/user";
+import { getCachedInstances } from "../utils/instance";
 
 const setNickname = z.object({
     name: z.literal('set-nickname'),
@@ -121,7 +122,6 @@ module.exports = {
 
             const extra = interaction.type == 'text' ? interaction.program.getOptionValue('extra') === true : false;
 
-
             let user: User | undefined = undefined;
 
             if(userOption == null && nicknameOption == null) {
@@ -138,10 +138,19 @@ module.exports = {
 
             if(user == undefined) return await interaction.reply({ content: "User not found.", ephemeral: true });
 
+            const instances = (await getCachedInstances()).filter(instance => instance.id != interaction.instance.id);
+
+            const allUsers = (await Promise.all(instances.map(async instance => ({ id: instance.id, user: await getUser(user.id, instance)})))).filter(user => user.user != undefined);
+            allUsers.push({ id: interaction.instance.id, user: user });
+
+            const singular = "Nickname: " + user.nickname + "\nUser: <@" + user.id + ">" + (user.pronouns ? "\nPronouns: " + user.pronouns : "");
+            const multiple = "Nickname: " + allUsers.reduce((prev, curr) => "(" + curr.id + ") " + curr.user?.nickname + prev , "") + "\nUser: <@" + user.id + ">\nPronouns: " + allUsers.reduce((prev, curr) => "(" + curr.id + "): " + (curr.user?.pronouns ?? "None Set") + prev , "");
+
+            
             const embed = new EmbedBuilder()
                 .setAuthor({ name: user.nickname })
                 .setColor(Colors.DarkOrange)
-                .setDescription("Nickname: " + user.nickname + "\nUser: <@" + user.id + ">" + (user.pronouns ? "\nPronouns: " + user.pronouns : ""));
+                .setDescription(allUsers.length == 1 ? singular : multiple);
 
             if(extra) {
                 const setup = interaction.instance.setup;
