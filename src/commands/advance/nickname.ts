@@ -63,7 +63,15 @@ export const NicknameCommmand = {
 
         console.log(nickname);
 
-        if(user != undefined && fetch != undefined && fetch.id != user.id) throw new Error("Unknown user / Duplicate names not allowed.");
+        if(user != undefined && fetch != undefined && fetch.id != user.id) {
+            if(fetch.state == 1 || fetch.state == 6 || fetch.state == 2) {
+                throw new Error("Unknown user / Duplicate names not allowed.");
+            } else if(fetch.state == 3) {
+                const db = firebaseAdmin.getFirestore();
+
+                await db.collection('instances').doc(interaction.instance.id).collection('users').doc(fetch.id).delete();
+            }
+        }
 
         if(user) {
             await editUser(id, { nickname: nickname, ... (pronouns ? { pronouns: pronouns } : {}) }, interaction.instance);

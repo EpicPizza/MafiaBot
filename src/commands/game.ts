@@ -8,7 +8,7 @@ import { fromZod } from '../utils/text';
 import { removeReactions } from "../discord/helpers";
 import { firebaseAdmin } from "../utils/firebase";
 import { addSignup, getGameByName, getGames, refreshSignup, removeSignup } from "../utils/mafia/games";
-import { getUser } from "../utils/mafia/user";
+import { getUser, User } from "../utils/mafia/user";
 
 module.exports = {
     data: [
@@ -75,6 +75,14 @@ module.exports = {
                 name: z.literal('confirm-signup'),
                 game: z.string(),
             })
+        },
+        {
+            type: 'button',
+            name: 'button-signup-skip-import',
+            command: z.object({
+                name: z.literal('signup-skip-import'),
+                game: z.string(),
+            })
         }
     ] satisfies Data[],
 
@@ -105,6 +113,7 @@ module.exports = {
             const id = JSON.parse(interaction.customId);
 
             if(id.name == "leave") return await leaveSignup(interaction, id.game);
+            if(id.name == "signup-skip-import") return await directSignup(interaction, id.game, id.type);
 
             const global = interaction.instance.global;
             const game = await getGameByName(id.game, interaction.instance);
@@ -129,6 +138,34 @@ module.exports = {
         }
     } 
 }
+
+async function directSignup(interaction: Event<ButtonInteraction>, game: string, type: string) {
+    interaction.inInstance();
+
+    if(game == null) return await interaction.reply({ ephemeral: true, content: "Game not found." });
+
+    const db = firebaseAdmin.getFirestore();
+    await db.collection('instances').doc(interaction.instance.id).collection('users').doc(interaction.user.id).update({ state: 1 } satisfies Partial<User>);
+
+    await addSignup({ id: interaction.user.id, game: game }, interaction.instance);
+
+    await refreshSignup(game, interaction.instance);
+
+    if(interaction.message.deletable && type == 'text') {
+        await interaction.reply({ content: 'You are now signed up!', ephemeral: true });
+
+        const reference = await interaction.message.fetchReference().catch(() => undefined);
+
+        if(reference != undefined) {
+            await reference.react("✅")
+        }
+
+        await interaction.message.delete();
+    } else {
+        await interaction.update({ content: 'You are now signed up!', embeds: [], components: [] });
+    }
+}
+    
 
 async function leaveSignup(interaction: Event<ButtonInteraction | ChatInputCommandInteraction | TextCommand>, name: string) {
     interaction.inInstance();
@@ -207,6 +244,37 @@ async function handleSignup(interaction: Event<ChatInputCommandInteraction | Tex
                     .setCustomId(JSON.stringify({ name: 'set-nickname', autoSignUp: true, type: interaction.type == 'text' ? 'text' : 'command', game: game.name }))
                     .setStyle(ButtonStyle.Success)
                     .setLabel("Add Nickname")
+            ]);
+
+        if(interaction.type != 'text') {
+            await interaction.editReply({
+                embeds: [embed],
+                components: [row]
+            })
+        } else {
+            await removeReactions(interaction.message);
+
+            await interaction.reply({
+                embeds: [embed],
+                components: [row]
+            })
+        }
+    } else if(user.state == 2 && action != false) {
+        const embed = new EmbedBuilder()
+            .setTitle("Welcome back!")
+            .setDescription("*Check notes*... looks like you were previously nicknamed **" + user.nickname + "**!\n\nIf you want to change your nickname or add pronouns, use the `Edit Profile` button. Otherwise, you can skip and directly sign up for this game!")
+            .setColor(Colors.Yellow);
+    
+        const row = new ActionRowBuilder<ButtonBuilder>()
+            .addComponents([
+                new ButtonBuilder() 
+                    .setCustomId(JSON.stringify({ name: 'set-nickname', autoSignUp: true, type: interaction.type == 'text' ? 'text' : 'command', game: game.name }))
+                    .setStyle(ButtonStyle.Secondary)
+                    .setLabel("Edit Profile"),
+                new ButtonBuilder() 
+                    .setCustomId(JSON.stringify({ name: 'signup-skip-import', type: interaction.type == 'text' ? 'text' : 'command', game: game.name }))
+                    .setStyle(ButtonStyle.Success)
+                    .setLabel("Skip")
             ]);
 
         if(interaction.type != 'text') {

@@ -7,6 +7,7 @@ import { fromZod } from '../utils/text';
 import { addSignup, refreshSignup } from "../utils/mafia/games";
 import { User, createUser, editUser, getAllNicknames, getUser, getUserByName } from "../utils/mafia/user";
 import { getCachedInstances } from "../utils/instance";
+import { firebaseAdmin } from "../utils/firebase";
 
 const setNickname = z.object({
     name: z.literal('set-nickname'),
@@ -188,7 +189,13 @@ module.exports = {
 
             const fetch = await getUserByName(interaction.fields.getTextInputValue('nickname'), interaction.instance);
 
-            if(fetch != undefined && fetch.id != interaction.user.id) throw new Error("Duplicate names not allowed.");
+            if(fetch != undefined && fetch.id != interaction.user.id) {
+                if(fetch.state == 1 || fetch.state == 6 || fetch.state == 2) {
+                    throw new Error("Unknown user / Duplicate names not allowed.");
+                } else if(fetch.state = 3) {
+                    throw new Error("Reserved nickname. Please contact mods if you believe this nickname belongs to you.");
+                }
+            }
 
             const nickname = nicknameParse.data.substring(0, 1).toUpperCase() + nicknameParse.data.substring(1).toLowerCase();
             const pronouns = pronounsParse.data.toLowerCase();
@@ -199,9 +206,12 @@ module.exports = {
                 await createUser(interaction.user.id, nickname, pronouns, interaction.instance);
             }
 
-            const id = JSON.parse(interaction.customId) as z.infer<typeof setNickname>;
+            if(user?.state == 2) {
+                const db = firebaseAdmin.getFirestore();
+                await db.collection('instances').doc(interaction.instance.id).collection('users').doc(interaction.user.id).update({ state: 1 } satisfies Partial<User>);
+            }
 
-            console.log(id);
+            const id = JSON.parse(interaction.customId) as z.infer<typeof setNickname>;
 
             if(id.autoSignUp) {
                 if(id.game == null) return await interaction.reply({ ephemeral: true, content: "Game not found." });

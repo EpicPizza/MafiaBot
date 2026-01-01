@@ -4,14 +4,34 @@ import { firebaseAdmin } from "../firebase";
 import type { Setup } from "../setup";
 import { Instance } from "../instance";
 
-export interface User {
+export type User = ActiveUser | ImportedUser | ReservedNickname;
+
+interface ActiveUser {
     id: string,
     nickname: string,
     lName: string,
     pronouns: string | null,
     channel: string | null,
-    state: number,
-}
+    state: 1 | 6,
+} 
+
+interface ImportedUser {
+    id: string,
+    nickname: string,
+    lName: string,
+    pronouns: null,
+    channel: null,
+    state: 2,
+} 
+
+interface ReservedNickname {
+    id: string,
+    nickname: string,
+    lName: string,
+    pronouns: null,
+    channel: null,
+    state: 3,
+} 
 
 export async function getUserByName(name: string, instance: Instance) {
     const db = firebaseAdmin.getFirestore();
