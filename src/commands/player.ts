@@ -8,6 +8,7 @@ import { addSignup, refreshSignup } from "../utils/mafia/games";
 import { User, createUser, editUser, getAllNicknames, getUser, getUserByName } from "../utils/mafia/user";
 import { getCachedInstances } from "../utils/instance";
 import { firebaseAdmin } from "../utils/firebase";
+import client from "../discord/client";
 
 const setNickname = z.object({
     name: z.literal('set-nickname'),
@@ -192,8 +193,14 @@ module.exports = {
             if(fetch != undefined && fetch.id != interaction.user.id) {
                 if(fetch.state == 1 || fetch.state == 6 || fetch.state == 2) {
                     throw new Error("Unknown user / Duplicate names not allowed.");
-                } else if(fetch.state = 3) {
+                } else if(fetch.state == 3) {
                     throw new Error("Reserved nickname. Please contact mods if you believe this nickname belongs to you.");
+                } else if(fetch.state == 4) {
+                    firebaseAdmin.getFirestore().collection('instances').doc(interaction.instance.id).collection('users').doc(fetch.id).delete();
+
+                    const dm = await client.users.cache.get(fetch.for)?.createDM();
+
+                    if(dm) dm.send("Your alias (" + fetch.nickname + ") has been taken as a nickname.");
                 }
             }
 

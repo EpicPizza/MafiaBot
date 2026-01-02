@@ -8,7 +8,7 @@ import { getEnabledExtensions } from "../utils/extensions";
 import { firebaseAdmin } from "../utils/firebase";
 import { capitalize, placeVote, removeVote, retrieveVotes, storeVotes, wipeVotes } from "../utils/mafia/fakevotes";
 import { getGameByID } from "../utils/mafia/games";
-import { getAllNicknames, getUsersArray } from "../utils/mafia/user";
+import { getAllNicknames, getUserByName, getUsersArray } from "../utils/mafia/user";
 import { TransactionResult, defaultVote, handleHammer } from "../utils/mafia/vote";
 import { getSetup } from "../utils/setup";
 
@@ -147,7 +147,9 @@ module.exports = {
 
         const author = (interaction.type == 'text') ? interaction.message.author : interaction.user;
         const voter = users.find(user => user.id == author.id);
-        const voting = users.find(user => (typeof player == 'string' ? user.nickname.toLowerCase() == player.toLowerCase() || user.id == player || (player.startsWith("<@") && player.length > 4 && player.substring(2, player.length - 1) == user.id) : false));
+       
+        let voting = users.find(user => (typeof player == 'string' ? user.nickname.toLowerCase() == player.toLowerCase() || user.id == player || (player.startsWith("<@") && player.length > 4 && player.substring(2, player.length - 1) == user.id) : false));
+        if(voting == undefined) voting = await getUserByName(typeof player == 'string' ? player as string : "---", interaction.instance, true);
         
         const extensions = await getEnabledExtensions(global);
         const extension = extensions.find(extension => extension.priority.includes("onVote"));

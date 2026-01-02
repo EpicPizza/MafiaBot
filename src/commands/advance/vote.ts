@@ -68,13 +68,13 @@ export const VoteCommand = {
         const playerInput = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');
         if(playerInput == null) throw new Error("Choose a player.");
         const playerUser = await getUserByName(playerInput, interaction.instance);
-        if(!playerUser) throw new Error("Player not found.");
+        if(!playerUser || playerUser.state == 4) throw new Error("Player not found.");
         //const player = game.signups.find(player => player == playerUser.id);
         //if(!player) throw new Error("Player is not in this game");
 
         const forInput = interaction.type == 'text' ? (interaction.program.args.length > 2 ? interaction.program.processedArgs[2] as string : null) : interaction.options.getString('for');
         const forUser = forInput ? await getUserByName(forInput, interaction.instance) : undefined;
-        const forPlayer = forUser ? forUser.id : undefined; //modified to allow out of game
+        const forPlayer = forUser && forUser.state != 4 ? forUser.id : undefined; //modified to allow out of game
 
         const advType = interaction.type == 'text' ? interaction.program.processedArgs[1] as string : interaction.options.getString('type');
         if(advType == null) throw new Error("Vote type not specified.");

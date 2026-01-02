@@ -4,7 +4,7 @@ import { firebaseAdmin } from "../firebase";
 import type { Setup } from "../setup";
 import { Instance } from "../instance";
 
-export type User = ActiveUser | ImportedUser | ReservedNickname;
+export type User = ActiveUser | ImportedUser | ReservedNickname | ReservedAlias;
 
 interface ActiveUser {
     id: string,
@@ -33,16 +33,30 @@ interface ReservedNickname {
     state: 3,
 } 
 
-export async function getUserByName(name: string, instance: Instance) {
+interface ReservedAlias {
+    id: string,
+    nickname: string,
+    lName: string,
+    pronouns: null,
+    channel: null,
+    for: string,
+    state: 4, 
+}
+
+export async function getUserByName(name: string, instance: Instance, resolveAlias: boolean = false) {
     const db = firebaseAdmin.getFirestore();
 
     const ref = db.collection('instances').doc(instance.id).collection('users');
 
     const docs = (await ref.where('lName', '==', name.toLowerCase()).get()).docs;
 
-    if(docs.length > 0) return docs[0].data() as User;
+    if(docs.length != 1) return undefined;
 
-    return undefined;
+    const user = docs[0].data() as User;
+
+    if(user.state == 4 && resolveAlias) return getUser(user.for, instance);
+
+    return user;
 }
 
 export async function getUserByChannel(channel: string, instance: Instance) {
