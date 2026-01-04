@@ -55,6 +55,7 @@ export function editOverwrites() {
         UseExternalEmojis: true,
         SendTTSMessages: false,
         UseApplicationCommands: true,
+        PinMessages: true,
     }
 }
 
@@ -70,6 +71,7 @@ export function viewOverwrites() {
         UseExternalEmojis: false,
         SendTTSMessages: false,
         UseApplicationCommands: false,
+        PinMessages: false,
     }
 }
 
