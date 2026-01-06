@@ -5,7 +5,7 @@ import { Data, Event } from '../discord';
 import { TextCommand } from '../discord';
 import { fromZod } from '../utils/text';
 import { firebaseAdmin } from "../utils/firebase";
-import { getGameByName } from "../utils/mafia/games";
+import { getGameByID, getGameByName } from "../utils/mafia/games";
 import { getStats } from "../utils/mafia/stats";
 import { getUsersArray, User } from "../utils/mafia/user";
 import { Setup } from "../utils/setup";
@@ -137,7 +137,7 @@ async function handlePlayerList(interaction: Event<ChatInputCommandInteraction |
 
         if(global.started == false) throw new Error("Game has not started.");
 
-        const game = await getGameByName(global.game ?? "---", interaction.instance);
+        const game = await getGameByID(global.game ?? "---", interaction.instance);
 
         if(game == null) throw new Error("Game not found. (current)");
 
