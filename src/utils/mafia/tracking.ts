@@ -291,23 +291,25 @@ export async function removeReactionEmoji(reaction: MessageReaction | PartialMes
     });
 }
 
-export async function createMessage(message: Message) {
+export async function createMessage(message: Message, checks: boolean = true) {
     if(!message.guildId) return;
 
-    const instance = await getAuthority(message.guildId);
-    if(!instance || (instance.setup.primary.guild.id == message.guildId && instance.setup.primary.chat.id != message.channelId)) return; //don't need to track every message in the main server
-
-    if(instance.setup.primary.chat.id == message.channelId && instance.global.started) {
-        statsBuffer.push({
-            type: 'add',
-            id: message.author.id,
-            day: instance.global.day,
-            game: instance.global.game ?? "---",
-            instance: instance.id,
-            images: message.attachments.reduce((acc, value) => acc + (value.contentType?.startsWith("image") ? 1 : 0), 0),
-            words: message.content.split(" ").length,
-            messages: 1,
-        })
+    if(checks) {
+        const instance = await getAuthority(message.guildId);
+        if(!instance || (instance.setup.primary.guild.id == message.guildId && instance.setup.primary.chat.id != message.channelId)) return; //don't need to track every message in the main server
+        
+        if(instance.setup.primary.chat.id == message.channelId && instance.global.started) {
+            statsBuffer.push({
+                type: 'add',
+                id: message.author.id,
+                day: instance.global.day,
+                game: instance.global.game ?? "---",
+                instance: instance.id,
+                images: message.attachments.reduce((acc, value) => acc + (value.contentType?.startsWith("image") ? 1 : 0), 0),
+                words: message.content.split(" ").length,
+                messages: 1,
+            })
+        }
     }
     
     const transformed = await transformMessage(message, false);

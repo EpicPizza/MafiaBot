@@ -47,9 +47,6 @@ export const RecoverCommand = {
         const messageId = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('id');
         if(messageId == null) throw new Error("Specify an id.");
 
-        const global = interaction.instance.global;
-        const setup  = interaction.instance.setup;
-
         const channel = interaction.type == 'text' ? interaction.message.channel : interaction.channel;
         if(channel == null) throw new Error("Not in channel?");
 
