@@ -243,7 +243,7 @@ async function handlePlayerList(interaction: Event<ChatInputCommandInteraction |
 async function getGames(instance: Instance) {
     const db = firebaseAdmin.getFirestore();
         
-    const ref = db.collection('instances').doc(instance.id).collection('games');        
+    const ref = db.collection('instances').doc(instance.id).collection('games').where('state', '==', 'active');        
     const docs = (await ref.get()).docs;
     
     const games = [] as { name: string, id: string, url: string | null }[];

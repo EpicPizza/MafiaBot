@@ -1,13 +1,16 @@
-import { Attachment, AttachmentBuilder, Collection, EmbedBuilder, EmbedFooterOptions, Message, TextChannel, WebhookClient } from "discord.js";
+import { APIMessage, Attachment, AttachmentBuilder, ChannelType, Collection, EmbedBuilder, EmbedFooterOptions, Message, TextChannel, WebhookClient } from "discord.js";
 import Stream from 'stream';
 import * as https from 'https';
 import { TrackedMessage } from "./mafia/tracking";
 import client from "../discord/client";
 
-export async function archiveMessage(channel: TextChannel, message: Message | TrackedMessage, webhook: WebhookClient, note = false, name: string = "") {
+export async function archiveMessage(channel: TextChannel, message: Message | TrackedMessage, webhook: WebhookClient, note = false, name: string | undefined = undefined, minimal: boolean = false) {
     channel.messages.cache.clear();
 
-    const { newAttachments, fails } = await getAttachments(message.attachments);
+    const messageChannel = 'authorId' in message ? (await (await client.guilds.fetch({ guild: message.guildId, cache: true })).channels.fetch( message.channelId, { cache: true })) : message.channel;
+    if(messageChannel == null || messageChannel.type != ChannelType.GuildText) throw new Error("CHannel not found!"); 
+
+    const { newAttachments, fails } = await getAttachments(message.attachments, messageChannel, message.id);
 
     const messageEmbeds = message.embeds;
 
@@ -44,18 +47,20 @@ export async function archiveMessage(channel: TextChannel, message: Message | Tr
         response.footer.text += "\nEdited";
     }
 
-    if(note) {
-        const reactionsString = await getReactionsString(message);
+    const reactionsString = await getReactionsString(message);
 
-        if(reactionsString != null) {
-            embed.setDescription("Triggered by " + name + ".\n\n" + reactionsString + "\n" + "https://discord.com/channels/" + message.guildId + "/" + message.channelId + "/" + message.id);
-        } else {
-            embed.setDescription("Triggered by " + name + ".\n\n" + "https://discord.com/channels/" + message.guildId + "/" + message.channelId + "/" + message.id);
-        }
+    if((reactionsString != null && minimal) || !note) {
+        embed.setDescription(reactionsString);
+    } else if(reactionsString != null && !minimal && note) {
+        embed.setDescription("Triggered by " + (name ?? response.username) + ".\n\n" + reactionsString + "\n" + "https://discord.com/channels/" + message.guildId + "/" + message.channelId + "/" + message.id);
+    } else if(!minimal && note) {
+        embed.setDescription("Triggered by " + (name ?? response.username) + ".\n\n" + "https://discord.com/channels/" + message.guildId + "/" + message.channelId + "/" + message.id);
     }
 
-    embed.setFooter(response.footer);
-    optionsWebhook.embeds = [embed];
+    if(!minimal) embed.setFooter(response.footer);
+
+    const description = embed.toJSON().description;
+    if(!minimal || (description != undefined && description.length > 0))optionsWebhook.embeds = [embed];
 
     for(var b = messageEmbeds.length - 1; b >= 0; b--) {
         const messageEmbed = messageEmbeds[b];
@@ -67,11 +72,21 @@ export async function archiveMessage(channel: TextChannel, message: Message | Tr
     return await webhook.send(optionsWebhook as any);
 }
 
-export async function getAttachments(messageAttachments: Collection<string, Attachment> | Attachment[]): Promise<{ newAttachments: any[], fails: number }> {
+export async function getAttachments(messageAttachments: Collection<string, Attachment> | APIMessage["attachments"], messageChannel: TextChannel, messageId: string): Promise<{ newAttachments: any[], fails: number }> {
     var newAttachments = new Array();
     var indexA = 0;
     let fails = 0;
-    if('size' in messageAttachments ? messageAttachments.size > 0 : messageAttachments.length > 0) {
+
+    if('length' in messageAttachments && messageAttachments.length > 0 && typeof messageAttachments[0] == 'string') {
+        const discordMessage = await messageChannel.messages.fetch(messageId).catch(() => undefined);
+
+        if(discordMessage == undefined) {
+            return { newAttachments: [], fails: messageAttachments.length };
+
+        }
+
+        newAttachments.push(... messageAttachments.map(attachment => discordMessage.attachments.get(attachment as unknown as string)).filter(attachment => attachment != undefined).map(attachment => attachment.toJSON() as Attachment));
+    } else if('size' in messageAttachments ? messageAttachments.size > 0 : messageAttachments.length > 0) {
         await new Promise<null>((resolve) => {
             messageAttachments.forEach(async (attachment) => {
                 
@@ -102,6 +117,8 @@ export async function getAttachments(messageAttachments: Collection<string, Atta
 function stringifyReactions(reactions: Reaction[]): string {
     var reactionsString = "";
     for(var a = 0; a < reactions.length; a++) {
+        if((reactions[a].id as string[]).length == 0) continue;
+
         reactionsString += reactions[a].emoji + " - ";
         for(var j = 0; j < (reactions[a].id as string[]).length; j++) {
             reactionsString += "<@" + (reactions[a].id as string[])[j] + ">, ";
@@ -116,6 +133,7 @@ interface nicknameResponse {
     footer: EmbedFooterOptions,
     nickname: string,
     avatarURL: string | null,
+    username: string | null,
 }
 
 
@@ -123,14 +141,17 @@ export async function getNickname(message: Message | TrackedMessage): Promise<ni
     var footer: EmbedFooterOptions = {text: ""};
 
     if('authorId' in message) {
-        const author = await client.users.fetch(message.authorId);
-        var nickname = author ? author.displayName: null;
+        console.log(message.authorId);
 
-        return { footer: { text: "Original message by <@" + message.authorId + ">" }, nickname: nickname ?? message.authorId, avatarURL: author.avatarURL() };
+        const author = await client.users.fetch(message.authorId).catch(() => undefined);
+
+        var nickname = author ? author.displayName : null;
+
+        return { footer: { text: "Original message by " + (author?.username ?? "unknown") + "\n" }, nickname: nickname ?? message.authorId, username: (author?.username ?? "unknown"), avatarURL: author?.avatarURL() ?? client.user?.avatarURL() ?? "" };
     }
 
     if(message.author.bot == true || message.author.discriminator == "0000") {
-        return {footer: footer, nickname: message.author.username, avatarURL: message.author.avatarURL()};
+        return {footer: footer, nickname: message.author.username, username: message.author.username, avatarURL: message.author.avatarURL()};
     }
 
     const member = await message.guild?.members.fetch(message.author.id);
@@ -145,10 +166,12 @@ export async function getNickname(message: Message | TrackedMessage): Promise<ni
     if(hasNickname) {
         footer.text = "Original message by " + message.author.username + (message.author.discriminator == "0" ? "\n" : "#" + message.author.discriminator + ".\n" + footer.text);
     }
-    return {footer: footer, nickname: nickname, avatarURL: message.author.avatarURL()};
+    return {footer: footer, nickname: nickname, username: message.author.username, avatarURL: message.author.avatarURL()};
 }
 
 export async function getReactionsString(message: Message | TrackedMessage): Promise<string | null> {
+    console.log(message);
+
     const reactions = 'authorId' in message ? message.reactions : await getReactions(message);
 
     var reactionsString = "";

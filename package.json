@@ -15,7 +15,7 @@
     "commander": "^14.0.0",
     "csv-parser": "^3.2.0",
     "date-and-time": "^3.3.0",
-    "discord.js": "^14.21.0",
+    "discord.js": "^14.25.1",
     "dotenv": "^16.4.5",
     "firebase-admin": "^12.1.1",
     "google-auth-library": "^10.2.1",

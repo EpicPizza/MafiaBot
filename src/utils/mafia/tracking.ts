@@ -57,7 +57,7 @@ export interface TrackedMessage {
     pinned: boolean,
     pinning: string | null,
     embeds: APIMessage["embeds"],
-    attachments: Attachment[],
+    attachments: APIMessage["attachments"],
     mentions: string[],
     reference: string | null,
     poll: boolean,
