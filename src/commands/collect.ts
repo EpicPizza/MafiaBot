@@ -100,7 +100,7 @@ module.exports = {
                         day: day,
                         messages: 1,
                         words: message.content.split(" ").length,
-                        images: message.attachments.reduce((acc, value) => acc + (value.contentType?.startsWith("image") ? 1 : 0), 0),
+                        images: 0,
                     });
                 });
 
