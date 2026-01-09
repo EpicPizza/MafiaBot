@@ -176,7 +176,7 @@ export async function getReactionsString(message: Message | TrackedMessage): Pro
 
     var reactionsString = "";
 
-    if(reactions.length > 0 && reactions[0].id != null && reactions[0].emoji != null) {
+    if('length' in reactions && reactions.length > 0 && reactions[0].id != null && reactions[0].emoji != null) {
         reactionsString = stringifyReactions(reactions)
         return reactionsString;
     } else {
