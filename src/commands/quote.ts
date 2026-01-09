@@ -47,13 +47,8 @@ module.exports = {
     ] satisfies Data[],
 
     execute: async function(interaction: Event<ContextMenuCommandInteraction | ModalSubmitInteraction | ChatInputCommandInteraction>) {
-        interaction.inInstance();
-
-        const global = interaction.instance.global;
-        const setup = interaction.instance.setup;
-        
         if(interaction.isContextMenuCommand()) {
-            await showModal(interaction, global);
+            await showModal(interaction);
         } else if(interaction.isModalSubmit()) {
             const id = JSON.parse(interaction.customId) as z.infer<typeof SetQuote>;
 
@@ -93,6 +88,10 @@ module.exports = {
 
             const channel = interaction.channel;
             if(channel == null) throw new Error("Not in channel?");
+            
+            if(!('permissionsFor' in channel)) throw new Error("Unable to check permissions?");
+            const permissions = channel.permissionsFor(interaction.client.user!.id);
+            if(!permissions?.has('ManageWebhooks')) throw new Error("Not able to send quote in this channel!");
 
             const db = firebaseAdmin.getFirestore();
             const quotes = (await db.collection('quotes').where('author', '==', interaction.user.id).where('name', '==', quoteName).get()).docs;
@@ -124,7 +123,7 @@ module.exports = {
 }
 
 
-async function showModal(interaction: ContextMenuCommandInteraction, global: Global) {
+async function showModal(interaction: ContextMenuCommandInteraction) {
     if(!interaction.isMessageContextMenuCommand()) return;
     
     const modal = new ModalBuilder()
