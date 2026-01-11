@@ -123,7 +123,7 @@ export async function dumpTracking() {
 
                 const reactionEntries = reactionBatch.filter(entry => entry.channel == message.channelId && entry.id == message.id);
 
-                const reactions = reconcileReactions(reactionEntries, message.reactions);
+                const reactions = reconcileReactions(reactionEntries, message.reactions ?? []);
 
                 const stars = reactions.find(reaction => reaction.emoji == "⭐")?.id.length ?? 0;
 
