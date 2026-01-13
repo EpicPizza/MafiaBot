@@ -109,8 +109,7 @@ async function handleStatsList(interaction: Event<ChatInputCommandInteraction | 
             };
         });
 
-        const currentPlayersData = (await db.collection('instances').doc(interaction.instance.id).collection('games').doc(game.id).collection('days').doc(global.day.toString()).get()).data();
-        const currentPlayers = currentPlayersData?.players as string[] | undefined ?? game.signups;
+        const currentPlayers = game.signups;
 
         currentPlayers.forEach(playerId => {
             if (!list.some(p => p.id === playerId)) {
