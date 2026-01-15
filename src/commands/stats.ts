@@ -70,7 +70,9 @@ async function handleStatsList(interaction: Event<ChatInputCommandInteraction | 
     if(interaction.type == 'text' ? interaction.program.getOptionValue('total') : (interaction.options.getBoolean('total') === true)) {
         const cumulativeStats: Map<string, { messages: number, words: number }> = new Map();
 
-        for (let d = 1; d <= interaction.instance.global.day; d++) {
+        const days = interaction.instance.global.started == true && interaction.instance.global.game == game.id ? interaction.instance.global.day : game.days;
+
+        for (let d = 1; d <= days; d++) {
             const docs = await fetchStats(interaction.instance.id, game.id, d);
 
             for (const stats of docs) {
@@ -155,7 +157,7 @@ async function handleStatsList(interaction: Event<ChatInputCommandInteraction | 
     const message =  list.reduce((previous, current) => previous += current.name + " » " + current.messages + " message" + (current.messages== 1 ? "" : "s") + " containing " + current.words + " word" + (current.words== 1 ? "" : "s") + "\n", "");
 
     const embed = new EmbedBuilder()
-        .setTitle((((interaction.type == 'text') ? interaction.name == "reactions" : interaction.commandName == "reactions") ? "Reaction " : "") + "Stats » " + (interaction.instance.global.day == day ? "Today (Day " + interaction.instance.global.day + ")" : "Day " + day))
+        .setTitle((((interaction.type == 'text') ? interaction.name == "reactions" : interaction.commandName == "reactions") ? "Reaction " : "") + "Stats » " + (interaction.instance.global.day == day && interaction.instance.global.game == game.id ? "Today (Day " + interaction.instance.global.day + ")" : "Day " + day))
         .setColor(Colors.Gold)
         .setDescription(message == '' ? "No Stats" : message)
 
