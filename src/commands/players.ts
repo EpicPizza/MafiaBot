@@ -127,7 +127,7 @@ async function handlePlayerList(interaction: Event<ChatInputCommandInteraction |
     const games = await getGames(interaction.instance);
 
     if(typeof reference == 'string') {
-        const game = await getGameByName(reference, interaction.instance);
+        const game = await getGameByName(reference, interaction.instance, true);
 
         if(game == null) throw new Error("Game not found.");
 
