@@ -60,7 +60,7 @@ async function handleStatsList(interaction: Event<ChatInputCommandInteraction | 
 
     console.log(gameName);
 
-    if(interaction.instance.global.started == false && gameName == null) throw new Error("Game has not started, specify a game to view stats from that game!");
+    if(interaction.instance.global.started == false && gameName == null) throw new Error("Game has not started, specify a game (and day) to view stats from that game!");
 
     const game = gameName != null ? await getGameByName(gameName ?? "---", interaction.instance, true) :  await getGameByID(interaction.instance.global.game ?? "---", interaction.instance);
     if(game == null) throw new Error("Game not found.");

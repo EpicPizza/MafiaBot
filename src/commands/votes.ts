@@ -7,7 +7,7 @@ import { fromZod } from '../utils/text';
 import { getEnabledExtensions } from "../utils/extensions";
 import { firebaseAdmin } from "../utils/firebase";
 import { getBoard, retrieveVotes } from "../utils/mafia/fakevotes";
-import { getGameByID } from "../utils/mafia/games";
+import { getGameByID, getGameByName } from "../utils/mafia/games";
 import { Log } from "../utils/mafia/vote";
 import { getSetup } from "../utils/setup";
 
@@ -24,6 +24,12 @@ module.exports = {
                         .setName('day')
                         .setDescription('game day to show votes from.')
                 )
+                .addStringOption(option =>
+                    option  
+                        .setName('game')
+                        .setDescription('Name of the game.')
+                        .setAutocomplete(true)
+                )
         },
         {
             type: 'text',
@@ -32,7 +38,8 @@ module.exports = {
                 return new Command()
                     .name('votes')
                     .description('View current votes or votes from a certain day.')
-                    .argument("[day]", "which day to show votes form", fromZod(z.coerce.number().min(1).max(100)));
+                    .argument("[day]", "which day to show votes form", fromZod(z.coerce.number().min(1).max(100)))
+                    .option('-g, --game <name>', 'which game to show signups from', fromZod(z.string().min(1).max(100)));
             }
         }
     ] satisfies Data[],
@@ -45,9 +52,14 @@ module.exports = {
 async function handleVoteList(interaction: Event<ChatInputCommandInteraction | TextCommand>) {
     interaction.inInstance();
 
+    let gameName = interaction.type == 'text' ? interaction.program.getOptionValue('game') as string | undefined ?? null : interaction.options.getString("game");
+    if(interaction.instance.global.started == false && gameName == null) throw new Error("Game has not started, specify a game (and day) to view votes from that game!");
+
+    const game = gameName != null ? await getGameByName(gameName ?? "---", interaction.instance, true) :  await getGameByID(interaction.instance.global.game ?? "---", interaction.instance);
+
     const global = interaction.instance.global;
     
-    if(global.started == false) {
+    if(global.started == false && game == null) {
         if(!(interaction.type == 'text')) throw new Error("Use text command!");
 
         const votes = await retrieveVotes(interaction.message.channelId);
@@ -62,14 +74,26 @@ async function handleVoteList(interaction: Event<ChatInputCommandInteraction | T
         await interaction.reply({ embeds: [embed] });
 
         return;
+    } else if(game == null) {
+        throw new Error("Game not found!");
+    }
+    
+    let day = interaction.type == 'text' ? (interaction.program.processedArgs.length > 0 ? interaction.program.processedArgs[0] as number | undefined : undefined) : interaction.options.getNumber("day") ?? undefined;
+    
+    if(day == undefined && global.started && global.game == game.id) {
+        day = global.day;
+    } else if(day == undefined) {
+        throw new Error("Day not specified!");
+    } else { 
+        day = Math.round(day); 
     }
 
-    const game = await getGameByID(global.game != null ? global.game : "bruh", interaction.instance);
-    if(game == null) throw new Error("Game not found.");
-    const setup = interaction.instance.setup;
-    
-    const day = interaction.type == 'text' ? interaction.program.processedArgs[0] as number ?? global.day : Math.round(interaction.options.getNumber("day") ?? global.day);
-    if(day > global.day) throw new Error("Not on day " + day + " yet!");
+    if(global.started && global.game == game.id) {
+        if(day > global.day) throw new Error("Not on day " + day + " yet!");
+    } else {
+        if(day > game.days) throw new Error("This game only had " + game.days + " days!");
+    }
+
     if(day < 1) throw new Error("Must be at least day 1.");
 
     const custom = parseInt(process.env.HAMMER_THRESHOLD_PLAYERS ?? '-1');
@@ -84,14 +108,14 @@ async function handleVoteList(interaction: Event<ChatInputCommandInteraction | T
     if(board == "") board = "No votes recorded.";
 
     const embed = new EmbedBuilder()
-        .setTitle("Votes » " + (global.day == day ? "Today (Day " + day + ")" : "Day " + day))
+        .setTitle("Votes » " + (global.day == day && global.game == game.id ? "Today (Day " + day + ")" : "Day " + day))
         .setColor(Colors.Gold)
         .setDescription(board);
 
     const extensions = await getEnabledExtensions(global);
     const extension = extensions.find(extension => extension.priority.includes("onVotes"));
     
-    if(global.day == day) {
+    if(global.day == day && global.game == game.id) {
         const standard = "Hammer is at " + (half + 1) + " votes.";
         const footer = extension ? await extension.onVotes(interaction.instance, game, board) : standard;
 
