@@ -5,8 +5,8 @@ import { Data, Event } from '../discord';
 import { TextCommand } from '../discord';
 import { fromZod } from '../utils/text';
 import { firebaseAdmin } from "../utils/firebase";
-import { getGameByID } from "../utils/mafia/games";
-import { getAllUsers } from "../utils/mafia/user";
+import { getGameByID, getGameByName } from "../utils/mafia/games";
+import { getAllUsers, getUsers, getUsersArray } from "../utils/mafia/user";
 import { fetchStats } from "../utils/mafia/tracking";
 
 module.exports = {
@@ -27,6 +27,12 @@ module.exports = {
                         .setName('total')
                         .setDescription('To calculate cumulative stats.')
                 )
+                .addStringOption(option =>
+                    option  
+                        .setName('game')
+                        .setDescription('Name of the game.')
+                        .setAutocomplete(true)
+                )
         },
         {
             type: 'text',
@@ -36,31 +42,10 @@ module.exports = {
                     .name('stats')
                     .description('View message and word count for each player.')
                     .argument("[day]", "which day to show stats form", fromZod(z.coerce.number().min(1).max(100)))
+                    .option('-g, --game <name>', 'which game to show signups from', fromZod(z.string().min(1).max(100)))
                     .option("-t, --total", "to calculate cumalitive stats");
             }
         },
-        /*{ 
-            type: 'slash',
-            name: 'slash-reactions',
-            command: new SlashCommandBuilder()
-                .setName("reactions")
-                .setDescription("View reaction and message count for each player.")
-                .addNumberOption(option =>
-                    option
-                        .setName('day')
-                        .setDescription('Which day to show reaction stats from.')
-                )
-        },
-        {
-            type: 'text',
-            name: 'text-reactions',
-            command: () => {
-                return new Command()
-                    .name('reactions')
-                    .description('show reactions')
-                    .argument("[day]", "which day to show reactions form", fromZod(z.coerce.number().min(1).max(100)))
-            }
-        }*/
     ] satisfies Data[],
 
     execute: async (interaction: Event<ChatInputCommandInteraction>) => {
@@ -71,18 +56,21 @@ module.exports = {
 async function handleStatsList(interaction: Event<ChatInputCommandInteraction | TextCommand>) {
     interaction.inInstance();
 
-    const global = interaction.instance.global;
-    if(global.started == false) throw new Error("Game has not started.");
-    const game = await getGameByID(global.game != null ? global.game : "bruh", interaction.instance);
+    let gameName = interaction.type == 'text' ? interaction.program.getOptionValue('game') as string | undefined ?? null : interaction.options.getString("game");
+
+    console.log(gameName);
+
+    if(interaction.instance.global.started == false && gameName == null) throw new Error("Game has not started, specify a game to view stats from that game!");
+
+    const game = gameName != null ? await getGameByName(gameName ?? "---", interaction.instance, true) :  await getGameByID(interaction.instance.global.game ?? "---", interaction.instance);
     if(game == null) throw new Error("Game not found.");
+
+    const users = await getUsersArray(game.signups, interaction.instance);
     
     if(interaction.type == 'text' ? interaction.program.getOptionValue('total') : (interaction.options.getBoolean('total') === true)) {
-        const users = await getAllUsers(interaction.instance);
-        const db = firebaseAdmin.getFirestore();
-
         const cumulativeStats: Map<string, { messages: number, words: number }> = new Map();
 
-        for (let d = 1; d <= global.day; d++) {
+        for (let d = 1; d <= interaction.instance.global.day; d++) {
             const docs = await fetchStats(interaction.instance.id, game.id, d);
 
             for (const stats of docs) {
@@ -95,44 +83,23 @@ async function handleStatsList(interaction: Event<ChatInputCommandInteraction | 
             }
         }
 
-        let list = Array.from(cumulativeStats.entries()).map(([id, stats]) => {
-            const user = users.find(user => user.id == id);
+        const list = users.map(user => {
+            const stats = cumulativeStats.get(user.id);
+
             return {
-                name: user ? user.nickname : `<@${id}>`,
-                id: id,
-                messages: stats.messages,
-                words: stats.words,
+                name: user.nickname,
+                id: user.id,
+                messages: stats?.messages ?? 0,
+                words: stats?.words ?? 0,
+                
+                //deprecated
                 show: true,
-                alive: false, // will be set later
-                reactions: [],
-                images: 0,
             };
         });
-
-        const currentPlayers = game.signups;
-
-        currentPlayers.forEach(playerId => {
-            if (!list.some(p => p.id === playerId)) {
-                const user = users.find(user => user.id == playerId);
-                list.push({
-                    name: user ? user.nickname : `<@${playerId}>`,
-                    id: playerId,
-                    messages: 0,
-                    words: 0,
-                    show: true,
-                    alive: true,
-                    reactions: [],
-                    images: 0,
-                });
-            }
-        });
-
-        const aliveList = list.filter(p => currentPlayers.includes(p.id));
-        aliveList.forEach(p => p.alive = true);
         
-        aliveList.sort((a, b) => b.messages - a.messages);
+        list.sort((a, b) => b.messages - a.messages);
 
-        const message = aliveList.reduce((previous, current) => previous += `${current.name} » ${current.messages} message${current.messages === 1 ? "" : "s"} containing ${current.words} word${current.words === 1 ? "" : "s"}\n`, "");
+        const message = list.reduce((previous, current) => previous += `${current.name} » ${current.messages} message${current.messages === 1 ? "" : "s"} containing ${current.words} word${current.words === 1 ? "" : "s"}\n`, "");
 
         const embed = new EmbedBuilder()
             .setTitle(`Total Stats » ${game.name}`)
@@ -144,83 +111,51 @@ async function handleStatsList(interaction: Event<ChatInputCommandInteraction | 
         return;
     }
 
-    const setup = interaction.instance.setup;
+    let day = interaction.type == 'text' ? (interaction.program.processedArgs.length > 0 ? interaction.program.processedArgs[0] as number | undefined : undefined) : interaction.options.getNumber("day") ?? undefined;
+    
+    if(day == undefined && interaction.instance.global.started && interaction.instance.global.game == game.id) {
+        day = interaction.instance.global.day;
+    } else if(day == undefined) {
+        throw new Error("Day not specified!");
+    } else { 
+        day = Math.round(day); 
+    }
 
-    const day = interaction.type == 'text' ? (interaction.program.processedArgs.length > 0 ? interaction.program.processedArgs[0] as number | undefined ?? global.day : global.day) : Math.round(interaction.options.getNumber("day") ?? global.day);
+    if(interaction.instance.global.started && interaction.instance.global.game == game.id) {
+        if(day > interaction.instance.global.day) throw new Error("Not on day " + day + " yet!");
+    } else {
+        if(day > game.days) throw new Error("This game only had " + game.days + " days!");
+    }
 
-    if(day > global.day) throw new Error("Not on day " + day + " yet!");
     if(day < 1) throw new Error("Must be at least day 1.");
-
-    const users = await getAllUsers(interaction.instance);
 
     const db = firebaseAdmin.getFirestore();
     const currentPlayers = (await db.collection('instances').doc(interaction.instance.id).collection('games').doc(game.id).collection('days').doc(day.toString()).get()).data()?.players as string[] | undefined ?? [];
     
     const docs = await fetchStats(interaction.instance.id, game.id, day);
 
-    let list = [] as { name: string, id: string, messages: number, words: number, show: boolean, alive: boolean, images: number, /* reactions: { reaction: string, timestamp: number, message: string }[] */}[];
-    let aliveList = [] as { name: string, id: string, messages: number, words: number, show: boolean, alive: boolean, images: number, /* reactions: { reaction: string, timestamp: number, message: string }[] */ }[];
-    
-    for(let i = 0; i < docs.length; i++) {
-        const data = docs[i];
+    const list = currentPlayers.map(player => users.find(user => user.id == player)).filter(user => user != undefined).map(user => {
+        const stats = docs.find(stat => stat.id == user.id);
 
-        const user = users.find(user => user.id == docs[i].id);
-
-        if(data) {
-            list.push({
-                name: user ? user.nickname : "<@" + docs[i].id + ">",
-                id: docs[i].id,
-                messages: data.messages,
-                words: data.words,
-                show: true,
-                alive: false,
-//                reactions: data.reactions ?? [],
-                images: data.images ?? 0,
-            });
-        }
-    }
-
-    if(currentPlayers.length == 0) {
-        aliveList = list.filter(stat => game.signups.includes(stat.id));
-    } else {
-        currentPlayers.forEach(player => {
-            if(list.find(stat => stat.id == player) != undefined) return;
-
-            const user = users.find(user => user.id == player);
+        return {
+            name: user.nickname,
+            id: user.id,
+            messages: stats?.messages ?? 0,
+            words: stats?.words ?? 0,
             
-            list.push({
-                name: user ? user.nickname : "<@" + player + ">",
-                id: player,
-                messages: 0,
-                words: 0,
-                show: true,
-                alive: true,
-//                reactions: [],
-                images: 0,
-            });
-        })
-
-        aliveList = list.filter(stat => currentPlayers.includes(stat.id));
-    }
-    aliveList.forEach(stat => stat.alive = true);
+            //deprecated
+            show: true,
+        };
+    });
     
     const id = (await db.collection('graphs').add({ stats: list, day: day, name: game.name, timestamp: interaction.type == 'text' ? interaction.message.createdAt.valueOf() : interaction.createdAt.valueOf() })).id;
 
-    const message = (() => {
-        if((interaction.type == 'text') ? interaction.name == "stats" : interaction.commandName == "stats") {
-            aliveList = aliveList.sort((a, b) => b.messages - a.messages);
-            return aliveList.reduce((previous, current) => previous += current.name + " » " + current.messages + " message" + (current.messages== 1 ? "" : "s") + " containing " + current.words + " word" + (current.words== 1 ? "" : "s") + "\n", "");
-        /*} else if((interaction.type == 'text') ? interaction.name == "reactions" : interaction.commandName == "reactions") {
-            list = list.sort((a, b) => b.reactions.length - a.reactions.length);
-            const messageCounter = (current) => (new Set(current.reactions.map(reaction => reaction.message).filter(message => message != undefined))).size;
-            return list.reduce((previous, current) => previous += current.name + " » " + current.reactions.length + " reaction" + (current.reactions.length== 1 ? "" : "s") + " across " + messageCounter(current) + " message" + (messageCounter(current)== 1 ? "" : "s") + "\n", "");*/
-        } else {
-            return "";
-        }
-    })();
+    list.sort((a, b) => b.messages - a.messages);
+
+    const message =  list.reduce((previous, current) => previous += current.name + " » " + current.messages + " message" + (current.messages== 1 ? "" : "s") + " containing " + current.words + " word" + (current.words== 1 ? "" : "s") + "\n", "");
 
     const embed = new EmbedBuilder()
-        .setTitle((((interaction.type == 'text') ? interaction.name == "reactions" : interaction.commandName == "reactions") ? "Reaction " : "") + "Stats » " + (global.day == day ? "Today (Day " + global.day + ")" : "Day " + day))
+        .setTitle((((interaction.type == 'text') ? interaction.name == "reactions" : interaction.commandName == "reactions") ? "Reaction " : "") + "Stats » " + (interaction.instance.global.day == day ? "Today (Day " + interaction.instance.global.day + ")" : "Day " + day))
         .setColor(Colors.Gold)
         .setDescription(message == '' ? "No Stats" : message)
 
