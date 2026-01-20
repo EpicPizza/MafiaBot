@@ -36,39 +36,46 @@ jobs:
         with:
           name: build
           path: build
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
       - name: Stop Production Server
-        uses: appleboy/ssh-action@v1
+        uses: google-github-actions/ssh-compute@v2
         with:
-            host: ${{ secrets[matrix.host] }}
-            username: ${{ secrets.USERNAME }}
-            key: ${{ secrets.SSH_PRIVATE_KEY }}
-            port: ${{ secrets.PORT }}
-            script: |
-                pm2 list
-                pm2 stop mafia-bot
-                cd MafiaBot
-                rm -rf build
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          zone: ${{ secrets.GCP_VM_ZONE }}
+          instance_name: ${{ secrets.GCP_VM_NAME }}
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command: |
+              pm2 list
+              pm2 stop mafia-bot
+              cd MafiaBot
+              rm -rf build
       - name: Transfer Build to Production Server
-        uses: appleboy/scp-action@v1
-        with:
-            host: ${{ secrets[matrix.host] }}
-            username: ${{ secrets.USERNAME }}
-            key: ${{ secrets.SSH_PRIVATE_KEY }}
-            port: ${{ secrets.PORT }}
-            source: ./build/.
-            target: ~/MafiaBot
+        run: |
+          # --recurse handles directories like your ./build/. source
+          # --tunnel-through-iap bypasses the need for a static/public IP
+          gcloud compute scp --recurse ./build/* \
+            ${{ secrets.GCP_VM_NAME }}:~/MafiaBot \
+            --zone=${{ secrets.GCP_VM_ZONE }} \
+            --tunnel-through-iap \
+            --project=${{ secrets.GCP_PROJECT_ID }}
       - name: Start Production Server
-        uses: appleboy/ssh-action@v1
+        uses: google-github-actions/ssh-compute@v2
         with:
-            host: ${{ secrets[matrix.host] }}
-            username: ${{ secrets.USERNAME }}
-            key: ${{ secrets.SSH_PRIVATE_KEY }}
-            port: ${{ secrets.PORT }}
-            script: |
-                cd MafiaBot
-                git restore .
-                git pull origin main
-                npm i
-                pm2 restart mafia-bot
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          zone: ${{ secrets.GCP_VM_ZONE }}
+          instance_name: ${{ secrets.GCP_VM_NAME }}
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command: |
+              cd MafiaBot
+              git restore .
+              git pull origin main
+              npm i
+              pm2 restart mafia-bot
 
 
