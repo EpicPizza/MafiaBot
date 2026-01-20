@@ -53,8 +53,7 @@ async function handleVoteList(interaction: Event<ChatInputCommandInteraction | T
     interaction.inInstance();
 
     let gameName = interaction.type == 'text' ? interaction.program.getOptionValue('game') as string | undefined ?? null : interaction.options.getString("game");
-    if(interaction.instance.global.started == false && gameName == null) throw new Error("Game has not started, specify a game (and day) to view votes from that game!");
-
+    
     const game = gameName != null ? await getGameByName(gameName ?? "---", interaction.instance, true) :  await getGameByID(interaction.instance.global.game ?? "---", interaction.instance);
 
     const global = interaction.instance.global;
