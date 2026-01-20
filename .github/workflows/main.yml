@@ -54,7 +54,7 @@ jobs:
               pm2 list
               pm2 stop mafia-bot
               cd ../aqealejandro/MafiaBot
-              rm -rf build
+              sudo rm -rf build
       - name: Transfer Build to Production Server
         run: |
           # Create a secure .ssh directory and write the secret to a file
