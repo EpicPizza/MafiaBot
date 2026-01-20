@@ -53,10 +53,15 @@ jobs:
           command: |
               pm2 list
               pm2 stop mafia-bot
-              cd MafiaBot
+              cd ../aqealejandro/MafiaBot
               rm -rf build
       - name: Transfer Build to Production Server
         run: |
+          # Create a secure .ssh directory and write the secret to a file
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/google_compute_engine
+          chmod 600 ~/.ssh/google_compute_engine
+          
           # --recurse handles directories like your ./build/. source
           # --tunnel-through-iap bypasses the need for a static/public IP
           gcloud compute scp --recurse ./build/* \
@@ -64,6 +69,7 @@ jobs:
             --zone=${{ secrets.GCP_VM_ZONE }} \
             --tunnel-through-iap \
             --project=${{ secrets.GCP_PROJECT_ID }}
+            --ssh-key-file=~/.ssh/google_compute_engine
       - name: Start Production Server
         uses: google-github-actions/ssh-compute@v2
         with:
@@ -72,7 +78,7 @@ jobs:
           instance_name: ${{ secrets.GCP_VM_NAME }}
           ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
           command: |
-              cd MafiaBot
+              cd ../aqealejandro/MafiaBot
               git restore .
               git pull origin main
               npm i
