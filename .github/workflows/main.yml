@@ -75,7 +75,7 @@ jobs:
               cd ../aqealejandro/MafiaBot
               git restore .
               git pull origin main
-              npm i
+              sudo npm i
               pm2 restart mafia-bot
 
 
