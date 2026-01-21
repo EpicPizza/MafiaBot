@@ -25,9 +25,6 @@ jobs:
     name: Deploy
     needs: build
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        host: [BAG_HOST]
     steps:
       - name: Checkout Repo
         uses: actions/checkout@master
