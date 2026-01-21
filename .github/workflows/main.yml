@@ -50,10 +50,11 @@ jobs:
           zone: ${{ secrets.GCP_VM_ZONE }}
           instance_name: ${{ secrets.GCP_VM_NAME }}
           ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          user: ${{ secrets.USERNAME }}
           command: |
               pm2 list
               pm2 stop mafia-bot
-              cd ../aqealejandro/MafiaBot
+              cd ../${{ secrets.USERNAME }}/MafiaBot
               sudo rm -rf build
       - name: Transfer Build to Production Server
         run: |
@@ -71,8 +72,9 @@ jobs:
           zone: ${{ secrets.GCP_VM_ZONE }}
           instance_name: ${{ secrets.GCP_VM_NAME }}
           ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          user: ${{ secrets.USERNAME }}
           command: |
-              cd ../aqealejandro/MafiaBot
+              cd ../${{ secrets.USERNAME }}/MafiaBot
               git restore .
               git pull origin main
               sudo npm i
