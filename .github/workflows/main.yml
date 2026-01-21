@@ -67,7 +67,7 @@ jobs:
           echo "$PUBLIC_KEY" > ~/.ssh/google_compute_engine.pub
           chmod 600 ~/.ssh/google_compute_engine.pub
           gcloud compute scp --recurse ./build/* \
-            ${{ secrets.USERNAME }}@${{ secrets.GCP_VM_NAME }}:~/MafiaBot \
+            ${{ secrets.USERNAME }}@${{ secrets.GCP_VM_NAME }}:~/MafiaBot/build \
             --zone=${{ secrets.GCP_VM_ZONE }} \
             --tunnel-through-iap \
             --project=${{ secrets.GCP_PROJECT_ID }} \
