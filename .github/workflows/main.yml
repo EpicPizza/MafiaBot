@@ -70,7 +70,7 @@ jobs:
             ${{ secrets.USERNAME }}@${{ secrets.GCP_VM_NAME }}:~/MafiaBot \
             --zone=${{ secrets.GCP_VM_ZONE }} \
             --tunnel-through-iap \
-            --project=${{ secrets.GCP_PROJECT_ID }}
+            --project=${{ secrets.GCP_PROJECT_ID }} \
             --ssh-key-file=~/.ssh/google_compute_engine   
       - name: Start Production Server
         uses: google-github-actions/ssh-compute@v2
