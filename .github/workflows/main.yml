@@ -57,7 +57,18 @@ jobs:
               cd ../${{ secrets.USERNAME }}/MafiaBot
               sudo rm -rf build
       - name: Transfer Build to Production Server
+        env:
+          PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          PUBLIC_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
+          mkdir -p ~/.ssh
+          
+          echo "$PRIVATE_KEY" > ~/.ssh/google_compute_engine
+          chmod 600 ~/.ssh/google_compute_engine
+          
+          echo "$PUBLIC_KEY" > ~/.ssh/google_compute_engine.pub
+          chmod 600 ~/.ssh/google_compute_engine.pub
+
           # --recurse handles directories like your ./build/. source
           # --tunnel-through-iap bypasses the need for a static/public IP
           gcloud compute scp --recurse ./build/* \
