@@ -25,6 +25,8 @@ jobs:
     name: Deploy
     needs: build
     runs-on: ubuntu-latest
+    env:
+      CLOUDSDK_PYTHON_SITEPACKAGES: 1 
     steps:
       - name: Checkout Repo
         uses: actions/checkout@master
@@ -40,6 +42,13 @@ jobs:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
       - name: Set up gcloud CLI
         uses: google-github-actions/setup-gcloud@v2
+      - name: Install NumPy
+        run: |
+          # Dynamically find the python interpreter used by this gcloud installation
+          GCLOUD_PYTHON=$(gcloud info --format="value(basic.python_location)")
+          
+          echo "Installing NumPy using: $GCLOUD_PYTHON"
+          "$GCLOUD_PYTHON" -m pip install numpy
       - name: Stop Production Server
         uses: google-github-actions/ssh-compute@v2
         with:
