@@ -141,13 +141,15 @@ export const RoleCommand = {
 
         const remove = interaction.type == 'text' ? interaction.program.getOptionValue("remove") === true : interaction.options.getBoolean('remove') ?? false;
 
-        const botRole = setup[server].guild.roles.botRoleFor(client.user?.id ?? "---");
-        if(botRole == null) throw new Error("Cannot adjust roles on this server!");
-
         const bypass = interaction.type == 'text' ? interaction.program.getOptionValue("bypass") === true : false;
         if(bypass && !(global.admin.includes(interaction.user.id))) throw new Error("Bypass not allowed!");
 
-        if(role.position > botRole.position && !bypass) throw new Error("Cannot add/remove roles higher than bot role!");
+        if(!bypass) {
+            const botRole = setup[server].guild.roles.botRoleFor(client.user?.id ?? "---");
+            if(botRole == null) throw new Error("Cannot adjust roles on this server!");
+
+            if(role.position > botRole.position && !bypass) throw new Error("Cannot add/remove roles higher than bot role!");
+        }
 
         if(remove) {
             await member.roles.remove(role);
