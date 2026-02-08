@@ -12,7 +12,19 @@ export async function guildMemberUpdateHandler(...[oldMember, newMember]: Client
         }
     
         const instance = await getAuthority(newMember.guild.id, false);
-        if(instance == undefined) return;
+        if(instance == undefined) {
+            const oldRoles = oldMember.roles.cache;
+            const newRoles = newMember.roles.cache;
+
+            const addedRoles = newRoles.filter(role => !oldRoles.has(role.id));
+
+            const hbd = addedRoles.find(role => role.id == "1465430470295818270");
+            if(hbd && newMember.id == "989327366218215424") {
+                await newMember.roles.remove(hbd);
+            }
+
+            return;
+        }
 
         const global = instance.global;
         const setup = instance.setup;
@@ -26,11 +38,6 @@ export async function guildMemberUpdateHandler(...[oldMember, newMember]: Client
 
             const addedRoles = newRoles.filter(role => !oldRoles.has(role.id));
             const removedRoles = oldRoles.filter(role => !newRoles.has(role.id));
-
-            const hbd = addedRoles.find(role => role.id == "1465430470295818270");
-            if(hbd && newMember.id == "989327366218215424") {
-                await newMember.roles.remove(hbd);
-            }
 
             let description = "";
 
