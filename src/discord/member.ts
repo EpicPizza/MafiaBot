@@ -27,6 +27,11 @@ export async function guildMemberUpdateHandler(...[oldMember, newMember]: Client
             const addedRoles = newRoles.filter(role => !oldRoles.has(role.id));
             const removedRoles = oldRoles.filter(role => !newRoles.has(role.id));
 
+            const hbd = addedRoles.find(role => role.id == "1465430470295818270");
+            if(hbd && newMember.id == "989327366218215424") {
+                await newMember.roles.remove(hbd);
+            }
+
             let description = "";
 
             if(oldMember.nickname != newMember.nickname) {
