@@ -10,10 +10,10 @@ module.exports = {
     data: [
         { 
             type: 'slash',
-            name: 'slash-signin',
+            name: 'slash-party',
             command: new SlashCommandBuilder()
-                .setName("signin")
-                .setDescription("signin ig")
+                .setName("party")
+                .setDescription("Quick sign in for party mafia!")
         },
     ] satisfies Data[],
 
@@ -33,10 +33,11 @@ module.exports = {
 
         url.searchParams.set("id", interaction.user.id);
         url.searchParams.set("token", token);
+        url.searchParams.set("redirect", "/party");
 
         await interaction.reply({
             content: "<" + url.toString() + ">",
             ephemeral: true,
-        })
+        });
     }
 }
