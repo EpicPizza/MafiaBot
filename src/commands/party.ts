@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { randomInt } from "crypto";
-import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 import { Data } from '../discord';
 import { TextCommand } from '../discord';
 import { firebaseAdmin } from "../utils/firebase";
@@ -35,8 +35,16 @@ module.exports = {
         url.searchParams.set("token", token);
         url.searchParams.set("redirect", "/party");
 
+        const row = new ActionRowBuilder<ButtonBuilder>()
+            .addComponents(
+                new ButtonBuilder()
+                    .setLabel('Enter Code')
+                    .setURL(url.toString())
+                    .setStyle(ButtonStyle.Link),
+            );
+
         await interaction.reply({
-            content: "<" + url.toString() + ">",
+            components: [row],
             ephemeral: true,
         });
     }
