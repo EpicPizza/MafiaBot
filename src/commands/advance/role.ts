@@ -208,13 +208,15 @@ export const PermissionCommand = {
             .name('permission')
             .description('Adjust the permissions of a role.')
             .requiredOption('--role <name>', 'which role to add', fromZod(z.string().min(1).max(100)))
-            .requiredOption('--server <name>', 'which server to add role', fromZod(z.union([z.literal('primary'), z.literal('secondary'), z.literal('tertiary')])))
+            .requiredOption('--server <name>', 'which server to add role', fromZod(z.string()))
             .requiredOption('--permission <name>', 'which permission to adjust')
             .requiredOption('--allow <true/false>', 'whether to allow', fromZod(z.coerce.boolean()));
     },
 
     execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
         interaction.inInstance();
+
+        if (!(interaction.instance.global.admin.includes(interaction.user.id))) throw new Error("You're not a mod!");
 
         if (interaction.type == 'text') {
             await interaction.message.react("<a:loading:1256150236112621578>");
