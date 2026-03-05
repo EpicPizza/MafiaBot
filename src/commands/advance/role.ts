@@ -128,6 +128,8 @@ export const RoleCommand = {
         if (server == 'primary' || server == 'secondary' || server == 'tertiary') {
             guild = setup[server].guild;
         } else {
+            if (!(interaction.instance.global.admin.includes(interaction.user.id))) throw new Error("You're not a mod!");
+
             guild = await client.guilds.fetch(server);
         }
         if (guild == undefined) throw new Error("Guild not found.");
