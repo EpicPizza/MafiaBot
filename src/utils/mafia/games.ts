@@ -111,7 +111,7 @@ export async function addSignup(options: { id: string, game: string }, instance:
         const row = new ActionRowBuilder<ButtonBuilder>()
             .addComponents(
                 new ButtonBuilder()
-                    .setCustomId(JSON.stringify({ name: "confirm-signup", game: game.name }))
+                    .setCustomId(JSON.stringify({ name: "confirm-signup", game: game.name, instance: instance.id }))
                     .setStyle(ButtonStyle.Primary)
                     .setLabel('Confirm')
             )

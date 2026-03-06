@@ -1,8 +1,8 @@
 import { AutocompleteInteraction, ButtonInteraction, ChatInputCommandInteraction, ClientEvents, ContextMenuCommandInteraction, Events, InteractionType, ModalSubmitInteraction, StringSelectMenuInteraction } from "discord.js";
 import client from "./client";
-import { z } from "zod";
+import { custom, z } from "zod";
 import { Event } from ".";
-import { getAuthority } from "../utils/instance";
+import { getAuthority, getInstance } from "../utils/instance";
 import { SafeError } from "../utils/error";
 
 const CustomId = z.object({
@@ -10,7 +10,7 @@ const CustomId = z.object({
 });
 
 export async function interactionCreateHandler(...[interaction]: ClientEvents[Events.InteractionCreate]) {
-    const instance = await getAuthority(interaction.guildId ?? "---", false);
+    let instance = await getAuthority(interaction.guildId ?? "---", false);
 
     if (interaction.isButton()) {
         let name: string;
@@ -47,6 +47,9 @@ export async function interactionCreateHandler(...[interaction]: ClientEvents[Ev
 
         try {
             const event = interaction as unknown as Event<ButtonInteraction>;
+
+            const customId = JSON.parse(interaction.customId);
+            if(instance == undefined && 'instance' in customId && typeof customId.instance == 'string') instance = await getInstance(customId.instance).catch(() => undefined); 
 
             event.name = name;
             event.inInstance = () => { if(instance == undefined) throw new Error("Server not setup!"); };
