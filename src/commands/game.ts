@@ -327,6 +327,33 @@ async function handleSignup(interaction: Event<ChatInputCommandInteraction | Tex
 
                 await interaction.message.react("✅");
             }
+        } else if(user.pronouns == null) {
+            const embed = new EmbedBuilder()
+                .setTitle("Your profile is incomplete...")
+                .setDescription("Add your pronouns! You will be added to game automatically after.")
+                .setColor(Colors.Orange);
+    
+            const row = new ActionRowBuilder<ButtonBuilder>()
+                .addComponents([
+                    new ButtonBuilder() 
+                        .setCustomId(JSON.stringify({ name: 'set-nickname', autoSignUp: true, type: interaction.type == 'text' ? 'text' : 'command', game: game.name }))
+                        .setStyle(ButtonStyle.Secondary)
+                        .setLabel("Edit Profile"),
+                ]);
+
+            if(interaction.type != 'text') {
+                await interaction.editReply({
+                    embeds: [embed],
+                    components: [row]
+                })
+            } else {
+                await removeReactions(interaction.message);
+
+                await interaction.reply({
+                    embeds: [embed],
+                    components: [row]
+                })
+            }
         } else {
             await addSignup({ id: user.id, game: game.name }, interaction.instance);
 
