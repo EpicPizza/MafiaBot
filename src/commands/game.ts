@@ -145,7 +145,8 @@ async function directSignup(interaction: Event<ButtonInteraction>, game: string,
     if(game == null) return await interaction.reply({ ephemeral: true, content: "Game not found." });
 
     const db = firebaseAdmin.getFirestore();
-    await db.collection('instances').doc(interaction.instance.id).collection('users').doc(interaction.user.id).update({ state: 1 } satisfies Partial<User>);
+    const user = await getUser(interaction.user.id, interaction.instance);
+    if(user?.state == 2) await db.collection('instances').doc(interaction.instance.id).collection('users').doc(interaction.user.id).update({ state: 1 } satisfies Partial<User>);
 
     await addSignup({ id: interaction.user.id, game: game }, interaction.instance);
 
@@ -330,7 +331,7 @@ async function handleSignup(interaction: Event<ChatInputCommandInteraction | Tex
         } else if(user.pronouns == null) {
             const embed = new EmbedBuilder()
                 .setTitle("Your profile is incomplete...")
-                .setDescription("Add your pronouns! You will be added to game automatically after.")
+                .setDescription("Add your pronouns! You will be added to the game automatically after.")
                 .setColor(Colors.Orange);
     
             const row = new ActionRowBuilder<ButtonBuilder>()
