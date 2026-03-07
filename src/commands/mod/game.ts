@@ -10,6 +10,58 @@ import { archiveGame, createGame, getGameByName, getGameSetup } from "../../util
 import { getUserByName, getUsersArray } from "../../utils/mafia/user";
 import { getSetup } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
+import { FieldValue } from "firebase-admin/firestore";
+
+export const AssignCommand = {
+    name: "assign",
+    subcommand: true,
+
+    slash: new SlashCommandSubcommandBuilder()
+        .setName('assign')
+        .setDescription('Assign a mod to a game.')
+        .addStringOption(option =>
+            option
+                .setName('game')
+                .setDescription('Name of the game.')
+                .setRequired(true)
+        )
+        .addStringOption(option =>
+            option
+                .setName('player')
+                .setDescription('Nickname of mod.')
+                .setRequired(true)
+                .setAutocomplete(true)
+        ),
+    text: () => {
+        return new Command()
+            .name('assign')
+            .description('Assign a mod to a game.')
+            .argument('<game>', 'name of game', fromZod(z.string().min(1).max(100)))
+            .argument('<player>', 'nickname of mod', fromZod(z.string().min(1).max(100)));
+    },
+
+    execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        interaction.inInstance();
+
+        const gameName = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
+        const playerName = interaction.type == 'text' ? interaction.program.processedArgs[1] as string : interaction.options.getString('player');
+
+        if (gameName == null || playerName == null) throw new Error("Game and player need to be specified.");
+
+        const game = await getGameByName(gameName, interaction.instance);
+        const player = await getUserByName(playerName, interaction.instance);
+        if (!player) throw new Error("Player not found.");
+
+        const db = firebaseAdmin.getFirestore();
+
+        const ref = db.collection('instances').doc(interaction.instance.id).collection('games').doc(game.id);
+        await ref.update({
+            mods: FieldValue.arrayUnion(player.id),
+        });
+
+        await interaction.reply(`Assigned ${player.nickname} to ${game.name}.`);
+    }
+} satisfies Subcommand;
 
 export const CreateCommand = {
     name: "create",
@@ -19,7 +71,7 @@ export const CreateCommand = {
         .setName('create')
         .setDescription("Creates a mafia game.")
         .addStringOption(option =>
-            option  
+            option
                 .setName('game')
                 .setDescription('Name of the game.')
                 .setRequired(true)
@@ -36,7 +88,7 @@ export const CreateCommand = {
 
         const name = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
 
-        if(name == null) throw new Error("Game needs to be specified.");
+        if (name == null) throw new Error("Game needs to be specified.");
 
         await createGame(interaction, name, interaction.instance);
     }
@@ -50,7 +102,7 @@ export const ArchiveCommand = {
         .setName("archive")
         .setDescription("Archives a game.")
         .addStringOption(option =>
-            option  
+            option
                 .setName('game')
                 .setDescription('Removes the game from database and moves channels to archived category.')
                 .setRequired(true)
@@ -68,7 +120,7 @@ export const ArchiveCommand = {
 
         const name = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
 
-        if(name == null) throw new Error("Game needs to be specified.");
+        if (name == null) throw new Error("Game needs to be specified.");
 
         await archiveGame(interaction, name, interaction.instance);
     }
@@ -82,14 +134,14 @@ export const ResendConfirmationsCommand = {
         .setName("resend")
         .setDescription("Resends confirmations of all players or one in a game.")
         .addStringOption(option =>
-            option  
+            option
                 .setName('game')
                 .setDescription('Name of the game.')
                 .setRequired(true)
                 .setAutocomplete(true)
         )
         .addStringOption(option =>
-            option  
+            option
                 .setName('player')
                 .setDescription('Name of the player.')
                 .setAutocomplete(true)
@@ -105,31 +157,31 @@ export const ResendConfirmationsCommand = {
     execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
         interaction.inInstance();
 
-        if(interaction.type != 'text') {
+        if (interaction.type != 'text') {
             await interaction.deferReply({ ephemeral: true });
         } else {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
-        
+
         const gameName = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
         const playerName = interaction.type == 'text' ? interaction.program.getOptionValue("player") as string | undefined : interaction.options.getString('player') ?? undefined;
 
-        if(gameName == null) throw new Error("Game needs to be specified.");
+        if (gameName == null) throw new Error("Game needs to be specified.");
 
         const setup = interaction.instance.setup;
         const game = await getGameByName(gameName, interaction.instance);
         const gameSetup = await getGameSetup(game, setup);
 
         const player = playerName ? await getUserByName(playerName, interaction.instance) : undefined;
-        if(player == undefined && playerName != undefined) throw new Error("Player not found!");
-        const players = player ? [ player ] : await getUsersArray(game.signups, interaction.instance);
+        if (player == undefined && playerName != undefined) throw new Error("Player not found!");
+        const players = player ? [player] : await getUsersArray(game.signups, interaction.instance);
 
         console.log(players);
 
         await Promise.allSettled(players.map(async player => {
             const dm = await (await client.users.fetch(player.id)).createDM();
 
-            if(!dm) return await gameSetup.spec.send("Unable to send dms to <@" + player.id + ">.");
+            if (!dm) return await gameSetup.spec.send("Unable to send dms to <@" + player.id + ">.");
 
             const db = firebaseAdmin.getFirestore();
 
@@ -138,8 +190,8 @@ export const ResendConfirmationsCommand = {
 
             const query = db.collection('documents').where('integration', '==', 'Welcome');
             const docs = (await query.get()).docs;
-            if(docs.length < 1) message = domain  + "/docs/welcome-message/";
-            if(docs.length > 0) message = (docs[0].data().content as string).replaceAll("](/", "](" + domain + "/");
+            if (docs.length < 1) message = domain + "/docs/welcome-message/";
+            if (docs.length > 0) message = (docs[0].data().content as string).replaceAll("](/", "](" + domain + "/");
 
             const embed = new EmbedBuilder()
                 .setTitle('Welcome!')
@@ -157,7 +209,7 @@ export const ResendConfirmationsCommand = {
             dm.send({ components: [row], embeds: [embed] });
         }));
 
-        if(interaction.type == 'text') {
+        if (interaction.type == 'text') {
             await removeReactions(interaction.message);
             await interaction.message.react("✅");
         } else {
@@ -174,7 +226,7 @@ export const ConfirmationsCommand = {
         .setName("confirmations")
         .setDescription("Shows confirmations of all players in a game.")
         .addStringOption(option =>
-            option  
+            option
                 .setName('game')
                 .setDescription('Name of the game.')
                 .setRequired(true)
@@ -192,7 +244,7 @@ export const ConfirmationsCommand = {
 
         const name = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
 
-        if(name == null) throw new Error("Game needs to be specified.");
+        if (name == null) throw new Error("Game needs to be specified.");
 
         const game = await getGameByName(name, interaction.instance);
         const users = await getUsersArray(game.signups, interaction.instance);
@@ -202,9 +254,9 @@ export const ConfirmationsCommand = {
         const embed = new EmbedBuilder()
             .setTitle("Confirmations")
             .setDescription(users.length == 0 ? "No Players" : confirmations.reduce((previous, current) => previous += ((current.confirmed ? "✅" : process.env.FALSE) + " " + current.name) + "\n", ""))
-            .setFooter({ text: "Showing confirmations for " +  game.name + "." });
+            .setFooter({ text: "Showing confirmations for " + game.name + "." });
 
         await interaction.reply({ embeds: [embed] });
-        
+
     }
 } satisfies Subcommand;
