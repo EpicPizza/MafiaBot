@@ -9,9 +9,9 @@ import { getSetup } from "../setup";
 import { getPlayerObjects, getUser } from "./user";
 import { Instance } from "../instance";
 
-export interface Signups { 
-    name: string, 
-    signups: string[], 
+export interface Signups {
+    name: string,
+    signups: string[],
     id: string,
     closed: boolean,
     message: {
@@ -56,7 +56,7 @@ export async function addSignup(options: { id: string, game: string }, instance:
     const game = await getGameByName(options.game, instance);
     const gameSetup = await getGameSetup(game, instance.setup);
 
-    if(game == null) return false;
+    if (game == null) return false;
 
     const ref = db.collection('instances').doc(instance.id).collection('games').doc(game.id);
 
@@ -65,11 +65,11 @@ export async function addSignup(options: { id: string, game: string }, instance:
 
         const data = doc.data();
 
-        if(data == undefined) return;
+        if (data == undefined) return;
 
         const confirmed = (data.confirmations as string[]).includes(options.id);
 
-        if(!(data.signups as string[]).includes(options.id)) {
+        if (!(data.signups as string[]).includes(options.id)) {
             t.update(ref, {
                 signups: FieldValue.arrayUnion(options.id)
             })
@@ -77,21 +77,21 @@ export async function addSignup(options: { id: string, game: string }, instance:
 
         return confirmed;
     });
-    
+
     const playerObjects = await getPlayerObjects(options.id, instance);
 
-    if(playerObjects.player) {
+    if (playerObjects.player) {
         const member = playerObjects.player;
 
-        if(member.roles.cache.get(instance.setup.primary.gang.id) == undefined) {
+        if (member.roles.cache.get(instance.setup.primary.gang.id) == undefined) {
             await member.roles.add(instance.setup.primary.gang.id);
         }
     }
 
-    if(confirmed === false) {
+    if (confirmed === false) {
         const dm = await (await client.users.fetch(options.id)).createDM();
 
-        if(!dm) return await gameSetup.spec.send("Unable to send dms to <@" + options.id + ">.");
+        if (!dm) return await gameSetup.spec.send("Unable to send dms to <@" + options.id + ">.");
 
         const db = firebaseAdmin.getFirestore();
 
@@ -100,8 +100,8 @@ export async function addSignup(options: { id: string, game: string }, instance:
 
         const query = db.collection('documents').where('integration', '==', 'Welcome');
         const docs = (await query.get()).docs;
-        if(docs.length < 1) message = domain  + "/docs/welcome-message/";
-        if(docs.length > 0) message = (docs[0].data().content as string).replaceAll("](/", "](" + domain + "/");
+        if (docs.length < 1) message = domain + "/docs/welcome-message/";
+        if (docs.length > 0) message = (docs[0].data().content as string).replaceAll("](/", "](" + domain + "/");
 
         const embed = new EmbedBuilder()
             .setTitle('Welcome!')
@@ -127,7 +127,7 @@ export async function removeSignup(options: { id: string, game: string }, instan
 
     const id = await getGameID(options.game, instance);
 
-    if(id == null) return false;
+    if (id == null) return false;
 
     const ref = db.collection('instances').doc(instance.id).collection('games').doc(id);
 
@@ -136,7 +136,7 @@ export async function removeSignup(options: { id: string, game: string }, instan
 
         const data = doc.data();
 
-        if(data == undefined) return;
+        if (data == undefined) return;
 
         t.update(ref, {
             signups: FieldValue.arrayRemove(options.id)
@@ -150,8 +150,8 @@ export async function openSignups(name: string, instance: Instance) {
     const game = await getGameByName(name, instance);
     const global = instance.global;
 
-    if(game == null) throw new Error("Game not found." );
-    if(global.started && global.game == game.id) throw new Error("Game has already started, sign ups are closed.");
+    if (game == null) throw new Error("Game not found.");
+    if (global.started && global.game == game.id) throw new Error("Game has already started, sign ups are closed.");
 
     const db = firebaseAdmin.getFirestore();
 
@@ -166,8 +166,8 @@ export async function closeSignups(name: string, instance: Instance) {
     const game = await getGameByName(name, instance);
     const global = instance.global;
 
-    if(game == null) throw new Error("Game not found.")
-    if(global.started && game.id == global.game) throw new Error("Game has already started, sign ups are closed.");
+    if (game == null) throw new Error("Game not found.")
+    if (global.started && game.id == global.game) throw new Error("Game has already started, sign ups are closed.");
 
     const db = firebaseAdmin.getFirestore();
 
@@ -181,7 +181,7 @@ export async function closeSignups(name: string, instance: Instance) {
 export async function activateSignup(options: { id: string, name: string }, instance: Instance) {
     const game = await getGameByName(options.name, instance);
 
-    if(game == null) throw new Error("Game not found.");
+    if (game == null) throw new Error("Game not found.");
 
     const db = firebaseAdmin.getFirestore();
 
@@ -197,20 +197,20 @@ export async function activateSignup(options: { id: string, name: string }, inst
 
     refreshSignup(options.name, instance);
 
-    if(signup) {
+    if (signup) {
         const setup = instance.setup;
 
-        if(typeof setup == 'string') throw new Error("Setup incomplete.");
+        if (typeof setup == 'string') throw new Error("Setup incomplete.");
 
         let message = await setup.primary.chat.messages.fetch(signup.id).catch(() => { return undefined; });
 
-        if(!message || !message.editable) return;
+        if (!message || !message.editable) return;
 
         const embed = new EmbedBuilder()
             .setTitle("Sign ups for " + game.name + "!")
             .setColor(Colors.Red)
             .setDescription("This sign up message has been deactivated.")
-            
+
         const row = new ActionRowBuilder<ButtonBuilder>()
             .addComponents([
                 new ButtonBuilder()
@@ -230,20 +230,20 @@ export async function refreshSignup(name: string, instance: Instance) {
     const game = await getGameByName(name, instance);
     const setup = instance.setup;
 
-    if(typeof setup == 'string') throw new Error("Setup Incomplete");
-    if(game == null) throw new Error("Game not found.");
-    if(game.message == null) return;
+    if (typeof setup == 'string') throw new Error("Setup Incomplete");
+    if (game == null) throw new Error("Game not found.");
+    if (game.message == null) return;
 
     let message = await setup.primary.chat.messages.fetch(game.message?.id ?? "not-a-message");
 
-    if(!message || !message.editable) return;
+    if (!message || !message.editable) return;
 
     let list = "";
 
-    for(let i = 0; i < game.signups.length; i++) {
+    for (let i = 0; i < game.signups.length; i++) {
         const user = await getUser(game.signups[i], instance);
 
-        if(user) {
+        if (user) {
             list += user.nickname + "\n";
         } else {
             list += "<@" + game.signups[i] + ">" + "\n";
@@ -253,7 +253,7 @@ export async function refreshSignup(name: string, instance: Instance) {
     const embed = new EmbedBuilder()
         .setTitle("Sign ups for " + game.name + (game.closed ? " are closed" : "") + "!")
         .setColor(game.closed ? Colors.DarkRed : Colors.Blue)
-        .setDescription((game.signups.length == 0 ? "No sign ups.\n" : list ) + "\nSign up by using the **/signup** command!")
+        .setDescription((game.signups.length == 0 ? "No sign ups.\n" : list) + "\nSign up by using the **/signup** command!")
         .setFooter({ text: (game.signups.length > 1 ? game.signups.length + " players have signed up already" : (game.signups.length == 1 ? "1 player has signed up already" : "")) + "." });
 
     await message.suppressEmbeds(false); // in case embeds were suppressed
@@ -267,18 +267,18 @@ export async function refreshSignup(name: string, instance: Instance) {
 
 export async function archiveGame(interaction: ChatInputCommandInteraction | TextCommand, name: string, instance: Instance) {
     const setup = instance.setup;
-    const game = await getGameByName(name, instance);
+    const game = await getGameByName(name, instance, true);
     const global = instance.global;
 
-    if(typeof setup == 'string') throw new Error("Setup Incomplete");
-    if(game == null || global == null) throw new Error("Game not found.");
-    if(global.game == game.id && global.started) throw new Error("Game in progress.");
+    if (typeof setup == 'string') throw new Error("Setup Incomplete");
+    if (game == null || global == null) throw new Error("Game not found.");
+    if (global.game == game.id && global.started) throw new Error("Game in progress.");
 
     const spec = await setup.secondary.guild.channels.fetch(game.channels.spec).catch(() => undefined);
-    if(spec != undefined && spec.type == ChannelType.GuildText) await spec.setParent(setup.secondary.archive, { lockPermissions: true });
+    if (spec != undefined && spec.type == ChannelType.GuildText) await spec.setParent(setup.secondary.archive, { lockPermissions: true });
 
     const mafia = await setup.tertiary.guild.channels.fetch(game.channels.mafia).catch(() => undefined);
-    if(mafia != undefined && mafia.type == ChannelType.GuildText) await mafia.setParent(setup.tertiary.archive, { lockPermissions: true });
+    if (mafia != undefined && mafia.type == ChannelType.GuildText) await mafia.setParent(setup.tertiary.archive, { lockPermissions: true });
 
     await interaction.reply({ ephemeral: true, content: "Game archived." });
 }
@@ -286,7 +286,7 @@ export async function archiveGame(interaction: ChatInputCommandInteraction | Tex
 export async function createGame(interaction: ChatInputCommandInteraction | TextCommand, name: string, instance: Instance) {
     const setup = instance.setup;
 
-    if(typeof setup == 'string') throw new Error("Setup Incomplete");
+    if (typeof setup == 'string') throw new Error("Setup Incomplete");
 
     const db = firebaseAdmin.getFirestore();
 
@@ -294,17 +294,17 @@ export async function createGame(interaction: ChatInputCommandInteraction | Text
 
     const exists = await getGameByName(name, instance, true).catch(() => { return undefined; });
 
-    if(exists) throw new Error("Duplicate game names not allowed.");
+    if (exists) throw new Error("Duplicate game names not allowed.");
 
     const requirements = z.string().min(1, "Minimum 1 character.").max(20, "Max length 20 characters.").regex(/^[a-zA-Z0-9 ]*$/, "Only letters, numbers, and spaces allowed.");
 
     const check = requirements.safeParse(name);
 
-    if(!check.success) {
+    if (!check.success) {
         throw new Error("Name Error - " + check.error.flatten().formErrors.join(" "));
     }
 
-    if(interaction.type != 'text') await interaction.deferReply({ ephemeral: true });
+    if (interaction.type != 'text') await interaction.deferReply({ ephemeral: true });
 
     const spec = await setup.secondary.ongoing.children.create({
         type: ChannelType.GuildText,
@@ -342,7 +342,7 @@ export async function createGame(interaction: ChatInputCommandInteraction | Text
 
     await register();
 
-    if(interaction.type != 'text') {
+    if (interaction.type != 'text') {
         await interaction.editReply({ content: name + " game created." })
     } else {
         await interaction.reply({ content: name + " game created." })
@@ -357,8 +357,8 @@ export async function getGameSetup(game: Signups, setup: Exclude<Awaited<ReturnT
     const spec = await setup.secondary.guild.channels.fetch(game.channels.spec).catch(() => undefined);
     const mafia = await setup.tertiary.guild.channels.fetch(game.channels.mafia).catch(() => undefined);
 
-    if(spec == undefined || mafia == undefined) throw new Error("Game Setup Incomplete");
-    
+    if (spec == undefined || mafia == undefined) throw new Error("Game Setup Incomplete");
+
     return { spec: spec as TextChannel, mafia: mafia as TextChannel };
 }
 
@@ -366,19 +366,19 @@ function getRandom(min: number, max: number) {
     return Math.floor((Math.random() * (max - min) + min)).toString();
 }
 
-export async function getGames(instance: Instance, allowCompleted: boolean = false) {    
+export async function getGames(instance: Instance, allowCompleted: boolean = false) {
     const db = firebaseAdmin.getFirestore();
 
     let query = db.collection('instances').doc(instance.id).collection('games') as Query;
-    if(allowCompleted === false) query = query.where('state', '==', 'active');
+    if (allowCompleted === false) query = query.where('state', '==', 'active');
     const docs = (await query.get()).docs;
 
     const games = [] as { name: string, id: string }[];
 
-    for(let doc = 0; doc < docs.length; doc++) {
+    for (let doc = 0; doc < docs.length; doc++) {
         const data = docs[doc].data();
 
-        if(!data) continue;
+        if (!data) continue;
 
         games.push({
             name: data.name,
@@ -393,13 +393,13 @@ export async function getGameByName(name: string, instance: Instance, allowCompl
     const db = firebaseAdmin.getFirestore();
 
     let query = db.collection('instances').doc(instance.id).collection('games') as Query;
-    if(allowCompleted === false) query = query.where('state', '==', 'active');
+    if (allowCompleted === false) query = query.where('state', '==', 'active');
     const docs = (await query.get()).docs;
     const games = docs.map(doc => doc.data());
-    
-    for(let i = 0; i < games.length; i++) {
-        if(games[i].name.toLowerCase() == name.toLowerCase()) {
-            return { ... games[i], id: docs[i].id } as Signups;
+
+    for (let i = 0; i < games.length; i++) {
+        if (games[i].name.toLowerCase() == name.toLowerCase()) {
+            return { ...games[i], id: docs[i].id } as Signups;
         }
     }
 
@@ -413,16 +413,16 @@ export async function getGameByID(id: string, instance: Instance, allowCompleted
 
     const doc = (await ref.get());
 
-    if(doc.data() == undefined) throw new Error("Game not found in database.");
-    if(allowCompleted === false && doc.data()?.state != 'active') throw new Error("Game completed!");
+    if (doc.data() == undefined) throw new Error("Game not found in database.");
+    if (allowCompleted === false && doc.data()?.state != 'active') throw new Error("Game completed!");
 
-    return { ... doc.data(), id: doc.id } as Signups;
+    return { ...doc.data(), id: doc.id } as Signups;
 }
 
 export async function getGameID(name: string, instance: Instance, allowCompleted: boolean = false) {
     const game = await getGameByName(name, instance, allowCompleted);
 
-    if(game == null) return null;
+    if (game == null) return null;
 
     return game.id;
 }
