@@ -14,7 +14,7 @@ export const SignupsCommand = {
         .setName("signups")
         .setDescription("Creates sign up button for a new game.")
         .addStringOption(option =>
-            option  
+            option
                 .setName('game')
                 .setDescription('Name of the game.')
                 .setRequired(true)
@@ -32,7 +32,7 @@ export const SignupsCommand = {
 
         const name = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
 
-        if(name == null) throw new Error("Game needs to be specified.");
+        if (name == null) throw new Error("Game needs to be specified.");
 
         await openSignups(name, interaction.instance);
 
@@ -48,7 +48,7 @@ export const CloseCommand = {
         .setName("close")
         .setDescription("Close signups.")
         .addStringOption(option =>
-            option  
+            option
                 .setName('game')
                 .setDescription('Name of the game.')
                 .setRequired(true)
@@ -66,16 +66,16 @@ export const CloseCommand = {
 
         const name = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
 
-        if(name == null) throw new Error("Game needs to be specified.");
+        if (name == null) throw new Error("Game needs to be specified.");
 
         await closeSignups(name, interaction.instance);
 
         await refreshSignup(name, interaction.instance);
 
-        if(interaction.type == 'text') {
+        if (interaction.type == 'text') {
             await interaction.message.react("✅");
         } else {
-            await interaction.reply({ ephemeral: true, content: "Sign ups closed!" });   
+            await interaction.reply({ ephemeral: true, content: "Sign ups closed!" });
         }
     }
 } satisfies Subcommand;
@@ -88,7 +88,7 @@ export const OpenCommand = {
         .setName('open')
         .setDescription('Open signups.')
         .addStringOption(option =>
-            option  
+            option
                 .setName('game')
                 .setDescription('Name of the game.')
                 .setRequired(true)
@@ -106,16 +106,16 @@ export const OpenCommand = {
 
         const name = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
 
-        if(name == null) throw new Error("Game needs to be specified.");
+        if (name == null) throw new Error("Game needs to be specified.");
 
         await openSignups(name, interaction.instance);
 
         await refreshSignup(name, interaction.instance);
 
-        if(interaction.type == 'text') {
+        if (interaction.type == 'text') {
             await interaction.message.react("✅");
         } else {
-            await interaction.reply({ ephemeral: true, content: "Sign ups opened!" });   
+            await interaction.reply({ ephemeral: true, content: "Sign ups opened!" });
         }
     }
 } satisfies Subcommand;
@@ -144,15 +144,15 @@ async function createSignups(interaction: Event<CommandInteraction | ButtonInter
     const game = await getGameByName(name, interaction.instance);
     const setup = interaction.instance.setup;
 
-    if(global == null || game == null) throw new Error("Could not find game.");
-    if(typeof setup == 'string') throw new Error("Setup incomplete.");
+    if (global == null || game == null) throw new Error("Could not find game.");
+    if (typeof setup == 'string') throw new Error("Setup incomplete.");
 
-    if(setup.primary.chat.id != (interaction.type == 'text' ? interaction.message.channelId : interaction.channelId)) throw new Error("Cannot create signups in this channel.");
+    if (setup.primary.chat.id != (interaction.type == 'text' ? interaction.message.channelId : interaction.channelId)) throw new Error("Cannot create signups in this channel.");
 
-    if(global.started) throw new Error("You cannot create signups while a game is underway.");
-    
+    if (global.started) throw new Error("You cannot create signups while a game is underway.");
+
     const embed = new EmbedBuilder()
-        .setTitle("Sign ups for " + game.name + (game.closed ? " are closed" : "") + "!")
+        .setTitle("Sign ups for " + game.name + " Mafia" + (game.closed ? " are closed" : "") + "!")
         .setColor(game.closed ? Colors.DarkRed : Colors.Blue)
         .setDescription("Loading sign ups...");
 
@@ -165,7 +165,7 @@ async function createSignups(interaction: Event<CommandInteraction | ButtonInter
         fetchReply: true,
     }));
 
-    if(message == undefined || message.guildId == undefined) return;
+    if (message == undefined || message.guildId == undefined) return;
 
     await activateSignup({ id: message.id, name: game.name }, interaction.instance);
 }
