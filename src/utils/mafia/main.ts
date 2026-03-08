@@ -541,7 +541,7 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
 
     const message = await setup.primary.chat.send((pings ? "<@&" + setup.primary.alive.id + "> " : "") + "Game has locked!");
 
-    await markGame(message.createdTimestamp, game.id, instance, 'start');
+    await markGame(game.start ? undefined : message.createdTimestamp, game.id, instance, 'start');
 
     if(interaction.type != 'text') {
         await interaction.editReply({ content: "Game is starting!" });
@@ -554,13 +554,13 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
     //await startLog(setup, global, game);
 }
 
-export async function markGame(timestamp: number, gameId: string, instance: Instance, type: 'start' | 'end') {
+export async function markGame(timestamp: number | undefined, gameId: string, instance: Instance, type: 'start' | 'end') {
     const db = firebaseAdmin.getFirestore();
 
     const ref = db.collection('instances').doc(instance.id).collection('games').doc(gameId);
 
     await ref.update({
-        [type]: timestamp,
+        ...(timestamp != undefined && { [type]: timestamp }),
         state: type == 'end' ? 'completed' : undefined,
     });
 }

@@ -63,7 +63,7 @@ export const StartCommand = {
 
         url.searchParams.set("id", interaction.user.id);
         url.searchParams.set("token", token);
-        url.searchParams.set("redirect", "/" + (interaction.instance.id) + "/mod/" + game.id + "/start");
+        url.searchParams.set("redirect", "/" + (interaction.instance.id) + "/" + game.id + "/mod/start");
 
         const embed = new EmbedBuilder()
             .setTitle("Start " + game.name + " Mafia")
