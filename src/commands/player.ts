@@ -73,7 +73,7 @@ module.exports = {
                 return new Command()
                     .name('info')
                     .description('Check the nickname or @ of a player with their nickname or @.')
-                    .argument('[@/nickname]', '@/nickname of player', fromZod(z.string().regex(/^<@\d+>$/).or(z.string().regex(/^[a-zA-Z]+$/, "Only letters allowed. No spaces."))))
+                    .argument('[@/nickname]', '@/nickname of player', fromZod(z.string()))
                     .option('--extra', 'get the player\'s hex/pfp')
             }
         }
