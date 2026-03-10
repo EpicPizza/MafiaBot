@@ -201,7 +201,7 @@ export const ResendConfirmationsCommand = {
             const row = new ActionRowBuilder<ButtonBuilder>()
                 .addComponents(
                     new ButtonBuilder()
-                        .setCustomId(JSON.stringify({ name: "confirm-signup", game: game.name }))
+                        .setCustomId(JSON.stringify({ name: "confirm-signup", game: game.name, instance: interaction.instance.id }))
                         .setStyle(ButtonStyle.Primary)
                         .setLabel('Confirm')
                 )
