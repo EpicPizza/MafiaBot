@@ -40,6 +40,7 @@ module.exports = {
             command: () => {
                 return new Command()
                     .name('stats')
+                    .alias('stas')
                     .description('View message and word count for each player.')
                     .argument("[day]", "which day to show stats form", fromZod(z.coerce.number().min(1).max(100)))
                     .option('-g, --game <name>', 'which game to show signups from', fromZod(z.string().min(1).max(100)))
