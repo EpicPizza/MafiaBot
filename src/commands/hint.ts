@@ -42,11 +42,11 @@ module.exports = {
         } else {
             const db = firebaseAdmin.getFirestore();
 
-            const count = (await db.collection("users").count().get()).data().count;
+            const count = (await db.collection('instances').doc(interaction.instance.id).collection("users").count().get()).data().count;
 
             const randomPlayer = getRandom(0, count);
 
-            user = await getUser((await db.collection("users").offset(randomPlayer).limit(1).get()).docs[0].data().id, interaction.instance) ?? null;
+            user = await getUser((await db.collection('instances').doc(interaction.instance.id).collection("users").offset(randomPlayer).limit(1).get()).docs[0].data().id, interaction.instance) ?? null;
         }
 
         if(user == null) throw new Error("User not found.");
