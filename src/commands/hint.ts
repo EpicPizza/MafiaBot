@@ -29,8 +29,6 @@ module.exports = {
     execute: async (interaction: Event<ChatInputCommandInteraction | TextCommand>) => {
         interaction.inInstance();
 
-        const random = getRandom(1, 11);
-
         let user = null as null | User;
 
         const global = interaction.instance.global;
@@ -50,29 +48,16 @@ module.exports = {
         }
 
         if(user == null) throw new Error("User not found.");
-
-        switch(random) {
-            case 1:
-                return await interaction.reply(user.nickname + " is alive.");
-            case 2:
-                return await interaction.reply(user.nickname + " is dead.");
-            case 3:
-                return await interaction.reply(user.nickname + " is mafia.");
-            case 4:
-                return await interaction.reply(user.nickname + " is jester.");
-            case 5:
-                return await interaction.reply(user.nickname + " is vigilante.");
-            case 6:
-                return await interaction.reply(user.nickname + " is town.");
-            case 7:
-                return await interaction.reply(user.nickname + " will be hammered.");
-            case 8:
-                return await interaction.reply("You are mafia.");
-            case 9:
-                return await interaction.reply("You are town.");
-            case 10:
-                return await interaction.reply("You are cooked.");
-        }
+        
+        let use2POV = getRandom(1, 11) >= 7; // 70%, the chance for using second person
+        let useID = getRandom(1, 11) >= 1 // 10%, the chance of using an identity hint
+        let sentence = use2POV ? "You": user.nickname; // the subject of the sentence
+        sentence += useID ? use2POV ? " are " : " is " : "";
+        let ids = ["alive", "dead", "mafia", "town", "vigilante", "doctor", "cop", "jester", "cooked", "favored by mod"];
+        let verbs = ["will be hammered", "will meow", "will be killed", "will be healed", "will be voted out"];
+        sentence += useID ? ids[getRandom(0, ids.length)] : verbs[getRandom(0, verbs.length)];
+        sentence += ".";
+        return await interaction.reply(sentence);
     }
 }
 
