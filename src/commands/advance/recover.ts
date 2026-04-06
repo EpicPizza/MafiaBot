@@ -47,8 +47,7 @@ export const RecoverCommand = {
         const messageId = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('id');
         if(messageId == null) throw new Error("Specify an id.");
 
-        const channel = interaction.type == 'text' ? interaction.message.channel : interaction.channel;
-        if(channel == null) throw new Error("Not in channel?");
+        const channel = interaction.instance.setup.primary.chat;
 
         const tracked = await fetchMessage({ channelId: channel.id, id: messageId, partial: true });
         if(!tracked || !('createdTimestamp' in tracked)) throw new Error("Message not found!");
