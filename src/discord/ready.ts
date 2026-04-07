@@ -23,7 +23,7 @@ export async function clientReadyHandler(...[]: ClientEvents[Events.ClientReady]
         try {
             const instances = await getCachedInstances();
 
-            Promise.all(instances.map(async instance => {
+            await Promise.all(instances.map(async instance => {
                 await checkFutureLock(instance);
                 await checkFutureGrace(instance);
             }));
