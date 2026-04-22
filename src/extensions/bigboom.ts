@@ -170,12 +170,14 @@ module.exports = {
             await message.reply("ts pmo 🥀");
         }
 
-        if(message.content.toLowerCase().includes("big boom") && message.author.bot == false && message.guildId != "569988266657316884") {
-            const index = message.content.toLowerCase().indexOf("big boom");
+        let boom = (call, response, limit = 10) => {
+          call = " " + call;
+          if(message.content.toLowerCase().includes(call) && message.author.bot == false && message.guildId != "569988266657316884") {
+            const index = message.content.toLowerCase().indexOf(call);
 
             let numberString = "";
 
-            for(let i = index - 2; i >= 0; i--) {
+            for(let i = index - 1; i >= 0; i--) {
                 if(!isNaN(parseInt(message.content.charAt(i)))) {
                     numberString = message.content.charAt(i) + numberString;
                 } else {
@@ -185,7 +187,7 @@ module.exports = {
 
             let number = parseInt(numberString);
 
-            if(!(number <= 10 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 10;
+            if(!(number <= limit || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = limit;
 
             for(let i = 0; i < number; i++) {
                 await new Promise((resolve) => {
@@ -199,109 +201,14 @@ module.exports = {
                 }
 
                 //@ts-ignore
-                await message.channel.send("BOOM 💥");
+                await message.channel.send(response);
             }
-        }
+        }});
 
-        if(message.content.toLowerCase().includes("big harold") && message.author.bot == false  && message.guildId != "569988266657316884") {
-            const index = message.content.toLowerCase().indexOf("big harold");
-
-            let numberString = "";
-
-            for(let i = index - 2; i >= 0; i--) {
-                if(!isNaN(parseInt(message.content.charAt(i)))) {
-                    numberString = message.content.charAt(i) + numberString;
-                } else {
-                    break;
-                }
-            }
-
-            let number = parseInt(numberString);
-
-            if(!(number <= 10 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 10;
-
-            for(let i = 0; i < number; i++) {
-                await new Promise((resolve) => {
-                    setTimeout(() => {
-                        resolve(true);
-                    }, 1000);
-                });
-
-                if(freeze) {
-                    return;
-                }
-
-                 //@ts-ignore
-                await message.channel.send("<:harold:1387316012684410880> <:harold:1387316012684410880> <:harold:1387316012684410880>");
-            }
-        }
-
-        if(message.content.toLowerCase().includes("big chomp") && message.author.bot == false  && message.guildId != "569988266657316884") {
-            const index = message.content.toLowerCase().indexOf("big chomp");
-
-            let numberString = "";
-
-            for(let i = index - 2; i >= 0; i--) {
-                if(!isNaN(parseInt(message.content.charAt(i)))) {
-                    numberString = message.content.charAt(i) + numberString;
-                } else {
-                    break;
-                }
-            }
-
-            let number = parseInt(numberString);
-
-            if(!(number <= 10 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 10;
-
-            for(let i = 0; i < number; i++) {
-                await new Promise((resolve) => {
-                    setTimeout(() => {
-                        resolve(true);
-                    }, 1000);
-                });
-
-                if(freeze) {
-                    return;
-                }
-
-                 //@ts-ignore
-                await message.channel.send("CHOMP");
-            }
-        }
-
-        if(message.content.toLowerCase().includes("big meow") && message.author.bot == false  && message.guildId != "569988266657316884") {
-            const index = message.content.toLowerCase().indexOf("big meow");
-
-            let numberString = "";
-
-            for(let i = index - 2; i >= 0; i--) {
-                if(!isNaN(parseInt(message.content.charAt(i)))) {
-                    numberString = message.content.charAt(i) + numberString;
-                } else {
-                    break;
-                }
-            }
-
-            let number = parseInt(numberString);
-
-            if(!(number <= 20 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 20;
-
-            for(let i = 0; i < number; i++) {
-                await new Promise((resolve) => {
-                    setTimeout(() => {
-                        resolve(true);
-                    }, 1000);
-                });
-
-                if(freeze) {
-                    return;
-                }
-
-                //@ts-ignore
-                await message.channel.send("MEOW");
-            }
-        }
-
+        boom("big boom", "BOOM 💥");
+        boom("big harold", "<:harold:1387316012684410880> <:harold:1387316012684410880> <:harold:1387316012684410880>");
+        boom("big chomp", "CHOMP");
+        boom("big meow", "MEOW", 20);
 
         if(message.content.toLowerCase().startsWith("how long") && message.author.bot == false && message.guildId != "569988266657316884") {
             await message.reply(message.content.replaceAll(" ", "").replaceAll("\t", "").replaceAll("\n", "").replaceAll("]", "").replaceAll("[", "").replaceAll(")", "").replaceAll("(", "").replaceAll(".", "").replaceAll("?", "").replaceAll("!", "").replaceAll("'", "").replaceAll('"', "").replaceAll("`", "").replaceAll("~", "").replaceAll(";", "").replaceAll(",", ""));
