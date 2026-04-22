@@ -284,7 +284,7 @@ module.exports = {
 
             let number = parseInt(numberString);
 
-            if(!(number <= 10 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 10;
+            if(!(number <= 20 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 20;
 
             for(let i = 0; i < number; i++) {
                 await new Promise((resolve) => {
@@ -298,7 +298,7 @@ module.exports = {
                 }
 
                 //@ts-ignore
-                await message.channel.send("NO MEOW");
+                await message.channel.send("MEOW");
             }
         }
 
