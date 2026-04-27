@@ -67,6 +67,8 @@ export async function completeMessage(message: Message | TrackedMessage, reactio
         'authorId' in message ? message.reactions : getReactions(message)
     ]);
 
+    const stars = reactions.find(entry => entry.emoji == "⭐")?.id.length ?? 0;
+
     return {
         ...nickname,
         attachments,
@@ -81,7 +83,7 @@ export async function completeMessage(message: Message | TrackedMessage, reactio
         editedTimestamp: message.editedTimestamp,
         mentions: 'authorId' in message ? message.mentions : handleMentions(message), 
         id: message.id,
-        stars: reactions.find(entry => entry.emoji == "⭐️")?.id.length ?? 0,
+        stars: stars,
     };
 }
 
