@@ -185,7 +185,7 @@ export async function messageDeleteHandler(...[message]: ClientEvents[Events.Mes
 
         const webhook = await getWebhook(message.channel);
 
-        const result = await archiveMessage(instance.setup.primary.chat, tracked, webhook.client);
+        const result = await archiveMessage({ message: tracked, webhook: webhook.client, reactions: 'full' });
 
         webhook.destroy();
 

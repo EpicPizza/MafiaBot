@@ -2,7 +2,7 @@ import { APIMessage, Attachment, FetchMessageOptions, Message, MessageReaction, 
 import { FieldValue } from "firebase-admin/firestore";
 import { firebaseAdmin } from "../firebase";
 import { getAuthority, Instance } from "../instance";
-import { getReactions, Reaction } from "../archive";
+import { getReactions, handleMentions, Reaction } from "../archive";
 import { getSetup } from "../setup";
 
 type MessageAction = {
@@ -579,12 +579,6 @@ export async function fetchStats(instance: string, game: string, day: number) {
 }
 
 export async function transformMessage(message: Message, reactions: boolean = true) {
-    const mentions = [] as string[];
-
-    if(message.mentions.everyone) mentions.push("everyone");
-    mentions.push(...message.mentions.users.map(user => "u-" + user.id));
-    mentions.push(...message.mentions.roles.map(role => "r-" + role.id));
-
     return {
         channelId: message.channelId,
         guildId: message.guildId ?? "mafia bot does not support dms",
@@ -601,7 +595,7 @@ export async function transformMessage(message: Message, reactions: boolean = tr
         embeds: message.toJSON().embeds,
         //@ts-expect-error
         attachments: message.toJSON().attachments,
-        mentions: mentions,
+        mentions: handleMentions(message),
         reference: message.reference?.messageId ?? null,
         poll: message.poll ? true : false,
         ... (reactions ? { reactions: await getReactions(message) } : {}),

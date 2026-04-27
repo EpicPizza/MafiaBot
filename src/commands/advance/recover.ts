@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { ChannelType, ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
+import { ChannelType, ChatInputCommandInteraction, EmbedBuilder, SlashCommandSubcommandBuilder } from "discord.js";
 import { z } from "zod";
 import { Event, type TextCommand } from '../../discord';
 import { fromZod } from '../../utils/text';
@@ -14,7 +14,7 @@ import { Subcommand } from "../../utils/subcommands";
 import { Instance } from "../../utils/instance";
 import { fetchMessage, updateSnipeMessage } from "../../utils/mafia/tracking";
 import { getWebhook } from "../../utils/webhook";
-import { archiveMessage } from "../../utils/archive";
+import { archiveMessage, completeMessage, getReactions } from "../../utils/archive";
 
 export const RecoverCommand = {
     name: "recover",
@@ -52,21 +52,32 @@ export const RecoverCommand = {
         const tracked = await fetchMessage({ channelId: channel.id, id: messageId, partial: true });
         if(!tracked || !('createdTimestamp' in tracked)) throw new Error("Message not found!");
 
-        if(!('fetchWebhooks' in channel) || channel.type != ChannelType.GuildText) return;
-        const webhook = await getWebhook(channel);
+        // if(!('fetchWebhooks' in channel) || channel.type != ChannelType.GuildText) return;
+        // const webhook = await getWebhook(channel);
 
-        const result = await archiveMessage(channel, tracked, webhook.client, true, undefined, true);
+        const message = await completeMessage(tracked, "reduced");
+
+        const content = "💫 **" + message.stars + "** https://discord.com/channels/" + message.guildId + "/" + message.channelId + "/" + message.id;
+
+        const embed = new EmbedBuilder()
+            .setAuthor({ name: message.nickname ?? message.username, iconURL: message.avatarURL })
+            .setFooter({ text: new Date(message.createdTimestamp).toLocaleString() });
+
+        if(message.content.length > 0 || (message.reactions?.length ?? 0) > 0) embed.setDescription(message.content + "\n\n" + message.reactions);
         
-        webhook.destroy();
+        const image = message.attachments.find(attachment => 'contentType' in attachment && typeof attachment.contentType == 'string' && attachment.contentType.startsWith("image"));
+        if(image) embed.setImage(image.url);
 
-        await updateSnipeMessage({ channelId: result.channel_id, id: result.id }, messageId);
+        // webhook.destroy();
+
+        // await updateSnipeMessage({ channelId: result.channel_id, id: result.id }, messageId);
         
         if(interaction.type != 'text') {
-            await interaction.editReply({ content: "Message recovered."});
+            await interaction.editReply({ embeds: [embed], content: content });
         } else {
             await removeReactions(interaction.message);
 
-            await interaction.message.react("✅");
+           interaction.message.reply({ embeds: [embed], content: content });
         }
     }
 } satisfies Subcommand;

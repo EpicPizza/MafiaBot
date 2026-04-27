@@ -1,186 +1,177 @@
-import { APIMessage, Attachment, AttachmentBuilder, ChannelType, Collection, EmbedBuilder, EmbedFooterOptions, Message, TextChannel, WebhookClient } from "discord.js";
+import { APIActionRowComponent, APIAttachment, APIButtonComponent, APIMessage, APIMessageComponentBaseInteractionData, APIMessageComponentEmoji, Attachment, AttachmentBuilder, ChannelType, Collection, EmbedBuilder, EmbedFooterOptions, Message, TextChannel, User, WebhookClient } from "discord.js";
 import Stream from 'stream';
 import * as https from 'https';
 import { TrackedMessage } from "./mafia/tracking";
 import client from "../discord/client";
 
-export async function archiveMessage(channel: TextChannel, message: Message | TrackedMessage, webhook: WebhookClient, note = false, name: string | undefined = undefined, minimal: boolean = false) {
-    channel.messages.cache.clear();
+export async function archiveMessage(options: { 
+    message: Message | TrackedMessage, 
+    webhook: WebhookClient,
+    url?: boolean, 
+    nameNote?: string | undefined, 
+    reactions?: 'full' | 'reduced' | 'none',
+    minimal?: boolean, 
+}) {
+    const { message, webhook, url = false, nameNote, reactions = 'full', minimal = false } = options;
 
-    const messageChannel = 'authorId' in message ? (await (await client.guilds.fetch({ guild: message.guildId, cache: true })).channels.fetch( message.channelId, { cache: true })) : message.channel;
-    if(messageChannel == null || messageChannel.type != ChannelType.GuildText) throw new Error("CHannel not found!"); 
+    if(message.content == "" && !('size' in message.attachments ? message.attachments.size > 0 : message.attachments.length > 0) && message.embeds.length == 0) throw new Error("empty");
 
-    const { newAttachments, fails } = await getAttachments(message.attachments, messageChannel, message.id);
-
-    const messageEmbeds = message.embeds;
-
-    if(message.content == "" && !('size' in message.attachments ? message.attachments.size > 0 : message.attachments.length > 0) && message.embeds.length == 0) {
-        throw new Error("empty");
-    }
-
-    const response = await getNickname(message);
-
-    const sent = new Date(0);
-    sent.setUTCSeconds(Math.ceil(message.createdTimestamp / 1000));
-
-    if(fails > 0) {
-        response.footer.text += "Failed to retreive " + fails + " attachment" + (fails == 1 ? "" : "s") + ".\n";
-    }
-
-    response.footer.text += "Sent " + sent.toLocaleString('default', { timeZone: 'PST' }) + "\n";
-
-    var embed = new EmbedBuilder()
-
-    const reference = await handleReference(message);
+    const fetchedMessage = await completeMessage(message, reactions == 'none' ? 'reduced' : reactions);
 
     var optionsWebhook = {
         content: message.content,
-        username: response.nickname,
-        avatarURL: response.avatarURL,
+        username: fetchedMessage.nickname ?? fetchedMessage.username,
+        avatarURL: fetchedMessage.avatarURL,
         allowedMentions: { parse: [] }, //to prevent pings
         embeds: new Array(),
-        files: newAttachments,
-        components: reference,
+        files: await buildAttachments(fetchedMessage.attachments),
+        components: fetchedMessage.reference ? createReplyButton(fetchedMessage.guildId ?? "---", fetchedMessage.channelId, fetchedMessage.reference) : [],
     }
 
-    if(message.editedTimestamp) {
-        response.footer.text += "\nEdited";
+    let embedFooter = "Original message by " + fetchedMessage.username + ".\nSent at " + new Date(fetchedMessage.createdTimestamp).toLocaleString() + (fetchedMessage.editedTimestamp ? "\nEdited." : "");
+    let embedDescription = "";
+
+    if(reactions != 'none') {
+        embedDescription = fetchedMessage.reactions ?? "";
+    } 
+    
+    if(nameNote) {
+        embedDescription = "Triggered by " + (nameNote) + ".\n\n" + embedDescription;
     }
 
-    const reactionsString = await getReactionsString(message);
-
-    if((reactionsString != null && minimal) || !note) {
-        embed.setDescription(reactionsString);
-    } else if(reactionsString != null && !minimal && note) {
-        embed.setDescription("Triggered by " + (name ?? response.username) + ".\n\n" + reactionsString + "\n" + "https://discord.com/channels/" + message.guildId + "/" + message.channelId + "/" + message.id);
-    } else if(!minimal && note) {
-        embed.setDescription("Triggered by " + (name ?? response.username) + ".\n\n" + "https://discord.com/channels/" + message.guildId + "/" + message.channelId + "/" + message.id);
+    if(url) {
+        embedDescription = embedDescription + "\n" + "https://discord.com/channels/" + message.guildId + "/" + message.channelId + "/" + message.id;
     }
 
-    if(!minimal) embed.setFooter(response.footer);
+    if(!minimal && (embedDescription.length > 0 || embedFooter.length > 0)) {
+        const embed = new EmbedBuilder();
 
-    const description = embed.toJSON().description;
-    if(!minimal || (description != undefined && description.length > 0))optionsWebhook.embeds = [embed];
+        if(embedDescription.length > 0) embed.setDescription(embedDescription);
+        if(embedFooter.length > 0) embed.setFooter({ text: embedFooter });
 
-    for(var b = messageEmbeds.length - 1; b >= 0; b--) {
-        const messageEmbed = messageEmbeds[b];
-        if (('data' in messageEmbed ? messageEmbed.data.type : messageEmbed.type) === "rich") {
-            optionsWebhook.embeds.unshift(messageEmbeds[b]);
+        optionsWebhook.embeds.push(embed);
+    }
+
+    optionsWebhook.embeds.push(...fetchedMessage.embeds.filter(embed => ('data' in embed ? embed.data.type : embed.type) === "rich"));
+
+    return await webhook.send(optionsWebhook);
+}
+
+export async function completeMessage(message: Message | TrackedMessage, reactionFormat: 'full' | 'reduced' = 'full') {
+    const channel = 'authorId' in message ? (await (await client.guilds.fetch({ guild: message.guildId, cache: true })).channels.fetch( message.channelId, { cache: true })) : message.channel;
+    if(channel == null || channel.type != ChannelType.GuildText) throw new Error("CHannel not found!"); 
+
+    const [nickname, attachments, reactions] = await Promise.all([
+        getNickname(message),
+        getAttachments(message.attachments, channel, message.id),
+        'authorId' in message ? message.reactions : getReactions(message)
+    ]);
+
+    return {
+        ...nickname,
+        attachments,
+        reactions: await getReactionsString(message, reactionFormat, reactions),
+        content: message.content,
+        cleanContent: message.cleanContent,
+        reference: handleReference(message),
+        channelId: message.channelId,
+        guildId: message.guildId,
+        embeds: message.embeds,
+        createdTimestamp: message.createdTimestamp,
+        editedTimestamp: message.editedTimestamp,
+        mentions: 'authorId' in message ? message.mentions : handleMentions(message), 
+        id: message.id,
+        stars: reactions.find(entry => entry.emoji == "⭐️")?.id.length ?? 0,
+    };
+}
+
+export function handleMentions(message: Message) {
+    const mentions = [] as string[];
+
+    if(message.mentions.everyone) mentions.push("everyone");
+    mentions.push(...message.mentions.users.map(user => "u-" + user.id));
+    mentions.push(...message.mentions.roles.map(role => "r-" + role.id));
+
+    return mentions;
+}
+
+export async function buildAttachments(attachments: { name: string, url: string }[]) {
+    return (await Promise.all(attachments.map(async attachment => {
+        if(attachment.url.includes("discordapp")) {
+            const file = await getFile(attachment.url);
+
+            if(file.readableLength != 0) return new AttachmentBuilder(file.read()).setName(attachment.name as string);
+        } else {
+            return new AttachmentBuilder(attachment.url).setName(attachment.name as string);
         }
-    }
-
-    return await webhook.send(optionsWebhook as any);
+    }))).filter(entry => entry != undefined);
 }
 
-export async function getAttachments(messageAttachments: Collection<string, Attachment> | APIMessage["attachments"], messageChannel: TextChannel, messageId: string): Promise<{ newAttachments: any[], fails: number }> {
-    var newAttachments = new Array();
-    var indexA = 0;
-    let fails = 0;
+export async function getAttachments(attachments: Collection<string, Attachment> | APIMessage["attachments"], channel: TextChannel, messageId: string): Promise<{ name: string, url: string }[]> {
+    let fetchedAttachments = [] as { url: string, name: string }[];
 
-    if('length' in messageAttachments && messageAttachments.length > 0 && typeof messageAttachments[0] == 'string') {
-        const discordMessage = await messageChannel.messages.fetch(messageId).catch(() => undefined);
+    if('length' in attachments && attachments.length > 0 && typeof attachments[0] == 'string') {
+        const discordMessage = await channel.messages.fetch(messageId).catch(() => undefined);
 
-        if(discordMessage == undefined) {
-            return { newAttachments: [], fails: messageAttachments.length };
+        if(discordMessage == undefined) return []
 
+        fetchedAttachments.push(... attachments.map(attachment => discordMessage.attachments.get(attachment as unknown as string)).filter(attachment => attachment != undefined).map(attachment => attachment.toJSON() as Attachment));
+    } else if('size' in attachments ? attachments.size > 0 : attachments.length > 0) {
+        let array = [] as Attachment[] | APIAttachment[];
+        
+        if('difference' in attachments) {
+            array = attachments.map(attachment => attachment);
+        } else {
+            array = attachments;
         }
 
-        newAttachments.push(... messageAttachments.map(attachment => discordMessage.attachments.get(attachment as unknown as string)).filter(attachment => attachment != undefined).map(attachment => attachment.toJSON() as Attachment));
-    } else if('size' in messageAttachments ? messageAttachments.size > 0 : messageAttachments.length > 0) {
-        await new Promise<null>((resolve) => {
-            messageAttachments.forEach(async (attachment) => {
-                
-                console.log(attachment.url);
-
-                if(attachment.url.includes("discordapp")) {
-                    var file = await getFile(attachment.url);
-
-                    if(file.readableLength != 0) {
-                        newAttachments.push(new AttachmentBuilder(file.read()).setName(attachment.name as string));
-                    } else {
-                        fails++;
-                    }
-                } else {
-                    newAttachments.push(new AttachmentBuilder(attachment.url).setName(attachment.name as string));
-                }
-                indexA++;
-                if(indexA == ('size' in messageAttachments ? messageAttachments.size : messageAttachments.length)) {
-                    resolve(null);
-                }
-            })
-        });
+        fetchedAttachments.push(... array.map((attachment: Attachment | APIAttachment) => ({
+            name: attachment.title ?? "unknown",
+            url: attachment.url,
+        })));
     }
-    return { newAttachments, fails};
+
+    return fetchedAttachments;
 }
 
+function stringifyReactions(reactions: Reaction[], format: 'full' | 'reduced'): string {
+    return reactions.reduce((prev, curr, i) => {
+        prev += "**" + curr.id.length + "** " + curr.emoji;
 
-function stringifyReactions(reactions: Reaction[]): string {
-    var reactionsString = "";
-    for(var a = 0; a < reactions.length; a++) {
-        if((reactions[a].id as string[]).length == 0) continue;
-
-        reactionsString += reactions[a].emoji + " - ";
-        for(var j = 0; j < (reactions[a].id as string[]).length; j++) {
-            reactionsString += "<@" + (reactions[a].id as string[])[j] + ">, ";
+        if(format == 'full') {
+            prev += " -" + curr.id.reduce((prev, curr) => prev + " <@" + curr + ">", "");
+        } else if(i != reactions.length - 1) {
+            prev += " | ";
         }
-        reactionsString = reactionsString.substring(0, reactionsString.length - 2);
-        reactionsString += "\n";
-    }
-    return reactionsString;
+
+        return prev;
+    }, "");
 }
 
-interface nicknameResponse {
-    footer: EmbedFooterOptions,
-    nickname: string,
-    avatarURL: string | null,
-    username: string | null,
-}
-
-
-export async function getNickname(message: Message | TrackedMessage): Promise<nicknameResponse> {
-    var footer: EmbedFooterOptions = {text: ""};
+export async function getNickname(message: Message | TrackedMessage) {
+    let user: User | undefined = undefined;
 
     if('authorId' in message) {
-        console.log(message.authorId);
-
-        const author = await client.users.fetch(message.authorId).catch(() => undefined);
-
-        var nickname = author ? author.displayName : null;
-
-        return { footer: { text: "Original message by " + (author?.username ?? "unknown") + "\n" }, nickname: nickname ?? message.authorId, username: (author?.username ?? "unknown"), avatarURL: author?.avatarURL() ?? client.user?.avatarURL() ?? "" };
-    }
-
-    if(message.author.bot == true || message.author.discriminator == "0000") {
-        return {footer: footer, nickname: message.author.username, username: message.author.username, avatarURL: message.author.avatarURL()};
-    }
-
-    const member = await message.guild?.members.fetch(message.author.id);
-    var nickname = member ? member.displayName: null;
-    var hasNickname = false;
-    if(nickname != null) {
-        hasNickname = true;
+        user = await client.users.fetch(message.authorId).catch(() => undefined);
     } else {
-        nickname = message.author.username;
+        user = message.author;
     }
 
-    if(hasNickname) {
-        footer.text = "Original message by " + message.author.username + (message.author.discriminator == "0" ? "\n" : "#" + message.author.discriminator + ".\n" + footer.text);
+    return {
+        nickname: user?.displayName ?? undefined,
+        avatarURL: user?.avatarURL() ?? undefined,
+        username: 'authorId' in message ? message.authorId : message.author.id,
+        bot: 'authorId' in message ? user?.bot ?? false : message.author.bot,
     }
-    return {footer: footer, nickname: nickname, username: message.author.username, avatarURL: message.author.avatarURL()};
 }
 
-export async function getReactionsString(message: Message | TrackedMessage): Promise<string | null> {
-    console.log(message);
-
-    const reactions = 'authorId' in message ? message.reactions : await getReactions(message);
-
-    var reactionsString = "";
+export async function getReactionsString(message: Message | TrackedMessage, format: 'full' | 'reduced', reactions: Reaction[] | undefined = undefined): Promise<string | null> {
+    if(reactions == undefined) reactions = 'authorId' in message ? message.reactions : await getReactions(message);
 
     if(reactions && 'length' in reactions && reactions.length > 0 && reactions[0].id != null && reactions[0].emoji != null) {
-        reactionsString = stringifyReactions(reactions)
-        return reactionsString;
+        return stringifyReactions(reactions, format)
     } else {
-        return(null);
+        return null;
     }
 }
 
@@ -190,69 +181,48 @@ export interface Reaction {
 }
 
 export async function getReactions(message: Message): Promise<Reaction[]> {
-    return new Promise(async (resolve) => {
-        var index = 0;
-        var fetchreactions = new Array();
-        message.reactions.cache.map(async function reactionLister(reaction) {
-            try {
-                var emoji = await reaction.fetch();
-                var user = await emoji.users.fetch();
+    const reactions = [] as { id: string[], emoji: string }[];
 
-                var emojiUrl;
-                if(emoji.emoji.animated == null || emoji.emoji.animated == false) {
-                    if(emoji.emoji.id == null) {
-                        emojiUrl = emoji.emoji.name;
-                    } else {
-                        emojiUrl = "<:" + emoji.emoji.name + ":" + emoji.emoji.id + ">"
-                    }
-                } else {
-                    emojiUrl = "<a:" + emoji.emoji.name + ":" + emoji.emoji.id + ">"
-                }
-                var reactors = new Array();
-                user.forEach(function userLister(reactor) {
-                    reactors.push(reactor.id);
-                });
-                fetchreactions.push({id: reactors, emoji: emojiUrl});
-            } catch(e) {
-                console.log(e);
-            }
+    await message.fetch();
 
-            index++;
-            if(index == message.reactions.cache.size) {
-                resolve(fetchreactions);
-            }
-        });
-        await sleep(500); //plz do not remove... for some reason this breaks without, could be possible issues with accessing discord api too quickly, idk...
-        //two years later... i know why and this code is stupid, but im too lazy to fix it rn
-        if(message.reactions.cache.size == 0) {
-            resolve([{id: [], emoji: null}]);
+    await Promise.all(message.reactions.cache.map(async reaction => {
+        await reaction.users.fetch();
+        const users = reaction.users.cache.map(user => user.id);
+
+        let parsed = "";
+
+        if(reaction.emoji.id == null) {
+            parsed = reaction.emoji.name ?? "❓";
+        } else if(reaction.emoji.animated != true) {
+            parsed = "<:" + reaction.emoji.name + ":" + reaction.emoji.id + ">";
+        } else {
+            parsed = "<a:" + reaction.emoji.name + ":" + reaction.emoji.id + ">";
         }
-    });
+
+        reactions.push({ id: users, emoji: parsed });
+    }));
+
+    return reactions;
 }
 
-function sleep(ms: number) {
-    return new Promise((resolve) => {
-        setTimeout(resolve, ms);
-    });
+function handleReference(message: Message | TrackedMessage) {
+    if(message.reference == null) return undefined;
+
+    return "https://discord.com/channels/" + message.guildId + "/" + message.channelId + "/" + (typeof message.reference == 'string' ? message.reference : message.reference.messageId);
 }
 
-async function handleReference(message: Message | TrackedMessage): Promise<any[]> {
-    var components = new Array();
-    if(message.reference != null) {
-        components.push({
-            "type": 1,
-            "components": [
-                {
-                    "type": 2,
-                    "emoji": "⤴️",
-                    "style":5,
-                    "url": "https://discord.com/channels/" + message.guildId + "/" + message.channelId + "/" + (typeof message.reference == 'string' ? message.reference : message.reference.messageId)
-                }
-            ]
-
-        }) 
-    }
-    return components;
+function createReplyButton(guildId: string, channelId: string, messageId: string) {
+    return [{
+        "type": 1,
+        "components": [
+            {
+                "type": 2,
+                "emoji": "⤴️" as APIMessageComponentEmoji,
+                "style":5,
+                "url": "https://discord.com/channels/" + guildId + "/" + channelId + "/" + messageId,
+            }
+        ]
+    }] satisfies APIActionRowComponent<APIButtonComponent>[];
 }
 
 function getFile(url: string): Promise<Stream.Transform> {
