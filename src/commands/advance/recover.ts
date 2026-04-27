@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { ChannelType, ChatInputCommandInteraction, EmbedBuilder, SlashCommandSubcommandBuilder } from "discord.js";
+import { ChannelType, ChatInputCommandInteraction, ColorResolvable, Colors, EmbedBuilder, SlashCommandSubcommandBuilder } from "discord.js";
 import { z } from "zod";
 import { Event, type TextCommand } from '../../discord';
 import { fromZod } from '../../utils/text';
@@ -55,13 +55,16 @@ export const RecoverCommand = {
         // if(!('fetchWebhooks' in channel) || channel.type != ChannelType.GuildText) return;
         // const webhook = await getWebhook(channel);
 
-        const message = await completeMessage(tracked, "reduced");
+        const message = await completeMessage(tracked, "reduced", true);
 
-        const content = "💫 **" + message.stars + "** https://discord.com/channels/" + message.guildId + "/" + message.channelId + "/" + message.id;
+        const tier = getTier(message.stars);
+
+        const content = tier.emoji + " **" + message.stars + "** https://discord.com/channels/" + message.guildId + "/" + message.channelId + "/" + message.id;
 
         const embed = new EmbedBuilder()
             .setAuthor({ name: message.nickname ?? message.username, iconURL: message.avatarURL })
-            .setFooter({ text: new Date(message.createdTimestamp).toLocaleString() });
+            .setFooter({ text: new Date(message.createdTimestamp).toLocaleString() })
+            .setColor(tier.color);
 
         if(message.content.length > 0 || (message.reactions?.length ?? 0) > 0) embed.setDescription(message.content + "\n\n" + message.reactions);
         
@@ -81,3 +84,19 @@ export const RecoverCommand = {
         }
     }
 } satisfies Subcommand;
+
+function getTier(stars: number): { emoji: string, color: ColorResolvable } {
+    if(stars > 25) {
+        return { emoji: '🎆', color: Colors.Purple };
+    } else if(stars > 21) {
+        return { emoji: '🌠', color: Colors.Blue };
+    } else if(stars > 18) {
+        return { emoji: '✨', color: Colors.Red };
+    } else if(stars > 14) {
+        return { emoji: '💫', color: Colors.Orange };
+    } else if(stars > 10) {
+        return { emoji: '🌟', color: Colors.Yellow };
+    } else {
+        return { emoji: '⭐', color: Colors.White };
+    }
+}

@@ -57,7 +57,7 @@ export async function archiveMessage(options: {
     return await webhook.send(optionsWebhook);
 }
 
-export async function completeMessage(message: Message | TrackedMessage, reactionFormat: 'full' | 'reduced' = 'full') {
+export async function completeMessage(message: Message | TrackedMessage, reactionFormat: 'full' | 'reduced' = 'full', withoutStars: boolean = false) {
     const channel = 'authorId' in message ? (await (await client.guilds.fetch({ guild: message.guildId, cache: true })).channels.fetch( message.channelId, { cache: true })) : message.channel;
     if(channel == null || channel.type != ChannelType.GuildText) throw new Error("CHannel not found!"); 
 
@@ -67,12 +67,12 @@ export async function completeMessage(message: Message | TrackedMessage, reactio
         'authorId' in message ? message.reactions : getReactions(message)
     ]);
 
-    const stars = reactions.find(entry => entry.emoji == "⭐")?.id.length ?? 0;
+    const stars = 'stars' in message && typeof message.stars == 'number' ? message.stars : reactions.find(entry => entry.emoji == "⭐")?.id.length ?? 0;
 
     return {
         ...nickname,
         attachments,
-        reactions: await getReactionsString(message, reactionFormat, reactions),
+        reactions: await getReactionsString(message, reactionFormat, withoutStars, reactions),
         content: message.content,
         cleanContent: message.cleanContent,
         reference: handleReference(message),
@@ -136,7 +136,9 @@ export async function getAttachments(attachments: Collection<string, Attachment>
     return fetchedAttachments;
 }
 
-function stringifyReactions(reactions: Reaction[], format: 'full' | 'reduced'): string {
+function stringifyReactions(reactions: Reaction[], format: 'full' | 'reduced', withoutStars: boolean = false): string {
+    reactions = reactions.filter(entry => (!withoutStars || entry.emoji != '⭐') && entry.id.length != 0);
+
     return reactions.reduce((prev, curr, i) => {
         prev += "**" + curr.id.length + "** " + curr.emoji;
 
@@ -167,11 +169,11 @@ export async function getNickname(message: Message | TrackedMessage) {
     }
 }
 
-export async function getReactionsString(message: Message | TrackedMessage, format: 'full' | 'reduced', reactions: Reaction[] | undefined = undefined): Promise<string | null> {
+export async function getReactionsString(message: Message | TrackedMessage, format: 'full' | 'reduced', withoutStars: boolean = false, reactions: Reaction[] | undefined = undefined): Promise<string | null> {
     if(reactions == undefined) reactions = 'authorId' in message ? message.reactions : await getReactions(message);
 
     if(reactions && 'length' in reactions && reactions.length > 0 && reactions[0].id != null && reactions[0].emoji != null) {
-        return stringifyReactions(reactions, format)
+        return stringifyReactions(reactions, format, withoutStars)
     } else {
         return null;
     }
