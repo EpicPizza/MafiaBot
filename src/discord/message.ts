@@ -439,7 +439,7 @@ async function bigbooms(message: Message) {
             }
 
             //@ts-ignore
-            await message.channel.send("NO MEOW");
+            await message.channel.send("MEOW");
         }
     }
 
