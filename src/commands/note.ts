@@ -124,7 +124,7 @@ module.exports = {
 
         const webhook = await getWebhook(sendTo == 'mafia' ? mafiaChannel : channel);
 
-        await archiveMessage((sendTo == 'mafia' ? mafiaChannel : channel), await setup.primary.chat.messages.fetch(id), webhook.client, true, user.nickname);
+        await archiveMessage({ webhook: webhook.client, message: await setup.primary.chat.messages.fetch(id), nameNote: user.nickname, url: true });
 
         webhook.destroy();
 
