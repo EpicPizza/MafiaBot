@@ -295,6 +295,7 @@ async function messageExtensions(extensionNames: string[], message: Message) {
 
 
 let freeze = false;
+let running = false;
 
 async function bigbooms(message: Message) {
     if(message.author.id == process.env.OWNER && message.content == "freeze") {
@@ -312,6 +313,11 @@ async function bigbooms(message: Message) {
     }
 
     if(message.content.toLowerCase().includes("big boom") && message.author.bot == false && message.guildId != "569988266657316884") {
+        if (running) {
+            return;
+        }
+        running = true;
+        
         const index = message.content.toLowerCase().indexOf("big boom");
 
         let numberString = "";
@@ -342,9 +348,15 @@ async function bigbooms(message: Message) {
             //@ts-ignore
             await message.channel.send("BOOM 💥");
         }
+
+        runnning = false;
     }
 
     if(message.content.toLowerCase().includes("big harold") && message.author.bot == false  && message.guildId != "569988266657316884") {
+        if (running) {
+            return;
+        }
+        running = true;
         const index = message.content.toLowerCase().indexOf("big harold");
 
         let numberString = "";
@@ -378,6 +390,10 @@ async function bigbooms(message: Message) {
     }
 
     if(message.content.toLowerCase().includes("big chomp") && message.author.bot == false  && message.guildId != "569988266657316884") {
+        if (running) {
+            return;
+        }
+        running = true;
         const index = message.content.toLowerCase().indexOf("big chomp");
 
         let numberString = "";
@@ -408,9 +424,14 @@ async function bigbooms(message: Message) {
                 //@ts-ignore
             await message.channel.send("CHOMP");
         }
+        runnning = false;
     }
 
     if(message.content.toLowerCase().includes("big meow") && message.author.bot == false  && message.guildId != "569988266657316884") {
+        if (running) {
+            return;
+        }
+        running = true;
         const index = message.content.toLowerCase().indexOf("big meow");
 
         let numberString = "";
@@ -441,6 +462,7 @@ async function bigbooms(message: Message) {
             //@ts-ignore
             await message.channel.send("MEOW");
         }
+        runnning = false;
     }
 
 
