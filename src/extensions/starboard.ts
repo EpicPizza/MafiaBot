@@ -157,8 +157,16 @@ module.exports = {
                 ids.push({ channel: entry.channel, id: entry.id });
             });
 
-            toDelete = toDelete.filter(entry => entry.channel == instance.setup.primary.chat.id);
-            ids = ids.filter(entry => entry.channel == instance.setup.primary.chat.id && !toDelete.find(deleting => deleting.id == entry.id));
+            toDelete = toDelete.filter((entry, index, self) => 
+                entry.channel == instance.setup.primary.chat.id && 
+                self.findIndex(t => t.id === entry.id) === index
+            );
+            
+            ids = ids.filter((entry, index, self) => 
+                entry.channel == instance.setup.primary.chat.id && 
+                !toDelete.find(deleting => deleting.id == entry.id) &&
+                self.findIndex(t => t.id === entry.id) === index
+            );
 
             const messages = (await Promise.all(ids.map(async entry => fetchMessage({ channelId: instance.setup.primary.chat.id, id: entry.id, partial: true })))).filter(entry => entry != undefined && 'authorId' in entry);
             const deleting =  (await Promise.all(toDelete.map(async entry => fetchMessage({ channelId: instance.setup.primary.chat.id, id: entry.id, partial: true })))).filter(entry => entry != undefined && 'authorId' in entry);
