@@ -134,7 +134,10 @@ module.exports = {
 
         await Promise.all(instances.map(async instance => {
             const settings = (await db.collection('instances').doc(instance.id).collection('starboard').doc('settings').get()).data() as Settings | undefined;
-            if(settings == undefined) throw new Error("(" + instance.id + ") starboard needs setup");
+            if(settings == undefined) {
+                console.log("(" + instance.id + ") starboard needs setup");
+                return;
+            }
 
             const channel = await instance.setup.primary.guild.channels.fetch(settings.channel, { cache: true });
             if(channel == null || !('messages' in channel)) throw new Error("(" + instance.id + ") starboard channel not found");
