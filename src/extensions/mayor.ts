@@ -251,7 +251,8 @@ module.exports = {
         }
      }, // no need to change from default behavior
     onHammer: async (instance, game, hammered) => {},
-    onRemove: async (instance, game, removed) => {}
+    onRemove: async (instance, game, removed) => {},
+    onDump: async (statsBatch, messageBatch, reactionBatch) => {},
 } satisfies Extension;
 
 function capitalize(input: string) {

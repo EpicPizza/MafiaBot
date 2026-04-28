@@ -1,11 +1,12 @@
 import { APIMessage, Attachment, FetchMessageOptions, Message, MessageReaction, MessageType, PartialMessage, PartialMessageReaction, PartialUser, TextChannel, User } from "discord.js";
 import { FieldValue } from "firebase-admin/firestore";
 import { firebaseAdmin } from "../firebase";
-import { getAuthority, Instance } from "../instance";
+import { getAuthority, getCachedInstances, Instance } from "../instance";
 import { getReactions, handleMentions, Reaction } from "../archive";
 import { getSetup } from "../setup";
+import { getEnabledExtensions } from "../extensions";
 
-type MessageAction = {
+export type MessageAction = {
     type: 'delete',
     timestamp: number,
     deleted: { channel: string, id: string },
@@ -20,7 +21,7 @@ type MessageAction = {
     log?: Log,
 };
 
-interface ReactionAction {
+export interface ReactionAction {
     type: 'add' | 'remove' | 'removeAll' | 'removeReaction',
     id: string,
     channel: string,
@@ -28,7 +29,7 @@ interface ReactionAction {
     user?: string,
 }
 
-interface StatsAction {
+export interface StatsAction {
     type: 'add',
     id: string,
     day: number,
@@ -65,6 +66,8 @@ export interface TrackedMessage {
     deleted?: boolean,
     logs?: Log[],
     sniped?: string,
+    stars?: number,
+    starboard?: string,
 }
 
 interface Log {
@@ -182,6 +185,14 @@ export async function dumpTracking() {
     });
 
     dumping = false;
+
+    const instances = await getCachedInstances();
+    
+    await Promise.all(instances.map(async instance => {
+        const extensions = getEnabledExtensions(instance.global);
+        
+        await Promise.all(extensions.map(extension => extension.onDump(compressedStats, messageBatch, reactionBatch)));
+    }));
 }
 
 function reconcileStats(statsEntries: StatsAction[]) {

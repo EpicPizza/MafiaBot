@@ -416,7 +416,8 @@ module.exports = {
     onVote: async (instance, game, voter, voting, type, users, transaction) => {},
     onVotes: async (instance, game, board ) => { return ""; },
     onHammer: async (instance, game, hammered: string) => {},
-    onRemove: async (instance, game, removed: string) => {}
+    onRemove: async (instance, game, removed: string) => {},
+    onDump: async (statsBatch, messageBatch, reactionBatch) => {},
 } satisfies Extension;
 
 async function getDaykill(id: string, instance: Instance) {

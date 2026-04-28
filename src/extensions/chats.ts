@@ -322,7 +322,8 @@ module.exports = {
                 chats: FieldValue.arrayRemove(removed),
             })
         }
-    }
+    },
+    onDump: async (statsBatch, messageBatch, reactionBatch) => {},
 } satisfies Extension;
 
 function capitalize(input: string) {

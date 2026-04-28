@@ -14,6 +14,7 @@ import type { TransactionResult } from './mafia/vote';
 import type { Setup } from './setup';
 import { initHelp } from '../discord/help';
 import { Instance } from './instance';
+import { MessageAction, ReactionAction, StatsAction } from './mafia/tracking';
 
 const extensions = [] as Extension[]; 
 const extensionsPath = path.join(__dirname, '../extensions');
@@ -74,9 +75,10 @@ export interface Extension {
     onVotes: { (instance: Instance, game: Signups, board: string ): string | Promise<string> },
     onHammer: { (instance: Instance, game: Signups, hammered: string): Promise<unknown> },
     onRemove: { (instance: Instance, game: Signups, removed: string): Promise<unknown> },
+    onDump: { (statsBatch: StatsAction[], messageBatch: MessageAction[], reactionBatch: ReactionAction[]): Promise<unknown> }
 }
 
-export async function getEnabledExtensions(global: Global) {
+export function getEnabledExtensions(global: Global) {
     return extensions.filter(extension => global.extensions.find(enabled => enabled == extension.name));
 }
 

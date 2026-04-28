@@ -178,7 +178,8 @@ module.exports = {
 
         await wait(5000);
     },
-    onRemove: async (instance, game, removed: string) => {}
+    onRemove: async (instance, game, removed: string) => {},
+    onDump: async (statsBatch, messageBatch, reactionBatch) => {},
 } satisfies Extension;
 
 async function wait(milliseconds: number) {

@@ -282,7 +282,8 @@ module.exports = {
                 })
             }
         }
-    }
+    },
+    onDump: async (statsBatch, messageBatch, reactionBatch) => {},
 } satisfies Extension;
 
 function capitalize(input: string) {

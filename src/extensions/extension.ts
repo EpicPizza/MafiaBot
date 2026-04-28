@@ -151,5 +151,6 @@ module.exports = {
          */
     },
     onHammer: async (instance, game, hammered) => {},
-    onRemove: async (instance, game, removed) => {}
+    onRemove: async (instance, game, removed) => {},
+    onDump: async (statsBatch, messageBatch, reactionBatch) => {},
 } satisfies Extension;
