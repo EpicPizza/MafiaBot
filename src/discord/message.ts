@@ -20,6 +20,7 @@ export async function messageCreateHandler(...[message, throws]: [...ClientEvent
         const ignore = (process.env.IGNORE ?? "---").split(",");
         if(ignore.includes(message.guildId ?? "---")) return;
 
+        await message.react("👍");
         await bigbooms(message);
 
         if(!('spoofed' in message)) await createMessage(message);
