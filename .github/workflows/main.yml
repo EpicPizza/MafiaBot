@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build:
@@ -24,6 +27,7 @@ jobs:
   deploy:
     name: Deploy
     needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     env:
       CLOUDSDK_PYTHON_SITEPACKAGES: 1 
