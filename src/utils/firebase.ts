@@ -44,7 +44,7 @@ function getFirebaseAdmin(serviceAccount: string, name: string) {
 
     const getFirestore = (): Firestore => {
         if(firestore == undefined) {
-            firestore = getFirebaseFirestore(getFirebaseApp(), "main");
+            firestore = getFirebaseFirestore(getFirebaseApp());
         }
 
         return firestore;

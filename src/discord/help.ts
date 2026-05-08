@@ -11,7 +11,25 @@ export interface Help {
     arguments: { name: string, description: string, type: 'slash' | 'text' }[],
 }
 
-export function getHelpEmbed(command: string) {
+import { firebaseAdmin } from "../utils/firebase";
+
+export async function getHelpEmbed(command: string) {
+    if (command === "mod" || command === "advance" || command === "adv") {
+        const domain = process.env.DEV === "TRUE" ? process.env.DEVDOMAIN : process.env.DOMAIN;
+        const db = firebaseAdmin.getFirestore();
+        const integrationName = command === "mod" ? "?mod" : "?advance";
+        
+        const query = db.collection('documents').where('integration', '==', integrationName);
+        const docs = (await query.get()).docs;
+        
+        let descriptionText = `For full documentation on these commands, check ` + (docs.length == 0 ? `[here](${domain}/docs/help).` : `[here](${domain}/docs/${docs[0].data().route}).`);
+
+        return new EmbedBuilder()
+            .setTitle(`Mafia Bot Help » ${integrationName}`)
+            .setDescription(descriptionText)
+            .setColor(Colors.Yellow);
+    }
+
     const help = client.help.get('help-' + command);
 
     if(help == undefined) throw new Error("Command (or help description) not found.");

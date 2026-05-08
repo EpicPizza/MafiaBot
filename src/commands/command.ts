@@ -36,7 +36,7 @@ module.exports = {
 
         if(command == null) throw new Error("Must declare command.");
 
-        const embed = getHelpEmbed(command);
+        const embed = await getHelpEmbed(command);
 
         interaction.reply({ embeds: [embed] });
     }

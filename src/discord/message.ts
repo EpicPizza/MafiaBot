@@ -81,7 +81,7 @@ export async function messageCreateHandler(...[message, throws]: [...ClientEvent
                     name = command.name();
                 }
 
-                const embed = getHelpEmbed(name);
+                const embed = await getHelpEmbed(name);
 
                 await message.reply({ embeds: [embed] });
 

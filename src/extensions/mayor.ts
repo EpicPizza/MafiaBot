@@ -17,31 +17,13 @@ import { Instance } from "../utils/instance";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
-const help = `This extension can support mayor in three different ways: hidden, secret, or classic. 
-- hidden - The mayor is always kept hidden with their extra votes always counted. 
-- secret - Works similarly to hidden, except the mayor has the ability to reveal that they are mayor. 
-- classic - Their extra votes are not counted until they reveal that they are mayor.
-- public - Their extra votes are immediently counted without having to reveal.
-
-⚠️ WARNING: Only ?reveal will recalculate hammer, a person may need to revote to count their new votes after being set mayor.
-
-**?mayor set {type} {weight} {day}** Type indicates the mayor behavior: hidden, secret or classic. Weight is how many votes the mayor will count for, minimum 1 and whole numbers only. Must be run by the mod, inside the dm that is mayor.
-
-**?mayor clear** Clear the current set mayor of a player. Must be run by the mod, inside the corresponding dm.
-
-**?mayor check** List out all the mayors set. Must be run in dead chat channel.
-
-**?mayor votes** Show votes with hidden mayors. Must be run in dead chat channel.
-
-**?reveal** Command used by player to reveal they are mayor.`
-
 module.exports = {
     name: "Mayors",
     emoji: "🗳️",
     commandName: "mayor",
     description: "Includes mayors and similar roles in games.",
     priority: [ "onVote", "onVotes" ], //events that need a return can only have one extensions modifying it, this prevents multiple extensions from modifying the same event
-    help: help,
+    help: "deprecated",
     shorthands: [
         {
             name: "reveal",
@@ -52,6 +34,7 @@ module.exports = {
         () => {
             return new Command()
                 .name('set')
+                .description('must be run by the mod, inside the dm that is mayor.')
                 .requiredOption('--type <type>', 'hidden, secret, classic, public', fromZod(z.literal("hidden").or(z.literal("secret")).or(z.literal("classic")).or(z.literal('public'))))
                 .requiredOption('--weight <weight>', 'number of votes', fromZod(z.coerce.number().int().min(1)))
                 .requiredOption('--day <day>', 'which day to be active on', fromZod(z.coerce.number().int().min(1)));

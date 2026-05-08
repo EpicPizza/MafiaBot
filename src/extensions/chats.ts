@@ -14,32 +14,13 @@ import { checkMod } from "../utils/mod";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
-const help = `**This extension can only be run by mods. Other than the create command, all these commands are run within the chat.**
-
-**?chat create {name} {nickname} {nickname}...** Create a chat between two to eight players, sperate nicknames with a space. Players will be pinged when the chat is created. This command can only be run within dms.
-
-**?chat close** Close a chat, removing access for all players. Cannot be reversed.
-
-**?chat lock** Lock a chat, preventing players from messaging but keeping access.
-
-**?chat unlock** Unlock a chat.
-
-**?chat lock match** Keep chat locked while main chat is locked and vice versa. Warning: this is disabled if you manually unlock or lock a chat after.
-
-**?chat add {nickname}** Add a player to the chat, pinging them once added.
-
-**?chat remove {command}** Remove a player's access to the chat.
-
-**Additional Notes:** Players are removed from chats when they are removed from the game.
-`
-
 module.exports = {
     name: "Chats",
     emoji: "💬",
     commandName: "chat",
     description: "Creates chats in dms between players.",
     priority: [ ], //events that need a return can only have one extensions modifying it, this prevents multiple extensions from modifying the same event
-    help: help,
+    help: "deprecated",
     commands: [
         () => {
             return new Command()

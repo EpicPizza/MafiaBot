@@ -20,29 +20,13 @@ import { Instance } from "../utils/instance";
 
 let close: Function | null = null;
 
-const help = `**?kill {nickname}** Command used by player to day kill. 
-
-**?daykill set {type: mute|remove|hammer} {expire}** Used in the corresponding player dm channel. Expire is the number of days it expires after the current day. 
-
-- Mute: mutes the player, must be removed later with ?mod remove. 
-- Remove: completely removes player, giving them spectator perms. 
-- Hammer: ends the day and doesn't automatically flip. 
-
-Note: Setting expire to \`0\` will expire the current day, during night, set \`1\` to expire the day after.
-
-**?daykill list** List all set day kills. Must be run in spectator chat.
-
-**?daykill configure {type: cancel|mod} {minutes}** In the specified number of minutes before EOD, to either not allow day kills (cancel) or to require the mod to reveal and flip (mod).
-
-**?daykill check** Show the configured state. Default: type mod, 20 minutes.`
-
 module.exports = {
     name: "Daykill",
     emoji: "🔫",
     commandName: "daykill",
     description: "Adds day kill functionality to Mafia Bot.",
     priority: [],
-    help: help,
+    help: "deprecated",
     shorthands: [
         {
             name: "kill",
