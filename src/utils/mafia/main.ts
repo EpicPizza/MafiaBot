@@ -521,7 +521,7 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
     const results = await Promise.allSettled(promises);
 
     const fails = results.filter(result => result.status == "rejected");
-
+    
     if(fails.length > 0) {
         console.log(fails);
 
@@ -530,13 +530,15 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
             .setColor(Colors.Red)
             .setDescription(fails.reduce<string>((accum, current) => accum + (current as unknown as PromiseRejectedResult).reason + "\n", ""))
 
-            if(interaction.type != 'text') {
-                return await interaction.editReply({ embeds: [embed] });
-            } else {
-                await removeReactions(interaction.message);
+        await setup.primary.chat.send((pings ? "<@&" + setup.primary.alive.id + "> " : "") + ":warning: Game has locked (mods, check errors).");
 
-                return await interaction.reply({ embeds: [embed] });
-            }
+        if(interaction.type != 'text') {
+            return await interaction.editReply({ embeds: [embed] });
+        } else {
+            await removeReactions(interaction.message);
+
+            return await interaction.reply({ embeds: [embed] });
+        }
     }
 
     const message = await setup.primary.chat.send((pings ? "<@&" + setup.primary.alive.id + "> " : "") + "Game has locked!");
