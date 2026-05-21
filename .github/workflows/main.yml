@@ -59,6 +59,8 @@ jobs:
               pm2 stop mafia-bot
               cd ../${{ secrets.USERNAME }}/MafiaBot
               sudo rm -rf build
+      - name: Compress Build Folder
+        run: tar -czf build.tar.gz build
       - name: Transfer Build to Production Server
         env:
           PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -69,8 +71,8 @@ jobs:
           chmod 600 ~/.ssh/google_compute_engine
           echo "$PUBLIC_KEY" > ~/.ssh/google_compute_engine.pub
           chmod 600 ~/.ssh/google_compute_engine.pub
-          gcloud compute scp --recurse ./build/* \
-            ${{ secrets.USERNAME }}@${{ secrets.GCP_VM_NAME }}:~/MafiaBot/build \
+          gcloud compute scp ./build.tar.gz \
+            ${{ secrets.USERNAME }}@${{ secrets.GCP_VM_NAME }}:~/MafiaBot/build.tar.gz \
             --zone=${{ secrets.GCP_VM_ZONE }} \
             --tunnel-through-iap \
             --project=${{ secrets.GCP_PROJECT_ID }} \
@@ -85,6 +87,8 @@ jobs:
           user: ${{ secrets.USERNAME }}
           command: |
               cd ../${{ secrets.USERNAME }}/MafiaBot
+              tar -xzf build.tar.gz
+              rm build.tar.gz
               git restore .
               git pull origin main
               sudo npm i
