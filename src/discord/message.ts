@@ -444,7 +444,7 @@ async function bigbooms(message: Message) {
     }
 
     if(message.content.toLowerCase().includes("big otter") && message.author.bot == false  && message.guildId != "569988266657316884") {
-        const index = message.content.toLowerCase().indexOf("big meow");
+        const index = message.content.toLowerCase().indexOf("big otter");
 
         let numberString = "";
 
