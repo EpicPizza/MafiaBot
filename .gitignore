@@ -6,3 +6,5 @@ src/utils/random.ts
 coverage
 messages.json
 src/testing.ts
+.dev.env
+deploy.sh

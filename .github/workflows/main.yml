@@ -58,40 +58,28 @@ jobs:
               pm2 list
               pm2 stop mafia-bot
               cd ../${{ secrets.USERNAME }}/MafiaBot
-              sudo rm -rf build
-      - name: Compress Build Folder
-        run: tar -czf build.tar.gz build
-      - name: Transfer Build to Production Server
-        env:
-          PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          PUBLIC_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-        run: |
-          mkdir -p ~/.ssh
-          echo "$PRIVATE_KEY" > ~/.ssh/google_compute_engine
-          chmod 600 ~/.ssh/google_compute_engine
-          echo "$PUBLIC_KEY" > ~/.ssh/google_compute_engine.pub
-          chmod 600 ~/.ssh/google_compute_engine.pub
-          gcloud compute scp ./build.tar.gz \
-            ${{ secrets.USERNAME }}@${{ secrets.GCP_VM_NAME }}:~/MafiaBot/build.tar.gz \
-            --zone=${{ secrets.GCP_VM_ZONE }} \
-            --tunnel-through-iap \
-            --project=${{ secrets.GCP_PROJECT_ID }} \
-            --ssh-key-file=~/.ssh/google_compute_engine   
-      - name: Start Production Server
-        uses: google-github-actions/ssh-compute@v2
-        with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          zone: ${{ secrets.GCP_VM_ZONE }}
-          instance_name: ${{ secrets.GCP_VM_NAME }}
-          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
-          user: ${{ secrets.USERNAME }}
-          command: |
-              cd ../${{ secrets.USERNAME }}/MafiaBot
-              tar -xzf build.tar.gz
-              rm build.tar.gz
+              sudo rm -rf build build.zip
               git restore .
               git pull origin main
               sudo npm i
+              DOWNLOAD_URL=$(curl -sf \
+                -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
+                | node -e '
+                    const fs = require("fs");
+                    const data = JSON.parse(fs.readFileSync(0, "utf-8"));
+                    const art = data.artifacts.find(a => a.name === "build");
+                    if (art) {
+                        console.log(art.archive_download_url);
+                    } else {
+                        process.stderr.write("No artifact named \"build\" found in response\n");
+                        process.exit(1);
+                    }
+                ')
+              curl -fL \
+                -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                -o build.zip \
+                "$DOWNLOAD_URL"
+              unzip -o build.zip -d build
+              rm build.zip
               pm2 restart mafia-bot
-
-
