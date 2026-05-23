@@ -18,7 +18,18 @@ export async function archiveMessage(options: {
 
     const fetchedMessage = await completeMessage(message, reactions == 'none' ? 'reduced' : reactions);
 
-    var optionsWebhook = {
+    if(fetchedMessage.content.length > 2000) {
+        await webhook.send({
+            content: message.content.substring(0, 2000),
+            username: fetchedMessage.nickname ?? fetchedMessage.username,
+            avatarURL: fetchedMessage.avatarURL,
+            allowedMentions: { parse: [] }, //to prevent pings
+        });
+
+        message.content = message.content.substring(2000);
+    }   
+
+    let optionsWebhook = {
         content: message.content,
         username: fetchedMessage.nickname ?? fetchedMessage.username,
         avatarURL: fetchedMessage.avatarURL,
@@ -32,7 +43,7 @@ export async function archiveMessage(options: {
     let embedDescription = "";
 
     if(reactions != 'none') {
-        embedDescription = fetchedMessage.reactions ?? "";
+        embedDescription = fetchedMessage.reactions ? fetchedMessage.reactions + "\n" : "";
     } 
     
     if(nameNote) {
@@ -40,7 +51,7 @@ export async function archiveMessage(options: {
     }
 
     if(url) {
-        embedDescription = embedDescription + "\n" + "https://discord.com/channels/" + message.guildId + "/" + message.channelId + "/" + message.id;
+        embedDescription = embedDescription + "https://discord.com/channels/" + message.guildId + "/" + message.channelId + "/" + message.id;
     }
 
     if(!minimal && (embedDescription.length > 0 || embedFooter.length > 0)) {
@@ -143,9 +154,11 @@ function stringifyReactions(reactions: Reaction[], format: 'full' | 'reduced', w
         prev += "**" + curr.id.length + "** " + curr.emoji;
 
         if(format == 'full') {
-            prev += " -" + curr.id.reduce((prev, curr) => prev + " <@" + curr + ">", "");
+            prev += " -" + curr.id.reduce((prev, curr) => prev + " <@" + curr + ">", "") + "\n";
         } else if(i != reactions.length - 1) {
             prev += " | ";
+        } else {
+            prev += "\n";
         }
 
         return prev;
