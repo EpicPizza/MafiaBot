@@ -648,8 +648,11 @@ export function addStatsAction(action: StatsAction) {
 async function processing() {
     if(dumping) {
         await new Promise((resolve) => {
-            setInterval(() => {
-                if(!dumping) resolve(0);
+            const interval = setInterval(() => {
+                if(!dumping) {
+                    resolve(0);
+                    clearInterval(interval);
+                }
             }, 100);
         })
     }
