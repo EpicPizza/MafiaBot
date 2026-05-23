@@ -648,7 +648,7 @@ export function addStatsAction(action: StatsAction) {
 async function processing() {
     if(dumping) {
         await new Promise((resolve) => {
-            setTimeout(() => {
+            setInterval(() => {
                 if(!dumping) resolve(0);
             }, 100);
         })
