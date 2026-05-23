@@ -18,7 +18,7 @@ export async function archiveMessage(options: {
 
     const fetchedMessage = await completeMessage(message, reactions == 'none' ? 'reduced' : reactions);
 
-    if(fetchedMessage.content.length > 2000) {
+    while(message.content.length > 2000) {
         await webhook.send({
             content: message.content.substring(0, 2000),
             username: fetchedMessage.nickname ?? fetchedMessage.username,
