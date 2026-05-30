@@ -7,4 +7,5 @@ coverage
 messages.json
 src/testing.ts
 .dev.env
+.prod.env
 deploy.sh

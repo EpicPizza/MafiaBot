@@ -36,10 +36,10 @@ export async function archiveMessage(options: {
         allowedMentions: { parse: [] }, //to prevent pings
         embeds: new Array(),
         files: await buildAttachments(fetchedMessage.attachments),
-        components: fetchedMessage.reference ? createReplyButton(fetchedMessage.guildId ?? "---", fetchedMessage.channelId, fetchedMessage.reference) : [],
+        components: fetchedMessage.reference ? createReplyButton(fetchedMessage.reference) : [],
     }
 
-    let embedFooter = "Original message by " + fetchedMessage.username + ".\nSent at " + new Date(fetchedMessage.createdTimestamp).toLocaleString() + (fetchedMessage.editedTimestamp ? "\nEdited." : "");
+    let embedFooter = "Original message by " + fetchedMessage.username + ".\nSent at " + new Date(fetchedMessage.createdTimestamp).toLocaleString() + (fetchedMessage.editedTimestamp ? "\n\nEdited." : "");
     let embedDescription = "";
 
     if(reactions != 'none') {
@@ -54,6 +54,8 @@ export async function archiveMessage(options: {
         embedDescription = embedDescription + "https://discord.com/channels/" + message.guildId + "/" + message.channelId + "/" + message.id;
     }
 
+    optionsWebhook.embeds.push(...fetchedMessage.embeds.filter(embed => ('data' in embed ? embed.data.type : embed.type) === "rich"));
+
     if(!minimal && (embedDescription.length > 0 || embedFooter.length > 0)) {
         const embed = new EmbedBuilder();
 
@@ -62,8 +64,6 @@ export async function archiveMessage(options: {
 
         optionsWebhook.embeds.push(embed);
     }
-
-    optionsWebhook.embeds.push(...fetchedMessage.embeds.filter(embed => ('data' in embed ? embed.data.type : embed.type) === "rich"));
 
     return await webhook.send(optionsWebhook);
 }
@@ -139,7 +139,7 @@ export async function getAttachments(attachments: Collection<string, Attachment>
         }
 
         fetchedAttachments.push(... array.map((attachment: Attachment | APIAttachment) => ({
-            name: attachment.title ?? "unknown",
+            name: attachment.title ?? ('name' in attachment ? attachment.name : undefined) ?? "unknown",
             url: attachment.url,
         })));
     }
@@ -228,7 +228,7 @@ function handleReference(message: Message | TrackedMessage) {
     return "https://discord.com/channels/" + message.guildId + "/" + message.channelId + "/" + (typeof message.reference == 'string' ? message.reference : message.reference.messageId);
 }
 
-function createReplyButton(guildId: string, channelId: string, messageId: string) {
+function createReplyButton(messageURL: string) {
     return [{
         "type": 1,
         "components": [
@@ -236,7 +236,7 @@ function createReplyButton(guildId: string, channelId: string, messageId: string
                 "type": 2,
                 "emoji": "⤴️" as APIMessageComponentEmoji,
                 "style":5,
-                "url": "https://discord.com/channels/" + guildId + "/" + channelId + "/" + messageId,
+                "url": messageURL,
             }
         ]
     }] satisfies APIActionRowComponent<APIButtonComponent>[];
