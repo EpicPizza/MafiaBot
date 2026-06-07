@@ -120,7 +120,6 @@ module.exports = {
 
             if(global == null || game == null) throw new Error("Game not found.");
 
-            if(game.closed) throw new Error("Sign ups are closed.");
             if(global.started && global.game == game.id) throw new Error("Game has started.");
 
             const user = await getUser(interaction.user.id, interaction.instance);
