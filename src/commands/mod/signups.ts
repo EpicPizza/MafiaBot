@@ -75,7 +75,7 @@ export const CloseCommand = {
         if (interaction.type == 'text') {
             await interaction.message.react("✅");
         } else {
-            await interaction.reply({ ephemeral: true, content: "Sign ups closed!" });
+            await interaction.reply({ ephemeral: true, content: "Signups closed!" });
         }
     }
 } satisfies Subcommand;
@@ -115,7 +115,7 @@ export const OpenCommand = {
         if (interaction.type == 'text') {
             await interaction.message.react("✅");
         } else {
-            await interaction.reply({ ephemeral: true, content: "Sign ups opened!" });
+            await interaction.reply({ ephemeral: true, content: "Signups opened!" });
         }
     }
 } satisfies Subcommand;
@@ -152,9 +152,9 @@ async function createSignups(interaction: Event<CommandInteraction | ButtonInter
     if (global.started) throw new Error("You cannot create signups while a game is underway.");
 
     const embed = new EmbedBuilder()
-        .setTitle("Sign ups for " + game.name + " Mafia" + (game.closed ? " are closed" : "") + "!")
+        .setTitle("Signups for " + game.name + " Mafia" + (game.closed ? " are closed" : "") + "!")
         .setColor(game.closed ? Colors.DarkRed : Colors.Blue)
-        .setDescription("Loading sign ups...");
+        .setDescription("Loading signups...");
 
     const message = (interaction.type != 'text' && interaction.isButton() ? await interaction.update({
         embeds: [embed],

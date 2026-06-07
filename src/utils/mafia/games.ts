@@ -151,7 +151,7 @@ export async function openSignups(name: string, instance: Instance) {
     const global = instance.global;
 
     if (game == null) throw new Error("Game not found.");
-    if (global.started && global.game == game.id) throw new Error("Game has already started, sign ups are closed.");
+    if (global.started && global.game == game.id) throw new Error("Game has already started, signups are closed.");
 
     const db = firebaseAdmin.getFirestore();
 
@@ -167,7 +167,7 @@ export async function closeSignups(name: string, instance: Instance) {
     const global = instance.global;
 
     if (game == null) throw new Error("Game not found.")
-    if (global.started && game.id == global.game) throw new Error("Game has already started, sign ups are closed.");
+    if (global.started && game.id == global.game) throw new Error("Game has already started, signups are closed.");
 
     const db = firebaseAdmin.getFirestore();
 
@@ -207,7 +207,7 @@ export async function activateSignup(options: { id: string, name: string }, inst
         if (!message || !message.editable) return;
 
         const embed = new EmbedBuilder()
-            .setTitle("Sign ups for " + game.name + "!")
+            .setTitle("Signups for " + game.name + "!")
             .setColor(Colors.Red)
             .setDescription("This sign up message has been deactivated.")
 
@@ -251,10 +251,12 @@ export async function refreshSignup(name: string, instance: Instance) {
     }
 
     const embed = new EmbedBuilder()
-        .setTitle("Sign ups for " + game.name + (game.closed ? " are closed" : "") + "!")
+        .setTitle("Signups for " + game.name + (game.closed ? " are closed" : "") + "!")
         .setColor(game.closed ? Colors.DarkRed : Colors.Blue)
-        .setDescription((game.signups.length == 0 ? "No sign ups.\n" : list) + "\nSign up by using the **/signup** command!")
-        .setFooter({ text: (game.signups.length > 1 ? game.signups.length + " players have signed up already" : (game.signups.length == 1 ? "1 player has signed up already" : "")) + "." });
+        .setDescription((game.signups.length == 0 ? "No signups.\n" : list) + "\nSign up by using the **/signup** command!");
+    if(game.signups.length > 0) {
+        embed.setFooter({ text: (game.signups.length > 1 ? game.signups.length + " players have signed up already." : "1 player has signed up already." ) });
+    }
 
     await message.suppressEmbeds(false); // in case embeds were suppressed
 
