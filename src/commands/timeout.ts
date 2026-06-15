@@ -90,9 +90,8 @@ module.exports = {
             // extend future
             let newFutureTime = new Date().valueOf() + 15 /* mins */ * 1000 /* ms per sec */ * 60 /* sec per min */;
             let oldFuture = await getFuture(interaction.instance);
-            let doSetFuture = oldFuture && oldFuture.when.valueOf() > newFutureTime;
+            let doSetFuture = !oldFuture || oldFuture.when.valueOf() < newFutureTime;
             if (doSetFuture) {
-            } else {
                 setFuture(new Date(newFutureTime), true, true, true, interaction.instance);
             }
             interaction.instance.setup.primary.chat.send(`${interaction.name } has triggered a 15 minute timeout. They have taken themselves out of the chat for the next 15 minutes. Voting is disabled. Please respect this time and give ${interaction.name} space. Please play wiht good sportmanship and be kind to you fellow players!${
