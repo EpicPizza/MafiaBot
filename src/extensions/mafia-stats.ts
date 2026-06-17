@@ -85,8 +85,7 @@ module.exports = {
 
         const gameSetup = await getGameSetup(await getGameByID(instance.global.game ?? "---", instance), instance.setup);
 
-        const messages = (await db.collection('channels').doc(gameSetup.mafia.id).collection('messages').startAfter('createdTimestamp', timestamp).get()).docs.map(doc => doc.data() as TrackedMessage);
-        messages.sort((a, b) => a.createdTimestamp - b.createdTimestamp)
+        const messages = (await db.collection('channels').doc(gameSetup.mafia.id).collection('messages').orderBy('createdTimestamp').startAfter(timestamp).get()).docs.map(doc => doc.data() as TrackedMessage);
         const appendStats = messages.map(message => {
             return {
                 messages: 1,
