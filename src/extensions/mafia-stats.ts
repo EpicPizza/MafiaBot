@@ -100,6 +100,8 @@ module.exports = {
         });
 
         const reconciledStats = reconcileStats([...statsActions, ...appendStats]);
+
+        reconciledStats.sort((a, b) => b.messages - a.messages);
         
         const message = reconciledStats.reduce((previous, current) => previous += "<@" + current.id + "> » " + current.messages + " message" + (current.messages== 1 ? "" : "s") + " containing " + current.words + " word" + (current.words== 1 ? "" : "s") + "\n", "");
 
@@ -110,10 +112,10 @@ module.exports = {
 
         await command.reply({ embeds: [embed] });
 
-        await doc.update({
+        await doc.set({
             timestamp: messages[messages.length - 1].createdTimestamp,
             stats: reconciledStats,
-        });
+        }, { merge: true });
         
         return;
 
