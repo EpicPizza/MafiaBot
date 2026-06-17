@@ -15,7 +15,7 @@ import { Colors } from "discord.js";
 module.exports = {
     name: "Mafia Stats",
     emoji: "📊",
-    commandName: "stats",
+    commandName: "mafia",
     description: "Tracks mafia stats throughout the game.",
     priority: [], //events that need a return can only have one extensions modifying it, this prevents multiple extensions from modifying the same event
     help: "?mafia",
