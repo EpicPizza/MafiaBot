@@ -41,6 +41,7 @@ module.exports = {
             name: 'slash-leave',
             command: new SlashCommandBuilder()
                 .setName("leave")
+                .alias('unsignup')
                 .setDescription("Leave mafia game.")
                 .addStringOption(option =>
                     option  
