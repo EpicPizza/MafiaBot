@@ -10,6 +10,7 @@ export type MessageAction = {
     type: 'delete',
     timestamp: number,
     deleted: { channel: string, id: string },
+    snipe: boolean,
 } | {
     type: 'create'
     message: TrackedMessage,
@@ -161,10 +162,12 @@ export async function dumpTracking() {
                     ...entry.message,
                     ...(entry.log ? { logs: FieldValue.arrayUnion(entry.log) } : {})
                 }, { merge: true });
-            } else if(entry.type == 'delete') {
+            } else if(entry.type == 'delete' && entry.snipe) {
                 t.set(db.collection('channels').doc(entry.deleted.channel).collection('messages').doc(entry.deleted.id), {
                     deleted: true
                 }, { merge: true });
+            } else if(entry.type == 'delete') {
+                t.delete(db.collection('channels').doc(entry.deleted.channel).collection('messages').doc(entry.deleted.id));
             }
         });
 
@@ -407,18 +410,26 @@ export async function deleteMessage(message: PartialMessage | Message) {
 
     let adjustedInBuffer = false;
     
-    messageBuffer.forEach(message => {
-        if((message.type == 'create' || message.type == 'edit') && message.message) {
-            message.message.deleted = true;
-            adjustedInBuffer = true;
+    messageBuffer = messageBuffer.filter((entry) => {
+        if(!(entry.type == 'create' || entry.type == 'edit') || entry.message == undefined || entry.message.id != message.id || entry.message.channelId != message.channelId) return true;
+
+        adjustedInBuffer = true;
+
+        if(message.channelId == instance.setup.primary.chat.id) {
+            entry.message.deleted = true;
+        } else {
+            return false;
         }
+
+        return true;
     });
 
     if(!adjustedInBuffer) {
         messageBuffer.push({
             type: 'delete',
             timestamp: new Date().valueOf(),
-            deleted: { channel: message.channelId, id: message.id }
+            deleted: { channel: message.channelId, id: message.id },
+            snipe: message.channelId == instance.setup.primary.chat.id,
         });
     }
 
