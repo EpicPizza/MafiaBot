@@ -31,6 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       actions: read
+      contents: read
     env:
       CLOUDSDK_PYTHON_SITEPACKAGES: 1 
     steps:
