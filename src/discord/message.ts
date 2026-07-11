@@ -58,7 +58,7 @@ export async function messageCreateHandler(...[message, throws]: [...ClientEvent
 
         //const program = command.command();
         program.exitOverride();
-        const values = stringArgv(message.content.replaceAll("“", "\"").replaceAll("”", "\"").slice(1));
+        const values = stringArgv(message.content.replaceAll("—", "--").replaceAll("“", "\"").replaceAll("”", "\"").slice(1));
 
         try {
             await program.parseAsync(values, { from: 'user' });
