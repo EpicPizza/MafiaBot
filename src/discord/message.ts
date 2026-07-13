@@ -325,6 +325,7 @@ async function bigbooms(message: Message) {
         }
 
         let number = parseInt(numberString);
+        if(isNaN(number)) number = 0;
 
         if(!(number <= 10 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 10;
 
