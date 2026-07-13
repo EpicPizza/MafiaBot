@@ -84,15 +84,15 @@ export const CreateCommand = {
     },
 
     execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
-        //throw new Error("This command has been deprecated.");
+        throw new Error("This command has been deprecated.");
         
-        interaction.inInstance();
+        // interaction.inInstance();
 
-        const name = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
+        // const name = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');
 
-        if (name == null) throw new Error("Game needs to be specified.");
+        // if (name == null) throw new Error("Game needs to be specified.");
 
-        await createGame(interaction, name, interaction.instance);
+        // await createGame(interaction, name, interaction.instance);
     }
 } satisfies Subcommand;
 
