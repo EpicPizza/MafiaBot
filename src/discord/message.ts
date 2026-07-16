@@ -295,6 +295,8 @@ async function messageExtensions(extensionNames: string[], message: Message) {
 
 
 let freeze = false;
+let ratelimits = {};
+let timeout = 1000 * 60 * 60;
 
 async function bigbooms(message: Message) {
     if(message.author.id == process.env.OWNER && message.content == "freeze") {
@@ -478,35 +480,44 @@ async function bigbooms(message: Message) {
     }
 
     if(message.content.toLowerCase().includes("big kabir") && message.author.bot == false  && message.guildId != "569988266657316884") {
-        const index = message.content.toLowerCase().indexOf("big kabir");
-
-        let numberString = "";
-
-        for(let i = index - 2; i >= 0; i--) {
-            if(!isNaN(parseInt(message.content.charAt(i)))) {
-                numberString = message.content.charAt(i) + numberString;
-            } else {
-                break;
-            }
+        let currentTime = (new Date()).getTime();
+        if(ratelimits[message.author.id] == undefined) {
+            ratelimits[message.author.id] = currentTime + timeout;
         }
+        if(ratelimits[message.author.id] > currentTime) {
+            await message.reply(`This feature will be available for you to use at <t:${Math.round(ratelimits[message.author.id] / 1000)}:T>.`);
+        } else {
+            ratelimits[message.author.id] = currentTime + timeout;
+            const index = message.content.toLowerCase().indexOf("big kabir");
 
-        let number = parseInt(numberString);
+            let numberString = "";
 
-        if(!(number <= 10 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 10;
-
-        for(let i = 0; i < number; i++) {
-            await new Promise((resolve) => {
-                setTimeout(() => {
-                    resolve(true);
-                }, 1000);
-            });
-
-            if(freeze) {
-                return;
+            for(let i = index - 2; i >= 0; i--) {
+                if(!isNaN(parseInt(message.content.charAt(i)))) {
+                    numberString = message.content.charAt(i) + numberString;
+                } else {
+                    break;
+                }
             }
 
-            //@ts-ignore
-            await message.channel.send("<@461335771803156510>");
+            let number = parseInt(numberString);
+
+            if(!(number <= 10 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 10;
+
+            for(let i = 0; i < number; i++) {
+                await new Promise((resolve) => {
+                    setTimeout(() => {
+                        resolve(true);
+                    }, 1000);
+                });
+
+                if(freeze) {
+                    return;
+                }
+
+                //@ts-ignore
+                await message.channel.send("<@461335771803156510>");
+            }
         }
     }
 
