@@ -292,13 +292,24 @@ async function messageExtensions(extensionNames: string[], message: Message) {
 }
 
 
+export async function getRatelimit(type: string, id: string, instance: Instance) {
+    const db = firebaseAdmin.getFirestore();
+    const ref = db.collection('instances').doc(instance.id).collection('ratelimits').doc(type);
+    return (await ref.get()).data()?.[id];
+}
 
+export async function setRatelimit(type: string, id: string, next: number, instance: Instance) {
+    const db = firebaseAdmin.getFirestore();
+    const ref = db.collection('instances').doc(instance.id).collection('ratelimits').doc(type);
+    await ref.set({ [id]: next }, { merge: true });
+}
 
 let freeze = false;
-let ratelimits = {};
 let timeout = 1000 * 60 * 60;
 
 async function bigbooms(message: Message) {
+    const instance = await getAuthority(message.guildId ?? "---", false);
+
     if(message.author.id == process.env.OWNER && message.content == "freeze") {
         freeze = !freeze;
 
@@ -361,6 +372,7 @@ async function bigbooms(message: Message) {
         }
 
         let number = parseInt(numberString);
+        if(isNaN(number)) number = 0;
 
         if(!(number <= 10 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 10;
 
@@ -394,6 +406,7 @@ async function bigbooms(message: Message) {
         }
 
         let number = parseInt(numberString);
+        if(isNaN(number)) number = 0;
 
         if(!(number <= 10 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 10;
 
@@ -427,6 +440,7 @@ async function bigbooms(message: Message) {
         }
 
         let number = parseInt(numberString);
+        if(isNaN(number)) number = 0;
 
         if(!(number <= 10 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 10;
 
@@ -460,6 +474,7 @@ async function bigbooms(message: Message) {
         }
 
         let number = parseInt(numberString);
+        if(isNaN(number)) number = 0;
 
         if(!(number <= 10 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 10;
 
@@ -479,15 +494,12 @@ async function bigbooms(message: Message) {
         }
     }
 
-    if(message.content.toLowerCase().includes("big kabir") && message.author.bot == false  && message.guildId != "569988266657316884") {
+    if(message.content.toLowerCase().includes("big kabir") && message.author.bot == false && message.guildId != "569988266657316884") {
         let currentTime = (new Date()).getTime();
-        if(ratelimits[message.author.id] == undefined) {
-            ratelimits[message.author.id] = currentTime;
-        }
-        if(ratelimits[message.author.id] > currentTime) {
-            await message.reply(`This feature will be available for you to use at <t:${Math.round(ratelimits[message.author.id] / 1000)}:T>.`);
+        let ratelimit = await getRatelimit("big-kabirs", message.author.id, instance);
+        if(ratelimit != undefined && ratelimit > currentTime) {
+            await message.reply(`This feature will be available for you to use at <t:${Math.round(ratelimit / 1000)}:T>.`);
         } else {
-            ratelimits[message.author.id] = currentTime + timeout;
             const index = message.content.toLowerCase().indexOf("big kabir");
 
             let numberString = "";
@@ -501,8 +513,13 @@ async function bigbooms(message: Message) {
             }
 
             let number = parseInt(numberString);
+            if(isNaN(number)) number = 0;
 
             if(!(number <= 10 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 10;
+
+            if(!freeze && number > 0) {
+                await setRatelimit("big-kabirs", message.author.id, currentTime + timeout, instance);
+            }
 
             for(let i = 0; i < number; i++) {
                 await new Promise((resolve) => {
