@@ -11,7 +11,7 @@ import { getSetup } from "../utils/setup";
 import { archiveMessage, Reaction } from "../utils/archive";
 import { Command } from "commander";
 import { getHelpEmbed } from "./help";
-import { getAuthority } from "../utils/instance";
+import { getAuthority, Instance } from "../utils/instance";
 import { getWebhook } from "../utils/webhook";
 import { SafeError } from "../utils/error";
 
