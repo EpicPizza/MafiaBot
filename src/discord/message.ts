@@ -482,7 +482,7 @@ async function bigbooms(message: Message) {
     if(message.content.toLowerCase().includes("big kabir") && message.author.bot == false  && message.guildId != "569988266657316884") {
         let currentTime = (new Date()).getTime();
         if(ratelimits[message.author.id] == undefined) {
-            ratelimits[message.author.id] = currentTime + timeout;
+            ratelimits[message.author.id] = currentTime;
         }
         if(ratelimits[message.author.id] > currentTime) {
             await message.reply(`This feature will be available for you to use at <t:${Math.round(ratelimits[message.author.id] / 1000)}:T>.`);
