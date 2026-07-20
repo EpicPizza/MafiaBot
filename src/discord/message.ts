@@ -309,6 +309,9 @@ let timeout = 1000 * 60 * 60;
 
 async function bigbooms(message: Message) {
     const instance = await getAuthority(message.guildId ?? "---", false);
+    if(instance == undefined) {
+        return;
+    }
 
     if(message.author.id == process.env.OWNER && message.content == "freeze") {
         freeze = !freeze;
