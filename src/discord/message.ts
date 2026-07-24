@@ -11,7 +11,7 @@ import { getSetup } from "../utils/setup";
 import { archiveMessage, Reaction } from "../utils/archive";
 import { Command } from "commander";
 import { getHelpEmbed } from "./help";
-import { getAuthority } from "../utils/instance";
+import { getAuthority, Instance } from "../utils/instance";
 import { getWebhook } from "../utils/webhook";
 import { SafeError } from "../utils/error";
 
@@ -58,7 +58,7 @@ export async function messageCreateHandler(...[message, throws]: [...ClientEvent
 
         //const program = command.command();
         program.exitOverride();
-        const values = stringArgv(message.content.replaceAll("“", "\"").replaceAll("”", "\"").slice(1));
+        const values = stringArgv(message.content.replaceAll("—", "--").replaceAll("“", "\"").replaceAll("”", "\"").slice(1));
 
         try {
             await program.parseAsync(values, { from: 'user' });
@@ -292,11 +292,27 @@ async function messageExtensions(extensionNames: string[], message: Message) {
 }
 
 
+export async function getRatelimit(type: string, id: string, instance: Instance) {
+    const db = firebaseAdmin.getFirestore();
+    const ref = db.collection('instances').doc(instance.id).collection('ratelimits').doc(type);
+    return (await ref.get()).data()?.[id];
+}
 
+export async function setRatelimit(type: string, id: string, next: number, instance: Instance) {
+    const db = firebaseAdmin.getFirestore();
+    const ref = db.collection('instances').doc(instance.id).collection('ratelimits').doc(type);
+    await ref.set({ [id]: next }, { merge: true });
+}
 
 let freeze = false;
+let timeout = 1000 * 60 * 60;
 
 async function bigbooms(message: Message) {
+    const instance = await getAuthority(message.guildId ?? "---", false);
+    if(instance == undefined) {
+        return;
+    }
+
     if(message.author.id == process.env.OWNER && message.content == "freeze") {
         freeze = !freeze;
 
@@ -325,6 +341,7 @@ async function bigbooms(message: Message) {
         }
 
         let number = parseInt(numberString);
+        if(isNaN(number)) number = 0;
 
         if(!(number <= 10 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 10;
 
@@ -358,6 +375,7 @@ async function bigbooms(message: Message) {
         }
 
         let number = parseInt(numberString);
+        if(isNaN(number)) number = 0;
 
         if(!(number <= 10 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 10;
 
@@ -391,6 +409,7 @@ async function bigbooms(message: Message) {
         }
 
         let number = parseInt(numberString);
+        if(isNaN(number)) number = 0;
 
         if(!(number <= 10 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 10;
 
@@ -424,6 +443,7 @@ async function bigbooms(message: Message) {
         }
 
         let number = parseInt(numberString);
+        if(isNaN(number)) number = 0;
 
         if(!(number <= 10 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 10;
 
@@ -457,6 +477,7 @@ async function bigbooms(message: Message) {
         }
 
         let number = parseInt(numberString);
+        if(isNaN(number)) number = 0;
 
         if(!(number <= 10 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 10;
 
@@ -473,6 +494,50 @@ async function bigbooms(message: Message) {
 
             //@ts-ignore
             await message.channel.send("🦦");
+        }
+    }
+
+    if(message.content.toLowerCase().includes("big kabir") && message.author.bot == false && message.guildId != "569988266657316884") {
+        let currentTime = (new Date()).getTime();
+        let ratelimit = await getRatelimit("big-kabirs", message.author.id, instance);
+        if(ratelimit != undefined && ratelimit > currentTime) {
+            await message.reply(`This feature will be available for you to use at <t:${Math.round(ratelimit / 1000)}:T>.`);
+        } else {
+            const index = message.content.toLowerCase().indexOf("big kabir");
+
+            let numberString = "";
+
+            for(let i = index - 2; i >= 0; i--) {
+                if(!isNaN(parseInt(message.content.charAt(i)))) {
+                    numberString = message.content.charAt(i) + numberString;
+                } else {
+                    break;
+                }
+            }
+
+            let number = parseInt(numberString);
+            if(isNaN(number)) number = 0;
+
+            if(!(number <= 10 || message.author.id == process.env.OWNER || (message.author.id == "1027069893092315176" && message.channelId == "1361209407400185976"))) number = 10;
+
+            if(!freeze && number > 0) {
+                await setRatelimit("big-kabirs", message.author.id, currentTime + timeout, instance);
+            }
+
+            for(let i = 0; i < number; i++) {
+                await new Promise((resolve) => {
+                    setTimeout(() => {
+                        resolve(true);
+                    }, 1000);
+                });
+
+                if(freeze) {
+                    return;
+                }
+
+                //@ts-ignore
+                await message.channel.send("<@461335771803156510>");
+            }
         }
     }
 

@@ -94,7 +94,7 @@ module.exports = {
             for(let j = 0; j < data.chats.length; j++) {
                 const member = await setup.secondary.guild.members.fetch(data.chats[j]);
 
-                await channel.permissionOverwrites.create(member, readOverwrites());
+                await channel.permissionOverwrites.create(member, messageOverwrites());
             }
         }
     },
@@ -118,7 +118,7 @@ module.exports = {
             for(let j = 0; j < data.chats.length; j++) {
                 const member = await setup.secondary.guild.members.fetch(data.chats[j]);
 
-                await channel.permissionOverwrites.create(member, messageOverwrites());
+                await channel.permissionOverwrites.create(member, readOverwrites());
             }
         }
     },
@@ -187,11 +187,11 @@ module.exports = {
             for(let i = 0; i < chats.length; i++) {
                 const member = await setup.secondary.guild.members.fetch(chats[i]);
 
-                await channel.permissionOverwrites.create(member, global.locked ? readOverwrites() : messageOverwrites());
+                await channel.permissionOverwrites.create(member, !global.locked ? readOverwrites() : messageOverwrites());
             }
 
             await db.collection('instances').doc(command.instance.id).collection('chats').doc(channel.id).update({
-                locked: global.locked,
+                locked: !global.locked,
                 match: true,
             });
         } else if(command.name == "lock" || command.name == "unlock") {

@@ -84,6 +84,8 @@ export const CreateCommand = {
     },
 
     execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
+        // throw new Error("This command has been deprecated.");
+        
         interaction.inInstance();
 
         const name = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('game');

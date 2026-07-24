@@ -56,6 +56,7 @@ module.exports = {
             command: () => {
                 return new Command()
                     .name('leave')
+                    .alias('unsignup')
                     .description('Remove signup for a game with the game name.')
                     .argument('<game>', 'which game to leave', fromZod(z.string().min(1).max(100)));
             }

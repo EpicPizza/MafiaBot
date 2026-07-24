@@ -396,7 +396,7 @@ async function reveal(id: string, global: Global, game: Signups, instance: Insta
         const votes = await getVotes(global.day, game, instance, t); // no need to actually put a vote, just retrieve votes
 
         const data = (await t.get(ref)).data();
-        if(!data || !(data.type == 'secret' || data.type == 'classic') || data.reveal == true) return; //check they are a mayor
+        if(!data || !(data.type == 'secret' || data.type == 'classic') || data.reveal == true || data.day != global.day) return; //check they are a mayor
 
         const mayors = await getMayors(instance, users, t);
 

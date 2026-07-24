@@ -78,7 +78,7 @@ export async function completeMessage(message: Message | TrackedMessage, reactio
         'authorId' in message ? message.reactions : getReactions(message)
     ]);
 
-    const stars = 'stars' in message && typeof message.stars == 'number' ? message.stars : reactions.find(entry => entry.emoji == "⭐")?.id.length ?? 0;
+    const stars = 'stars' in message && typeof message.stars == 'number' ? message.stars : reactions?.find(entry => entry.emoji == "⭐")?.id.length ?? 0;
 
     return {
         ...nickname,
