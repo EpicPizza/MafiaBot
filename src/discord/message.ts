@@ -312,7 +312,7 @@ async function bigbooms(message: Message) {
     if(instance == undefined) {
         return;
     }
-    let freeze = freezeMap.getOrInsert(instance, false);
+    let freeze = freezeMap.get(instance) ?? false;
 
     if(message.author.id == process.env.OWNER && message.content == "freeze") {
         freeze = !freeze;
