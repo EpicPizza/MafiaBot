@@ -304,7 +304,7 @@ export async function setRatelimit(type: string, id: string, next: number, insta
     await ref.set({ [id]: next }, { merge: true });
 }
 
-let freeze = false;
+let freezeMap = new Map();
 let timeout = 1000 * 60 * 60;
 
 async function bigbooms(message: Message) {
@@ -312,9 +312,11 @@ async function bigbooms(message: Message) {
     if(instance == undefined) {
         return;
     }
+    let freeze = freezeMap.getOrInsert(instance, false);
 
     if(message.author.id == process.env.OWNER && message.content == "freeze") {
         freeze = !freeze;
+        freezeMap.set(instance, freeze);
 
         if(!freeze) {
             message.react("✅");
