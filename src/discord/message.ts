@@ -352,7 +352,7 @@ async function bigbooms(message: Message) {
                 }, 1000);
             })
 
-            if(freeze) {
+            if(freeze && message.author.id != process.env.OWNER) {
                 return;
             }
 
@@ -386,7 +386,7 @@ async function bigbooms(message: Message) {
                 }, 1000);
             });
 
-            if(freeze) {
+            if(freeze && message.author.id != process.env.OWNER) {
                 return;
             }
 
@@ -420,7 +420,7 @@ async function bigbooms(message: Message) {
                 }, 1000);
             });
 
-            if(freeze) {
+            if(freeze && message.author.id != process.env.OWNER) {
                 return;
             }
 
@@ -454,7 +454,7 @@ async function bigbooms(message: Message) {
                 }, 1000);
             });
 
-            if(freeze) {
+            if(freeze && message.author.id != process.env.OWNER) {
                 return;
             }
 
@@ -488,7 +488,7 @@ async function bigbooms(message: Message) {
                 }, 1000);
             });
 
-            if(freeze) {
+            if(freeze && message.author.id != process.env.OWNER) {
                 return;
             }
 
@@ -531,7 +531,7 @@ async function bigbooms(message: Message) {
                     }, 1000);
                 });
 
-                if(freeze) {
+                if(freeze && message.author.id != process.env.OWNER) {
                     return;
                 }
 
