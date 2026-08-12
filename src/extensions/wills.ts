@@ -100,7 +100,7 @@ module.exports = {
 
             await command.message.react("✅");
         } else if(command.name == "lock") {
-            checkMod(setup, global, command.user.id, command.message.guildId ?? "");
+            await checkMod(setup, global, command.user.id, command.message.guildId ?? "");
             
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
 
@@ -119,7 +119,7 @@ module.exports = {
 
             await command.message.react("✅");
         } else {
-            checkMod(setup, global, command.user.id, command.message.guildId ?? "");
+            await checkMod(setup, global, command.user.id, command.message.guildId ?? "");
 
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
 

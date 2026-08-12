@@ -106,7 +106,7 @@ module.exports = {
         const setup = command.instance.setup;
         const global = command.instance.global;
 
-        checkMod(setup, global, command.user.id, command.message.guildId ?? "");
+        await checkMod(setup, global, command.user.id, command.message.guildId ?? "");
         
         if(!(command.message.channel.type == ChannelType.GuildText || command.message.channel.type == ChannelType.PrivateThread) || command.message.channel.guildId != setup.secondary.guild.id) throw new Error("This command must be run in dead chat.");
 
