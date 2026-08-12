@@ -49,7 +49,7 @@ export const RemoveCommand = {
         const global = interaction.instance.global;
         const setup  = interaction.instance.setup;
 
-        checkMod(setup, global, interaction.user.id, 'message' in interaction ? interaction.message?.guild?.id ?? "" : interaction.guildId ?? "");
+        await checkMod(setup, global, interaction.user.id, 'message' in interaction ? interaction.message?.guild?.id ?? "" : interaction.guildId ?? "");
 
         const player = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');
         if(player == null) throw new Error("Choose a player.");
