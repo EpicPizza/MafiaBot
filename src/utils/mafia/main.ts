@@ -403,6 +403,8 @@ export async function setupPlayer(id: string, gameSetup: GameSetup, instance: In
         await db.collection('instances').doc(instance.id).collection('users').doc(userProfile.id).update({
             channel: channel.id,
         });
+    } else {
+        await channel.setName(userProfile.nickname.toLowerCase());
     }
 
     if(channel.parentId != setup.secondary.dms.id) {
