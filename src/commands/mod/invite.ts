@@ -70,10 +70,6 @@ export const SpectatorCommand = {
 
         const sendDM = interaction.type == 'text' ? interaction.program.getOptionValue('invite') != true : (interaction.options.getBoolean('invite') == null ? true : interaction.options.getBoolean('invite'));
 
-        const dm = await client.users.cache.get(spectator)?.createDM();
-
-        if(sendDM && !dm) throw new Error("Unable to send dms to <@" + spectator + ">.");
-
         const main = await setup.primary.guild.members.fetch(spectator).catch(() => undefined);
 
         if(main == undefined) throw new Error("Member not found.");
@@ -142,7 +138,11 @@ export const SpectatorCommand = {
             }
         }
 
-        if(sendDM && dm) {
+        if(sendDM) {
+            const dm = await client.users.cache.get(spectator)?.createDM();
+
+            if(dm == undefined) throw new Error("Unable to send dms to <@" + spectator + ">.");
+
             if(remove) { 
             // do nothing
             } else if(message == "") {
@@ -157,7 +157,7 @@ export const SpectatorCommand = {
            
             if(remove) {
                 await interaction.message.react('✅');
-            } else if(!(sendDM && dm)) {
+            } else if(!(sendDM)) {
                 await interaction.reply({ content: message });
             } else {
                 await interaction.message.react('✅');
@@ -165,7 +165,7 @@ export const SpectatorCommand = {
         } else {
             if(remove) {
                 await interaction.editReply("Spectator kicked.");
-            } else if(!(sendDM && dm)) {
+            } else if(!(sendDM)) {
                 await interaction.editReply({ content: message + "\n\nSpectator has been added. You may need to rerun this command after a game starts (since invites reset)." });
             } else {
                 await interaction.editReply({ content: "Spectator has been added. You may need to rerun this command after a game starts (since invites reset)." });
