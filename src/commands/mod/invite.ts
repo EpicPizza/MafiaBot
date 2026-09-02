@@ -72,9 +72,7 @@ export const SpectatorCommand = {
 
         const main = await setup.primary.guild.members.fetch(spectator).catch(() => undefined);
 
-        if(main == undefined) throw new Error("Member not found.");
-        
-        await main.roles.remove(setup.primary.alive);
+        if(main != undefined) await main.roles.remove(setup.primary.alive);
 
         let message = "";
 
