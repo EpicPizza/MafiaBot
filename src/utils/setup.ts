@@ -19,7 +19,6 @@ const PartialSetup = z.object({
         archivedDms: z.string().nullable(),
         ongoing: z.string().nullable(),
         archive: z.string().nullable(),
-        access: z.string().nullable(),
         logs: z.string().nullable(),
     }),
     tertiary: z.object({
@@ -86,7 +85,6 @@ export async function checkSetup(instance: string, admin: typeof firebaseAdmin |
     const archivedDms = fetchCategory(setup.secondary.archivedDms, setup.secondary.guild, "Secondary archived dms category");
     const seocndaryOngoing = fetchCategory(setup.secondary.ongoing, setup.secondary.guild, "Secondary ongoing category");
     const secondaryArchive = fetchCategory(setup.secondary.archive, setup.secondary.guild, "Secondary archive category");
-    const secondaryAccess = fetchRole(setup.secondary.access, setup.secondary.guild, "Secondary access role");
     const logs = fetchChannel(setup.secondary.logs, setup.secondary.guild, "Secondary logs channel");
 
     const tertiaryMod = fetchRole(setup.tertiary.mod, setup.tertiary.guild, "Tertiary mod role"); 
@@ -95,7 +93,7 @@ export async function checkSetup(instance: string, admin: typeof firebaseAdmin |
     const tertiaryArchive = fetchCategory(setup.tertiary.archive, setup.tertiary.guild, "Tertiary archive category");
     const tertiaryAccess = fetchRole(setup.tertiary.access, setup.tertiary.guild, "Tertiary access role");
 
-    const results = await Promise.allSettled([ primary, secondary, tertiary, alive, primaryMod, gang, chat, secondaryMod, secondarySpec, dms, archivedDms, seocndaryOngoing, secondaryArchive, tertiaryMod, tertiarySpec, tertiaryOngoing, tertiaryArchive, tertiaryAccess, secondaryAccess, logs ]);
+    const results = await Promise.allSettled([ primary, secondary, tertiary, alive, primaryMod, gang, chat, secondaryMod, secondarySpec, dms, archivedDms, seocndaryOngoing, secondaryArchive, tertiaryMod, tertiarySpec, tertiaryOngoing, tertiaryArchive, tertiaryAccess, logs ]);
     
     const fails = results.filter(result => result.status == "rejected");
 
@@ -119,7 +117,6 @@ export async function checkSetup(instance: string, admin: typeof firebaseAdmin |
             archivedDms: await archivedDms,
             ongoing: await seocndaryOngoing,
             archive: await secondaryArchive,
-            access: await secondaryAccess,
             logs: await logs,
         },
         tertiary: {

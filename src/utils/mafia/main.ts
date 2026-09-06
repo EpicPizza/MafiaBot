@@ -345,7 +345,6 @@ export async function setupDeadPlayer(player: Discord.GuildMember | undefined, s
     if(player != undefined) {
         await player.roles.remove(setup.secondary.mod);
         await player.roles.remove(setup.secondary.spec);
-        await player.roles.remove(setup.secondary.access);
     }
 }
 
@@ -726,7 +725,6 @@ export async function clearPlayer(id: string, setup: Setup, gameSetup: GameSetup
 
     if(deadPlayer) {
         promises.push(deadPlayer.roles.add(setup.secondary.spec));
-        promises.push(deadPlayer.roles.remove(setup.secondary.access));
     }
 
     promises.push(setMafiaSpectator(mafiaPlayer, id, setup, gameSetup, userProfile, instance, true));

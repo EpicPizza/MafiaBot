@@ -318,7 +318,6 @@ Primary alive role: <@&${setup.primary.alive.id}>
 Primary gang role: <@&${setup.primary.gang.id}>
 Secondary mod role: <@&${setup.secondary.mod.id}>
 Secondary spec role: <@&${setup.secondary.spec.id}>
-Secondary access role: <@&${setup.secondary.access.id}>
 Tertiary mod role: <@&${setup.tertiary.mod.id}>
 Tertiary spec role: <@&${setup.tertiary.spec.id}>
 Tertiary access role: <@&${setup.tertiary.access.id}>
@@ -472,11 +471,9 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
 
                 message += "Dead Chat: https://discord.com/invite/" + invite.code + "\n";
             } else if(dead != undefined && !remove) {
-                await dead.roles.remove(setup.secondary.access);
                 await dead.roles.add(setup.secondary.mod);
                 await dead.roles.add(setup.secondary.spec);
             } else if(dead != undefined && remove) {
-                await dead.roles.remove(setup.secondary.access);
                 await dead.roles.remove(setup.secondary.mod);
                 await dead.roles.add(setup.secondary.spec);
             }

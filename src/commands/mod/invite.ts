@@ -101,7 +101,6 @@ export const SpectatorCommand = {
 
                 await dead.kick();
             } else {
-                await dead.roles.remove(setup.secondary.access);
                 await dead.roles.add(setup.secondary.spec);
             }
         }
