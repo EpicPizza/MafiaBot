@@ -332,8 +332,7 @@ function getBoard(votes: Vote[], users: User[], mayors: Awaited<ReturnType<typeo
 function determineHammer(vote: Vote, votes: Vote[], users: User[], mayors: Awaited<ReturnType<typeof getMayors>>, day: number, global: Global): TransactionResult["hammer"] {
     if(vote.for == 'unvote' || global.hammer == false) return { hammered: false, message: null, id: null };
 
-    console.log(votes);
-    console.log(mayors);
+    const botPlayers = global.players.filter(player => player.alignment == "bot").map(player => player.id);
 
     let votesForHammer = votes.filter(v => v.for == vote.for).reduce((prev, vote) => {
         const mayor = mayors.find(mayor => mayor.id == vote.id && mayor.day == day);
@@ -345,12 +344,9 @@ function determineHammer(vote: Vote, votes: Vote[], users: User[], mayors: Await
         }
     }, 0);
 
-    const half = Math.floor(global.players.length / 2);
+    const half = Math.floor((global.players.length - botPlayers.length) / 2);
 
-    console.log("HALF", half);
-    console.log("VOTES", votesForHammer);
-
-    if(votesForHammer > half) {
+    if(votesForHammer > half && botPlayers.indexOf(vote.for) == -1) {
         return { hammered: true, message: (users.find(user => user.id == vote.for)?.nickname ?? "<@" + vote.for + ">") + " has been hammered!", id: vote.for };
     } else {
         return { hammered: false, message: null, id: null };

@@ -9,3 +9,4 @@ src/testing.ts
 .dev.env
 .prod.env
 deploy.sh
+fixfestus.ts
