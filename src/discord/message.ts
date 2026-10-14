@@ -308,7 +308,7 @@ let freeze = false;
 let timeout = 1000 * 60 * 60;
 
 async function bigbooms(message: Message) {
-    const instance = await getAuthority(message.guildId ?? "---", false);
+    /*wconst instance = await getAuthority(message.guildId ?? "---", false);
     if(instance == undefined) {
         return;
     }
@@ -544,5 +544,5 @@ async function bigbooms(message: Message) {
 
     if(message.content.toLowerCase().startsWith("how long") && message.author.bot == false && message.guildId != "569988266657316884") {
         await message.reply(message.content.replaceAll(" ", "").replaceAll("\t", "").replaceAll("\n", "").replaceAll("]", "").replaceAll("[", "").replaceAll(")", "").replaceAll("(", "").replaceAll(".", "").replaceAll("?", "").replaceAll("!", "").replaceAll("'", "").replaceAll('"', "").replaceAll("`", "").replaceAll("~", "").replaceAll(";", "").replaceAll(",", ""));
-    }
+    }*/
 }
