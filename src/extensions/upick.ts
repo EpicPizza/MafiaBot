@@ -8,7 +8,7 @@ import { Extension, ExtensionInteraction } from "../utils/extensions";
 import { firebaseAdmin } from "../utils/firebase";
 import { GameSetup, getGameByID, Signups, getGameByName, getGameSetup } from "../utils/mafia/games";
 import { onjoin } from "../utils/mafia/invite";
-import { archiveChannels, deleteInvites, setupDeadPlayer } from "../utils/mafia/main";
+import { archiveChannels, deleteInvites, setupDeadPlayer, viewOverwrites } from "../utils/mafia/main";
 import { getPlayerObjects, getUserByName } from "../utils/mafia/user";
 import { checkMod } from "../utils/mod";
 import { Instance } from "../utils/instance";
@@ -93,6 +93,14 @@ module.exports = {
         const left = ((settings?.left ?? []) as string[]).filter(id => !check.signups.includes(id));
 
         await Promise.all(left.map(id => cleanupLeftPlayer(id, instance, playersRole)));
+
+        // Each pregame dm has its own spectator overwrite hiding it, so give spectators view access channel by channel.
+        await Promise.all(players.map(async player => {
+            const channel = await instance.setup.secondary.guild.channels.fetch(player.userProfile.channel ?? "").catch(() => null);
+            if(channel == null || channel.type != ChannelType.GuildText) return;
+
+            await channel.permissionOverwrites.edit(instance.setup.secondary.spec.id, viewOverwrites());
+        }));
 
         //Throwing error doesn't stop game start, since extenion onStart runs concurrently to the rest of the game start processes. So the best thing we can do is send an error message and then I can tell the game mod what they need to fix.
         if(check.id != game.id) throw new Error("Started wrong game??? Things are messed up now???");
@@ -208,6 +216,9 @@ module.exports = {
 
             const { playersRole } = await clearPregamePermissions(instance);
 
+            // Put spectator access back to how a game leaves it.
+            await setup.secondary.dms.permissionOverwrites.edit(setup.secondary.spec.id, viewOverwrites());
+
             const players = await Promise.all(check.signups.map(signup => getPlayerObjects(signup, instance)));
 
             await Promise.all(players.map(player => player.deadPlayer?.roles.remove(playersRole)));
@@ -312,6 +323,9 @@ async function applyPregamePermissions(instance: Instance, playersRole: Role) {
     } else {
         await dms.permissionOverwrites.create(playersRole.id, blockOverwrites());
     }
+
+    // Spectators keep view access to dms from the previous game, hide pregame dms from them. Game start gives it back.
+    await dms.permissionOverwrites.edit(instance.setup.secondary.spec.id, { ViewChannel: false });
 }
 
 async function clearPregamePermissions(instance: Instance) {
@@ -406,6 +420,9 @@ async function pregameSetupPlayer(player: Awaited<ReturnType<typeof getPlayerObj
     if(channel.parentId != setup.secondary.dms.id) {
         await channel.setParent(setup.secondary.dms.id);
     }
+
+    // In case the channel has its own spectator overwrite from a previous game. Game start gives view back.
+    await channel.permissionOverwrites.edit(setup.secondary.spec.id, { ViewChannel: false });
 
     if(!player.deadPlayer) {
         const invite = await setup.secondary.guild.invites.create(channel, { unique: true });
