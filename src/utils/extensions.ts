@@ -75,6 +75,8 @@ export interface Extension {
     onVotes: { (instance: Instance, game: Signups, board: string ): string | Promise<string> },
     onHammer: { (instance: Instance, game: Signups, hammered: string): Promise<unknown> },
     onRemove: { (instance: Instance, game: Signups, removed: string): Promise<unknown> },
+    onSignup?: { (instance: Instance, game: Signups, id: string): Promise<unknown> },
+    onLeave?: { (instance: Instance, game: Signups, id: string): Promise<unknown> },
     onDump: { (statsBatch: StatsAction[], messageBatch: MessageAction[], reactionBatch: ReactionAction[]): Promise<unknown> }
 }
 

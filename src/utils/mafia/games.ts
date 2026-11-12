@@ -60,7 +60,7 @@ export async function addSignup(options: { id: string, game: string }, instance:
 
     const ref = db.collection('instances').doc(instance.id).collection('games').doc(game.id);
 
-    const confirmed = await db.runTransaction(async t => {
+    const result = await db.runTransaction(async t => {
         const doc = await t.get(ref);
 
         const data = doc.data();
@@ -68,15 +68,22 @@ export async function addSignup(options: { id: string, game: string }, instance:
         if (data == undefined) return;
 
         const confirmed = (data.confirmations as string[]).includes(options.id);
+        const added = !(data.signups as string[]).includes(options.id);
 
-        if (!(data.signups as string[]).includes(options.id)) {
+        if (added) {
             t.update(ref, {
                 signups: FieldValue.arrayUnion(options.id)
             })
         }
 
-        return confirmed;
+        return { confirmed, added };
     });
+
+    const confirmed = result?.confirmed;
+
+    if (result?.added) {
+        await runSignupHooks('onSignup', game, options.id, instance);
+    }
 
     const playerObjects = await getPlayerObjects(options.id, instance);
 
@@ -131,19 +138,49 @@ export async function removeSignup(options: { id: string, game: string }, instan
 
     const ref = db.collection('instances').doc(instance.id).collection('games').doc(id);
 
-    await db.runTransaction(async t => {
+    const removed = await db.runTransaction(async t => {
         const doc = await t.get(ref);
 
         const data = doc.data();
 
-        if (data == undefined) return;
+        if (data == undefined) return false;
+
+        const removed = (data.signups as string[]).includes(options.id);
 
         t.update(ref, {
             signups: FieldValue.arrayRemove(options.id)
         })
+
+        return removed;
     });
 
+    if (removed) {
+        const game = await getGameByID(id, instance);
+
+        await runSignupHooks('onLeave', game, options.id, instance);
+    }
+
     return true;
+}
+
+async function runSignupHooks(hook: 'onSignup' | 'onLeave', game: Signups, id: string, instance: Instance) {
+    // Imported lazily to avoid a circular import (extensions load files that import this module).
+    const { getEnabledExtensions } = await import("../extensions");
+
+    const extensions = getEnabledExtensions(instance.global);
+
+    const results = await Promise.allSettled(extensions.map(extension => extension[hook]?.(instance, game, id)));
+
+    const fails = results.filter(result => result.status == "rejected") as PromiseRejectedResult[];
+
+    if (fails.length > 0) {
+        console.log(fails);
+
+        // Report to mods instead of failing the player's signup/leave.
+        const gameSetup = await getGameSetup(game, instance.setup);
+
+        await gameSetup.spec.send("Signup extension error for <@" + id + ">:\n" + fails.map(fail => String(fail.reason)).join("\n")).catch(() => {});
+    }
 }
 
 export async function openSignups(name: string, instance: Instance) {
