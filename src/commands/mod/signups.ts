@@ -147,8 +147,6 @@ async function createSignups(interaction: Event<CommandInteraction | ButtonInter
     if (global == null || game == null) throw new Error("Could not find game.");
     if (typeof setup == 'string') throw new Error("Setup incomplete.");
 
-    if (setup.primary.chat.id != (interaction.type == 'text' ? interaction.message.channelId : interaction.channelId)) throw new Error("Cannot create signups in this channel.");
-
     if (global.started) throw new Error("You cannot create signups while a game is underway.");
 
     const embed = new EmbedBuilder()
@@ -167,5 +165,5 @@ async function createSignups(interaction: Event<CommandInteraction | ButtonInter
 
     if (message == undefined || message.guildId == undefined) return;
 
-    await activateSignup({ id: message.id, name: game.name }, interaction.instance);
+    await activateSignup({ id: message.id, channel: message.channelId, name: game.name }, interaction.instance);
 }

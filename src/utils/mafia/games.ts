@@ -16,6 +16,7 @@ export interface Signups {
     closed: boolean,
     message: {
         id: string,
+        channel?: string, // missing on signups created before signups could be posted outside main chat
     } | null,
     channels: {
         spec: string,
@@ -215,7 +216,15 @@ export async function closeSignups(name: string, instance: Instance) {
     })
 }
 
-export async function activateSignup(options: { id: string, name: string }, instance: Instance) {
+async function fetchSignupMessage(signup: { id: string, channel?: string }, instance: Instance) {
+    const channel = signup.channel ? await client.channels.fetch(signup.channel) : instance.setup.primary.chat;
+
+    if (channel == null || !channel.isTextBased()) throw new Error("Signup channel not found.");
+
+    return await channel.messages.fetch(signup.id);
+}
+
+export async function activateSignup(options: { id: string, channel: string, name: string }, instance: Instance) {
     const game = await getGameByName(options.name, instance);
 
     if (game == null) throw new Error("Game not found.");
@@ -229,6 +238,7 @@ export async function activateSignup(options: { id: string, name: string }, inst
     await ref.update({
         message: {
             id: options.id,
+            channel: options.channel,
         }
     })
 
@@ -239,7 +249,7 @@ export async function activateSignup(options: { id: string, name: string }, inst
 
         if (typeof setup == 'string') throw new Error("Setup incomplete.");
 
-        let message = await setup.primary.chat.messages.fetch(signup.id).catch(() => { return undefined; });
+        let message = await fetchSignupMessage(signup, instance).catch(() => { return undefined; });
 
         if (!message || !message.editable) return;
 
@@ -271,7 +281,7 @@ export async function refreshSignup(name: string, instance: Instance) {
     if (game == null) throw new Error("Game not found.");
     if (game.message == null) return;
 
-    let message = await setup.primary.chat.messages.fetch(game.message?.id ?? "not-a-message");
+    let message = await fetchSignupMessage(game.message, instance);
 
     if (!message || !message.editable) return;
 
