@@ -10,7 +10,7 @@ export async function standardAutocomplete(interaction: Event<AutocompleteIntera
 
     const focusedValue = interaction.options.getFocused(true);
     
-    if(focusedValue.name == "game") {
+    if(focusedValue.name == "game" || focusedValue.name == "from" || focusedValue.name == "to") {
         const games = await getGames(interaction.instance);
 
         const filtered = games.filter(choice => choice.name.startsWith(focusedValue.value)).slice(0, 25);
