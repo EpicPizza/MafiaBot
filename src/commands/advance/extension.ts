@@ -6,10 +6,9 @@ import { Event, type TextCommand } from '../../discord';
 import { fromZod } from '../../utils/text';
 import { getAllExtensions } from "../../utils/extensions";
 import { firebaseAdmin } from "../../utils/firebase";
-import { getGameByID } from "../../utils/mafia/games";
+import { gameRef, resolveGame } from "../../utils/mafia/games";
 import { getSetup } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
-import { settingsRef } from "../../utils/mafia/state";
 
 export const ExtensionCommand = {
     name: "extension",
@@ -36,6 +35,13 @@ export const ExtensionCommand = {
                         .setDescription("Whether to run start function or not.")
                         .setRequired(true)
                 )
+                .addStringOption(option =>
+                    option
+                        .setName("game")
+                        .setDescription("Game to change. Defaults to the running game.")
+                        .setRequired(false)
+                        .setAutocomplete(true)
+                )
         )
         .addSubcommand(subcommand =>
             subcommand 
@@ -54,6 +60,13 @@ export const ExtensionCommand = {
                         .setDescription("Whether to run end function or not.")
                         .setRequired(true)
                 )
+                .addStringOption(option =>
+                    option
+                        .setName("game")
+                        .setDescription("Game to change. Defaults to the running game.")
+                        .setRequired(false)
+                        .setAutocomplete(true)
+                )
         ),
     text: () => {
         return new Command()
@@ -62,6 +75,7 @@ export const ExtensionCommand = {
             .argument('<action>', 'enable, disable', fromZod(z.string().min(1).max(100)))
             .argument('<name>', 'name of extension', fromZod(z.string().min(1).max(100)))
             .option('--setup', 'to run start/end fucntion')
+            .option('-g, --game <name>', 'game to change, defaults to the running game', fromZod(z.string().min(1).max(100)))
     },
 
     execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
@@ -80,8 +94,11 @@ export const ExtensionCommand = {
         if(command == null) throw new Error("Arguments not specified.");
         if(extension == null) throw new Error("Extension name not specified.");
 
-        const enabled = getAllExtensions().filter(extension => global.extensions.find(enabled => enabled == extension.name));
-        const disabled = getAllExtensions().filter(extension => !global.extensions.find(enabled => enabled == extension.name));
+        const game = await resolveGame(interaction.type == 'text' ? interaction.program.getOptionValue('game') as string | undefined : interaction.options.getString("game"), interaction.instance);
+        const gameExtensions = game.extensions ?? [];
+
+        const enabled = getAllExtensions().filter(extension => gameExtensions.find(enabled => enabled == extension.name));
+        const disabled = getAllExtensions().filter(extension => !gameExtensions.find(enabled => enabled == extension.name));
 
         if(command == "enable") {
             //if(global.started) throw new Error("Cannot enable or disable extensions if the game has already started."); ADVANCE?
@@ -98,16 +115,13 @@ export const ExtensionCommand = {
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = settingsRef(interaction.instance);
+            const ref = gameRef(interaction.instance, game.id);
 
             await ref.update({
                 extensions: FieldValue.arrayUnion(extension.substring(0, 1).toUpperCase() + extension.substring(1, extension.length).toLowerCase())
             });          
             
             if(start === true) {
-                const setup = interaction.instance.setup;
-                const game = await getGameByID(global.game ?? "---", interaction.instance);
-                
                 await enabling.onStart(interaction.instance, game);
             }
 
@@ -125,16 +139,13 @@ export const ExtensionCommand = {
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = settingsRef(interaction.instance);
+            const ref = gameRef(interaction.instance, game.id);
 
             await ref.update({
                 extensions: FieldValue.arrayRemove(extension.substring(0, 1).toUpperCase() + extension.substring(1, extension.length).toLowerCase())
             });     
 
             if(end === true) {
-                const setup = interaction.instance.setup;
-                const game = await getGameByID(global.game ?? "---", interaction.instance);
-                
                 await disabling.onEnd(interaction.instance, game);
             }
 

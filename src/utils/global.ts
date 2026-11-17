@@ -6,7 +6,6 @@ export interface Global {
     players: Player[]
     day: number,
     game: string | null,
-    bulletin: string | null, 
     extensions: string[],
     grace: boolean,
     admin: string[],

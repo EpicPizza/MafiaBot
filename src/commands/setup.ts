@@ -187,10 +187,7 @@ module.exports = {
 
             await ref.doc('game').set({
                 game: null,
-                bulletin: null,
-                extensions: [],
                 admin: [],
-                hammer: true,
             })
 
             return await interaction.reply({ content: "Database setup.", ephemeral: true });

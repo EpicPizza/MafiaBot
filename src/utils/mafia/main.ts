@@ -4,7 +4,7 @@ import { CollectionReference, DocumentSnapshot, Firestore, Query } from "firebas
 import client from "../../discord/client";
 import { removeReactions } from "../../discord/helpers";
 import { type TextCommand } from '../../discord';
-import { getEnabledExtensions } from "../extensions";
+import { getEnabledExtensions, getExtensions } from "../extensions";
 import { firebaseAdmin } from "../firebase";
 import { type Global } from '../global';
 import { clearFiles } from "../google/doc";
@@ -276,7 +276,7 @@ export async function prepareGame(game: Signups, instance: Instance) {
     await createGameState(instance, game.id, state);
     await settingsRef(instance).update({ game: game.id });
 
-    instance.global = { ...instance.global, ...state, game: game.id };
+    instance.global = { ...instance.global, ...state, game: game.id, extensions: game.extensions ?? [], hammer: game.hammer ?? true };
 }
 
 export async function finishSignups(game: Signups, instance: Instance) {
@@ -461,7 +461,7 @@ export async function setupPlayer(id: string, gameSetup: GameSetup, instance: In
 }
 
 export async function startExtensions(instance: Instance, game: Signups) {
-    const extensions = await getEnabledExtensions(instance.global);
+    const extensions = getExtensions(game.extensions ?? []);
 
     const promises = [] as Promise<any>[];
 
@@ -754,7 +754,7 @@ export async function clearPlayer(id: string, setup: Setup, gameSetup: GameSetup
 }
 
 export async function endExtensions(instance: Instance, game: Signups) {
-    const extensions = await getEnabledExtensions(instance.global);
+    const extensions = getExtensions(game.extensions ?? []);
 
     const promises = [] as Promise<any>[];
 

@@ -5,7 +5,8 @@ import type { Instance } from "../instance";
 import type { Player } from "./main";
 
 // Per-game state, stored at instances/{instance}/games/{game}/state/{game|lock|grace}.
-// Instance-wide settings (active game pointer, admins, bulletin, extensions, hammer) stay in instances/{instance}/settings/game.
+// Per-game options (extensions, hammer) live on the game doc itself, since they're set before the game starts.
+// Instance-wide settings (running game pointer, admins) stay in instances/{instance}/settings/game.
 
 export interface GameState {
     started: boolean,
@@ -15,7 +16,14 @@ export interface GameState {
     grace: boolean,
 }
 
-export type InstanceSettings = Omit<Global, keyof GameState>;
+export interface GameOptions {
+    extensions: string[],
+    hammer: boolean,
+}
+
+export type InstanceSettings = Omit<Global, keyof GameState | keyof GameOptions>;
+
+const legacyFields = ['bulletin', 'extensions', 'hammer'];
 
 export const defaultState: GameState = {
     started: false,
@@ -33,6 +41,10 @@ function getDB(db?: Firestore) {
 
 export function settingsRef(instance: Instance | string, db?: Firestore) {
     return getDB(db).collection('instances').doc(typeof instance == 'string' ? instance : instance.id).collection('settings').doc('game');
+}
+
+function gameDocRef(instanceId: string, game: string, db?: Firestore) {
+    return getDB(db).collection('instances').doc(instanceId).collection('games').doc(game);
 }
 
 function stateCollection(instanceId: string, game: string, db?: Firestore) {
@@ -76,35 +88,57 @@ export async function loadGlobal(instanceId: string, db: Firestore): Promise<Glo
 
     if(settings == undefined) return undefined;
 
-    if('started' in settings) {
-        await migrateLegacyState(instanceId, settings, db);
+    const legacy = settings;
+
+    if('started' in legacy || legacyFields.some(field => field in legacy)) {
+        await migrateLegacyState(instanceId, legacy, db);
         settings = (await ref.get()).data() ?? settings;
     }
 
     const instance = {
         game: settings.game ?? null,
         admin: settings.admin ?? [],
-        bulletin: settings.bulletin ?? null,
-        extensions: settings.extensions ?? [],
-        hammer: settings.hammer ?? true,
     } satisfies InstanceSettings;
 
     let state = defaultState;
+    let options: GameOptions = { extensions: [], hammer: true };
 
     if(instance.game != null) {
-        const data = (await stateCollection(instanceId, instance.game, db).doc('game').get()).data();
+        const [stateDoc, gameDoc] = await Promise.all([
+            stateCollection(instanceId, instance.game, db).doc('game').get(),
+            gameDocRef(instanceId, instance.game, db).get(),
+        ]);
 
+        const data = stateDoc.data();
         if(data) state = { ...defaultState, ...data } as GameState;
+
+        const game = gameDoc.data();
+        if(game) options = { extensions: game.extensions ?? [], hammer: game.hammer ?? true };
     }
 
-    return { ...instance, ...state, players: [...state.players] };
+    return { ...instance, ...state, ...options, players: [...state.players] };
 }
 
-// One-time move of settings/game, settings/lock and settings/grace into the running game's state docs.
+// One-time move of settings/game, settings/lock and settings/grace into the running game's state docs,
+// and of instance-wide extensions/hammer onto every active game that doesn't have its own yet.
 async function migrateLegacyState(instanceId: string, settings: FirebaseFirestore.DocumentData, db: Firestore) {
     const settingsDoc = settingsRef(instanceId, db);
 
-    if(settings.game) {
+    if('extensions' in settings || 'hammer' in settings) {
+        const games = await getDB(db).collection('instances').doc(instanceId).collection('games').where('state', '==', 'active').get();
+
+        await Promise.all(games.docs.map(game => {
+            const data = game.data();
+            const update: Partial<GameOptions> = {};
+
+            if(data.extensions == undefined) update.extensions = settings.extensions ?? [];
+            if(data.hammer == undefined) update.hammer = settings.hammer ?? true;
+
+            return Object.keys(update).length > 0 ? game.ref.update(update) : undefined;
+        }));
+    }
+
+    if(settings.game && 'started' in settings) {
         const collection = stateCollection(instanceId, settings.game, db);
         const legacy = settingsDoc.parent;
 
@@ -119,7 +153,7 @@ async function migrateLegacyState(instanceId: string, settings: FirebaseFirestor
         ]);
     }
 
-    await settingsDoc.update(Object.fromEntries(stateFields.map(field => [field, FieldValue.delete()])));
+    await settingsDoc.update(Object.fromEntries([...stateFields, ...legacyFields].filter(field => field in settings).map(field => [field, FieldValue.delete()])));
 
     console.log("Migrated game state for instance " + instanceId + (settings.game ? " (game " + settings.game + ")." : "."));
 }

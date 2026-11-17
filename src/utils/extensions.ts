@@ -14,6 +14,7 @@ import type { TransactionResult } from './mafia/vote';
 import type { Setup } from './setup';
 import { initHelp } from '../discord/help';
 import { Instance } from './instance';
+import { firebaseAdmin } from './firebase';
 import { MessageAction, ReactionAction, StatsAction } from './mafia/tracking';
 
 const extensions = [] as Extension[]; 
@@ -84,6 +85,15 @@ export function getEnabledExtensions(global: Global) {
     return extensions.filter(extension => global.extensions.find(enabled => enabled == extension.name));
 }
 
+// Enabled in the running game, or, with no game running, in any active game (for pregame commands like upick).
+async function isExtensionInUse(name: string, instance: Instance) {
+    if(instance.global.game != null) return instance.global.extensions.includes(name);
+
+    const games = await firebaseAdmin.getFirestore().collection('instances').doc(instance.id).collection('games').where('state', '==', 'active').get();
+
+    return games.docs.some(game => ((game.data().extensions ?? []) as string[]).includes(name));
+}
+
 export function getAllExtensions() {
     return extensions;
 }
@@ -117,9 +127,7 @@ export function getExtensionTextCommands() {
 
                 const global = interaction.inInstance();
 
-                const enabledExtensions = await getEnabledExtensions(interaction.instance.global);
-
-                if(!enabledExtensions.map(extension => extension.name).includes(extension.name)) throw new Error("Extension not enabled!");
+                if(!(await isExtensionInUse(extension.name, interaction.instance))) throw new Error("Extension not enabled!");
 
                 const name = interaction.program.args[0] as string;
 

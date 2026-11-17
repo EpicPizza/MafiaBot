@@ -7,7 +7,7 @@ import { fromZod } from '../../utils/text';
 import { getAllExtensions } from "../../utils/extensions";
 import { firebaseAdmin } from "../../utils/firebase";
 import { Subcommand } from "../../utils/subcommands";
-import { settingsRef } from "../../utils/mafia/state";
+import { gameRef, resolveGame } from "../../utils/mafia/games";
 
 export const ExtensionCommand = {
     name: "extension",
@@ -27,6 +27,13 @@ export const ExtensionCommand = {
                         .setRequired(true)
                         .setAutocomplete(true)    
                 )
+                .addStringOption(option =>
+                    option
+                        .setName("game")
+                        .setDescription("Game to change. Defaults to the running game.")
+                        .setRequired(false)
+                        .setAutocomplete(true)
+                )
         )
         .addSubcommand(subcommand =>
             subcommand 
@@ -39,11 +46,25 @@ export const ExtensionCommand = {
                         .setRequired(true)
                         .setAutocomplete(true)    
                 )
+                .addStringOption(option =>
+                    option
+                        .setName("game")
+                        .setDescription("Game to change. Defaults to the running game.")
+                        .setRequired(false)
+                        .setAutocomplete(true)
+                )
         )
         .addSubcommand(subcommand =>
             subcommand 
                 .setName("list")
                 .setDescription("List all enabled and disabled extension.")
+                .addStringOption(option =>
+                    option
+                        .setName("game")
+                        .setDescription("Game to change. Defaults to the running game.")
+                        .setRequired(false)
+                        .setAutocomplete(true)
+                )
         ),
     text: () => {
         return new Command()
@@ -51,6 +72,7 @@ export const ExtensionCommand = {
             .description('manage extensions')
             .argument('<action>', 'list, enable, disable', fromZod(z.string().min(1).max(100)))
             .argument('[name]', 'name of extension', fromZod(z.string().min(1).max(100)))
+            .option('-g, --game <name>', 'game to change, defaults to the running game', fromZod(z.string().min(1).max(100)))
     },
     
     execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
@@ -64,14 +86,19 @@ export const ExtensionCommand = {
         if(command == null) throw new Error("Extension command not specified.");
         if(command != 'list' && extension == null) throw new Error("Extension name not specified.");
 
-        const enabled = getAllExtensions().filter(extension => global.extensions.find(enabled => enabled == extension.name));
-        const disabled = getAllExtensions().filter(extension => !global.extensions.find(enabled => enabled == extension.name));
+        const game = await resolveGame(interaction.type == 'text' ? interaction.program.getOptionValue('game') as string | undefined : interaction.options.getString("game"), interaction.instance);
+        const gameExtensions = game.extensions ?? [];
+        const running = global.started && global.game == game.id;
+
+        const enabled = getAllExtensions().filter(extension => gameExtensions.find(enabled => enabled == extension.name));
+        const disabled = getAllExtensions().filter(extension => !gameExtensions.find(enabled => enabled == extension.name));
 
         if(command == "list" || extension == null) {
             const list =  getAllExtensions().reduce((previous, current) => previous + "\n\n" + (enabled.find(extension => extension.name == current.name) ? ":white_check_mark: " : "<:cross:1258228069156655259> ") + "**" + current.name + " Extension**\n" + current.description, "");
 
             const embed = new EmbedBuilder()
                 .setTitle("Extensions")
+                .setFooter({ text: "Showing extensions for " + game.name + "." })
                 .setColor(Colors.Purple)
                 .setDescription(
                    list == "" ? "No extensions found." : list
@@ -79,7 +106,7 @@ export const ExtensionCommand = {
 
             interaction.reply({ embeds: [embed], ephemeral: true });
         } else if(command == "enable") {
-            if(global.started) throw new Error("Cannot enable or disable extensions if the game has already started.");
+            if(running) throw new Error("Cannot enable or disable extensions if the game has already started.");
             
             const enabling = disabled.find(disabledExtension => disabledExtension.name.toLowerCase() == extension.toLowerCase() );
 
@@ -93,7 +120,7 @@ export const ExtensionCommand = {
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = settingsRef(interaction.instance);
+            const ref = gameRef(interaction.instance, game.id);
 
             await ref.update({
                 extensions: FieldValue.arrayUnion(extension.substring(0, 1).toUpperCase() + extension.substring(1, extension.length).toLowerCase())
@@ -105,13 +132,13 @@ export const ExtensionCommand = {
                 await interaction.reply({ content: "Extension enabled.", ephemeral: true })
             }
         } else if(command == "disable") {
-            if(global.started) throw new Error("Cannot enable or disable extensions if the game has already started.");
+            if(running) throw new Error("Cannot enable or disable extensions if the game has already started.");
 
             if(disabled.find(disabledExtension => disabledExtension.name.toLowerCase() == extension.toLowerCase() )) throw new Error("Extension already disabled.");
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = settingsRef(interaction.instance);
+            const ref = gameRef(interaction.instance, game.id);
 
             await ref.update({
                 extensions: FieldValue.arrayRemove(extension.substring(0, 1).toUpperCase() + extension.substring(1, extension.length).toLowerCase())

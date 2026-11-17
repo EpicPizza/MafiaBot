@@ -24,6 +24,8 @@ export interface Signups {
     }
     confirmations: string[],
     mods: string[],
+    extensions?: string[], // missing on games created before extensions were per game
+    hammer?: boolean,
     days: number,
     alignments: string[],
     winners: string[],
@@ -168,9 +170,9 @@ export async function removeSignup(options: { id: string, game: string }, instan
 
 async function runSignupHooks(hook: 'onSignup' | 'onLeave', game: Signups, id: string, instance: Instance) {
     // Imported lazily to avoid a circular import (extensions load files that import this module).
-    const { getEnabledExtensions } = await import("../extensions");
+    const { getExtensions } = await import("../extensions");
 
-    const extensions = getEnabledExtensions(instance.global);
+    const extensions = getExtensions(game.extensions ?? []);
 
     const results = await Promise.allSettled(extensions.map(extension => extension[hook]?.(instance, game, id)));
 
@@ -387,6 +389,8 @@ export async function createGame(interaction: ChatInputCommandInteraction | Text
         state: 'active',
         pinned: null,
         mods: [],
+        extensions: [],
+        hammer: true,
         start: null,
         end: null,
     } satisfies Omit<Signups, "id">);
@@ -482,6 +486,18 @@ export async function getGameByID(id: string, instance: Instance, allowCompleted
     if (allowCompleted === false && doc.data()?.state != 'active') throw new Error("Game completed!");
 
     return { ...doc.data(), id: doc.id } as Signups;
+}
+
+// The game a mod command acts on: the named game, else the running game.
+export async function resolveGame(name: string | null | undefined, instance: Instance) {
+    if (name) return await getGameByName(name, instance);
+    if (instance.global.game) return await getGameByID(instance.global.game, instance);
+
+    throw new Error("No game is running. Specify a game.");
+}
+
+export function gameRef(instance: Instance, id: string) {
+    return firebaseAdmin.getFirestore().collection('instances').doc(instance.id).collection('games').doc(id);
 }
 
 export async function getGameID(name: string, instance: Instance, allowCompleted: boolean = false) {
