@@ -29,7 +29,7 @@ export const MafiaCommand = {
     text: () => {
         return new Command()
             .name('mafia')
-            .description('Convert a player to mafia. Creates an invite to send to the player and updates alignment accordingly.')
+            .description('Convert a player to mafia. Gives them access to mafia chat (creates an invite if they are not in the mafia server).')
             .argument('<player>', 'which player', fromZod(z.string().min(1).max(100)));
     },
 
@@ -68,11 +68,15 @@ export const MafiaCommand = {
 
         if(!user) throw new Error("Player not found.");
 
-        await addMafiaPlayer({ id: user.id, alignment: null }, interaction.instance);
+        const inServer = await addMafiaPlayer({ id: user.id, alignment: null }, interaction.instance);
 
-        const invite = await setup.tertiary.guild.invites.create(gameSetup.mafia, { unique: true });
+        if(inServer) {
+            await gameSetup.spec.send("<@" + interaction.user.id + "> " + user.nickname + " has been given access to mafia chat.");
+        } else {
+            const invite = await setup.tertiary.guild.invites.create(gameSetup.mafia, { unique: true });
 
-        await gameSetup.spec.send("<@" + interaction.user.id + "> Here is the invite link for mafia server: \nhttps://discord.com/invite/" + invite.code);
+            await gameSetup.spec.send("<@" + interaction.user.id + "> " + user.nickname + " is not in the mafia server, here is the invite link for mafia server (they'll get access when they join): \nhttps://discord.com/invite/" + invite.code);
+        }
 
         if(interaction.type != 'text') {
             await interaction.editReply({ content: "Mafia added."});

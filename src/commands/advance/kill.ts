@@ -12,6 +12,7 @@ import { getUserByName } from "../../utils/mafia/user";
 import { getSetup, Setup, } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
 import { Instance } from "../../utils/instance";
+import { revokeMafiaAccess } from "../../utils/mafia/main";
 
 export const KillCommand = {
     name: "kill",
@@ -29,7 +30,7 @@ export const KillCommand = {
     text: () => {
         return new Command()
             .name('kill')
-            .description('Does not add spectator roles immediently after removing. Will kick player out of the mafia server if they are mafia. Use /mod spectator or ?mod spectator to add spectator roles to them later or ending the game will add spectator roles as well.')
+            .description('Does not add spectator roles immediently after removing. Will remove their mafia chat permissions if they are mafia. Use /mod spectator or ?mod spectator to add spectator roles to them later or ending the game will add spectator roles as well.')
             .argument('<player>', 'nickname of player', fromZod(z.string().min(1).max(100)));
     },
 
@@ -93,7 +94,7 @@ export async function killPlayer(name: string, instance: Instance) {
     if(main != null) await main.roles.remove(instance.setup.primary.alive);
     
     const mafia = await instance.setup.tertiary.guild.members.fetch(user.id).catch(() => undefined);
-    if(mafia != null) await mafia.kick();
+    if(mafia != null) await revokeMafiaAccess(mafia.id, instance.setup, gameSetup.mafia);
 
     const db = firebaseAdmin.getFirestore();
 

@@ -5,7 +5,7 @@ import { getFuture, getGrace, setFuture, setGrace } from "../utils/mafia/timing"
 import { removeReactions } from "../discord/helpers";
 import { killPlayer } from "./advance/kill";
 import { z } from "zod";
-import { setupPlayer } from "../utils/mafia/main";
+import { grantMafiaAccess, revokeMafiaAccess, setupPlayer } from "../utils/mafia/main";
 import { getGameByID, getGameSetup } from "../utils/mafia/games";
 import { firebase } from "googleapis/build/src/apis/firebase";
 import { firebaseAdmin } from "../utils/firebase";
@@ -142,7 +142,8 @@ module.exports = {
             if(main != null) await main.roles.remove(interaction.instance.setup.primary.alive);
 
             let mafia = await interaction.instance.setup.tertiary.guild.members.fetch(user.id).catch(() => undefined);
-            if(mafia != null) await mafia.roles.remove(interaction.instance.setup.tertiary.access);
+            const hadMafiaAccess = interaction.instance.setup.tertiary.ongoing.permissionOverwrites.cache.has(user.id);
+            if(mafia != null && hadMafiaAccess) await revokeMafiaAccess(mafia.id, interaction.instance.setup, gameSetup.mafia);
 
             // set grace to 15 mins
             let newGraceTime = new Date().valueOf() + 15 /* mins */ * 1000 /* ms per sec */ * 60 /* sec per min */;
@@ -177,7 +178,7 @@ module.exports = {
             if(main != null) await main.roles.add(interaction.instance.setup.primary.alive);
 
             mafia = await interaction.instance.setup.tertiary.guild.members.fetch(user.id).catch(() => undefined);
-            if(mafia != null) await mafia.roles.add(interaction.instance.setup.tertiary.access);
+            if(mafia != null && hadMafiaAccess) await grantMafiaAccess(mafia.id, interaction.instance.setup, gameSetup.mafia);
 
             await ref.update({
                 players: FieldValue.arrayUnion({

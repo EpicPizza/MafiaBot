@@ -1,5 +1,5 @@
 import { EmbedBuilder } from "@discordjs/builders";
-import Discord, { ButtonInteraction, ChannelType, ChatInputCommandInteraction, Colors, GuildMember, PermissionsBitField, TextChannel } from "discord.js";
+import Discord, { ButtonInteraction, ChannelType, ChatInputCommandInteraction, Colors, GuildMember, OverwriteType, PermissionsBitField, TextChannel } from "discord.js";
 import { CollectionReference, DocumentSnapshot, Firestore, Query } from "firebase-admin/firestore";
 import client from "../../discord/client";
 import { removeReactions } from "../../discord/helpers";
@@ -358,12 +358,28 @@ export async function setupMafiaPlayer(mafiaPlayer: GuildMember | undefined, set
         await mafiaPlayer.roles.remove(setup.tertiary.mod);
         await mafiaPlayer.roles.remove(setup.tertiary.spec);
         await mafiaPlayer.roles.remove(setup.tertiary.access);
+    }
+}
 
-        if(mafiaPlayer.kickable) {
-            await mafiaPlayer.kick();
-        } else {
-            await gameSetup.mafia.send("Failed to kick <@" + mafiaPlayer.id + ">.");
-        }
+// Mafia chat access is granted through member permission overwrites on the tertiary ongoing category (and the game's mafia channel,
+// since editing a category through the API does not propagate to its children). Everyone else can stay in the server.
+export async function grantMafiaAccess(id: string, setup: Setup, mafia: TextChannel) {
+    await setup.tertiary.ongoing.permissionOverwrites.edit(id, editOverwrites(), { type: OverwriteType.Member });
+    await mafia.permissionOverwrites.edit(id, editOverwrites(), { type: OverwriteType.Member });
+}
+
+export async function revokeMafiaAccess(id: string, setup: Setup, mafia: TextChannel | undefined) {
+    if(setup.tertiary.ongoing.permissionOverwrites.cache.has(id)) await setup.tertiary.ongoing.permissionOverwrites.delete(id);
+    if(mafia?.permissionOverwrites.cache.has(id)) await mafia.permissionOverwrites.delete(id);
+}
+
+export async function clearMafiaAccess(setup: Setup, gameSetup: GameSetup) {
+    const channels = [ setup.tertiary.ongoing, gameSetup.mafia ];
+
+    for(const channel of channels) {
+        const members = channel.permissionOverwrites.cache.filter(overwrite => overwrite.type == OverwriteType.Member);
+
+        await Promise.all(members.map(overwrite => overwrite.delete()));
     }
 }
 
@@ -510,6 +526,7 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
     promises.push(deleteCollection(db, db.collection("edits"), 20));
     promises.push(deleteCollection(db, db.collection('instances').doc(instance.id).collection("roles"), 20));
     promises.push(deleteInvites(setup));
+    promises.push(clearMafiaAccess(setup, gameSetup));
     promises.push(finishSignups(game, instance));
     promises.push(setupPermissions(setup, true));
     promises.push(startExtensions(instance, game));
@@ -694,6 +711,7 @@ export async function setMafiaSpectator(mafiaPlayer: GuildMember | undefined, id
     if(mafiaPlayer) {
         await mafiaPlayer.roles.add(setup.tertiary.spec);
         await mafiaPlayer.roles.remove(setup.tertiary.access);
+        await revokeMafiaAccess(mafiaPlayer.id, setup, gameSetup.mafia);
     } else if(dm) {
         const invite = await setup.tertiary.guild.invites.create(gameSetup.mafia.id, { unique: true });
 

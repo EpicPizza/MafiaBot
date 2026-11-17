@@ -6,6 +6,7 @@ import { firebaseAdmin } from "../../utils/firebase";
 import { type Global } from '../../utils/global';
 import { getGameByID, getGameSetup } from "../../utils/mafia/games";
 import { onjoin } from "../../utils/mafia/invite";
+import { grantMafiaAccess } from "../../utils/mafia/main";
 import { getUser, getUsers } from "../../utils/mafia/user";
 import { Setup, getSetup } from "../../utils/setup";
 import { Subinteraction } from "../../utils/subcommands";
@@ -119,7 +120,7 @@ export const ConfirmAlignmentsButton = {
     }
 } satisfies Subinteraction;
 
-export async function addMafiaPlayer(player: Global["players"][0], instance: Instance) {
+export async function addMafiaPlayer(player: Global["players"][0], instance: Instance): Promise<boolean> {
     const mafiaMember = await instance.setup.tertiary.guild.members.fetch(player.id).catch(() => undefined);
 
     const user = await getUser(player.id, instance);
@@ -130,19 +131,34 @@ export async function addMafiaPlayer(player: Global["players"][0], instance: Ins
 
     if(channel == null) throw new Error("Channel not found.");
 
+    const game = await getGameByID(instance.global.game ?? "", instance);
+    const gameSetup = await getGameSetup(game, instance.setup);
+
     if(mafiaMember?.joinedTimestamp) {
         await mafiaMember.roles.remove(instance.setup.tertiary.spec);
-        await mafiaMember.roles.add(instance.setup.tertiary.access);
+        await grantMafiaAccess(mafiaMember.id, instance.setup, gameSetup.mafia);
+
+        return true;
     } else {
-        const db = firebaseAdmin.getFirestore();
+        // not in the mafia server yet, grant category + channel permissions once they join
+        await onjoin({
+            id: user.id,
+            server: "tertiary",
+            roles: {},
+            permissions: {
+                channel: instance.setup.tertiary.ongoing.id,
+            }
+        }, instance);
 
         await onjoin({
             id: user.id,
             server: "tertiary",
-            roles: {
-                add: ["access"],
+            roles: {},
+            permissions: {
+                channel: gameSetup.mafia.id,
             }
         }, instance);
-        
+
+        return false;
     }
 }

@@ -113,7 +113,7 @@ export async function guildMemberAddHanlder(...[member]: ClientEvents[Events.Gui
 
             if(queue.permissions) {
                 const permissionsChannel = guild.channels.cache.get(queue.permissions.channel);
-                if(permissionsChannel && permissionsChannel.type == ChannelType.GuildText) await permissionsChannel.permissionOverwrites.create(member.id, editOverwrites());
+                if(permissionsChannel && (permissionsChannel.type == ChannelType.GuildText || permissionsChannel.type == ChannelType.GuildCategory)) await permissionsChannel.permissionOverwrites.create(member.id, editOverwrites());
 
                 if(!global.started) {
                     message += "Read permissions for " + permissionsChannel?.url + "\n\n";
@@ -136,7 +136,8 @@ export async function guildMemberAddHanlder(...[member]: ClientEvents[Events.Gui
             ]});
         }
 
-        if(roles.length == 0 && (setup.secondary.guild.id == member.guild.id || setup.tertiary.guild.id == member.guild.id) && member.kickable && global.started) {
+        // mafia server no longer kicks during games, access to mafia chat is handled by category permission overwrites
+        if(roles.length == 0 && setup.secondary.guild.id == member.guild.id && member.kickable && global.started) {
             await member.kick();
 
             await setup.secondary.logs.send({ embeds: [
