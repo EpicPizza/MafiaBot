@@ -13,6 +13,7 @@ import { GameSetup, Signups, getGameByID, getGameByName, getGameSetup, refreshSi
 import { onjoin } from "./invite";
 import { User, getPlayerObjects, getUsersArray } from "./user";
 import { Instance } from "../instance";
+import { createGameState, settingsRef, stateRef } from "./state";
 
 const pings = true;
 
@@ -132,7 +133,7 @@ export async function unlockGame(instance: Instance, increment: boolean = false,
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(instance.id).collection('settings').doc('game');
+    const ref = stateRef(instance);
 
     await ref.update({
         started: true,
@@ -204,7 +205,7 @@ export async function lockGame(instance: Instance) {
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(instance.id).collection('settings').doc('game');
+    const ref = stateRef(instance);
 
     await ref.update({
         started: true,
@@ -264,19 +265,18 @@ export async function deleteInvites(setup: Setup) {
 export async function prepareGame(game: Signups, instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(instance.id).collection('settings').doc('game');
-
-    const updatedGlobal = {
+    const state = {
         started: true,
         locked: true,
-        game: game.id,
         players: game.signups.map((signup) => { return { id: signup, alignment: null } }),
         day: 0,
+        grace: false,
     }
 
-    instance.global = { ...instance.global, ...updatedGlobal };
+    await createGameState(instance, game.id, state);
+    await settingsRef(instance).update({ game: game.id });
 
-    await ref.update(updatedGlobal);
+    instance.global = { ...instance.global, ...state, game: game.id };
 }
 
 export async function finishSignups(game: Signups, instance: Instance) {
@@ -659,15 +659,10 @@ export async function startLog(setup: Setup, global: Global, game: Signups, inst
 export async function clearGame(global: Global, instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(instance.id).collection('settings').doc('game');
+    // The game's state doc is kept (with started: false) as a record of how it ended.
+    if(global.game) await stateRef(instance, global.game).update({ started: false, locked: false });
 
-    await ref.update({
-        started: false,
-        locked: false,
-        players: [],
-        day: 0,
-        game: null,
-    });
+    await settingsRef(instance).update({ game: null });
 
     const gameRef = db.collection('instances').doc(instance.id).collection('games').doc(global.game ?? "---");
 
@@ -848,7 +843,7 @@ export async function endGame(interaction: ChatInputCommandInteraction | TextCom
 export async function editPlayer(options: { id: string, alignment: 'mafia' | null }, instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(instance.id).collection('settings').doc('game');
+    const ref = stateRef(instance);
 
     await db.runTransaction(async t => {
         const global = instance.global;

@@ -23,7 +23,7 @@ export interface Signups {
         mafia: string,
     }
     confirmations: string[],
-    mods: [],
+    mods: string[],
     days: number,
     alignments: string[],
     winners: string[],
@@ -58,6 +58,8 @@ export async function addSignup(options: { id: string, game: string }, instance:
     const gameSetup = await getGameSetup(game, instance.setup);
 
     if (game == null) return false;
+
+    await checkModPlayConflict(options.id, 'player', instance);
 
     const ref = db.collection('instances').doc(instance.id).collection('games').doc(game.id);
 
@@ -413,6 +415,20 @@ export async function getGameSetup(game: Signups, setup: Exclude<Awaited<ReturnT
 
 function getRandom(min: number, max: number) {
     return Math.floor((Math.random() * (max - min) + min)).toString();
+}
+
+// A user can't play in any active game while modding one, and can't be assigned as a mod while signed up for one.
+export async function checkModPlayConflict(id: string, as: 'player' | 'mod', instance: Instance) {
+    const db = firebaseAdmin.getFirestore();
+
+    const docs = (await db.collection('instances').doc(instance.id).collection('games').where('state', '==', 'active').get()).docs;
+
+    for (const doc of docs) {
+        const data = doc.data();
+
+        if (as == 'player' && ((data.mods ?? []) as string[]).includes(id)) throw new Error("<@" + id + "> is modding " + data.name + " and can't play in a game while modding.");
+        if (as == 'mod' && ((data.signups ?? []) as string[]).includes(id)) throw new Error("<@" + id + "> is signed up for " + data.name + " and can't mod while playing.");
+    }
 }
 
 export async function getGames(instance: Instance, allowCompleted: boolean = false) {

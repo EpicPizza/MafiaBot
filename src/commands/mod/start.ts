@@ -11,6 +11,7 @@ import { getSetup, Setup } from "../../utils/setup";
 import { Subinteraction } from "../../utils/subcommands";
 import { Global } from "../../utils/global";
 import { Instance } from "../../utils/instance";
+import { stateRef } from "../../utils/mafia/state";
 
 export const StartCommand = {
     name: "start",
@@ -192,7 +193,7 @@ export const DefaultAlignment = {
 
         await getUsers(selected, interaction.instance);
 
-        const ref = db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game');
+        const ref = stateRef(interaction.instance);
 
         await db.runTransaction(async t => {
             const global = interaction.instance.global;
@@ -234,7 +235,7 @@ export const MafiaAlignment = {
 
         await getUsers(selected, interaction.instance);
 
-        const ref = db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game');
+        const ref = stateRef(interaction.instance);
 
         await db.runTransaction(async t => {
             const global = interaction.instance.global;
@@ -276,7 +277,7 @@ export const NeutralAlignment = {
 
         await getUsers(selected, interaction.instance);
 
-        const ref = db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game');
+        const ref = stateRef(interaction.instance);
 
         await db.runTransaction(async t => {
             const global = interaction.instance.global;
@@ -366,7 +367,7 @@ export const CustomModal = {
 
         await getUsers(selected, interaction.instance);
 
-        const ref = db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game');
+        const ref = stateRef(interaction.instance);
 
         await db.runTransaction(async t => {
             const global = interaction.instance.global;

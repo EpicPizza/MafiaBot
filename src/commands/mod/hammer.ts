@@ -5,6 +5,7 @@ import { Event, type TextCommand } from '../../discord';
 import { fromZod } from '../../utils/text';
 import { firebaseAdmin } from "../../utils/firebase";
 import { Subcommand } from "../../utils/subcommands";
+import { settingsRef } from "../../utils/mafia/state";
 
 export const HammerCommand = {
     name: "hammer",
@@ -35,7 +36,7 @@ export const HammerCommand = {
 
         const db = firebaseAdmin.getFirestore();
 
-        const ref = db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game');
+        const ref = settingsRef(interaction.instance);
 
         await ref.update({
             hammer: type,

@@ -14,6 +14,7 @@ import { checkMod } from "../../utils/mod";
 import { Setup, getSetup } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
 import { Instance } from "../../utils/instance";
+import { stateRef } from "../../utils/mafia/state";
 
 export const RemoveCommand = {
     name: "remove",
@@ -92,7 +93,7 @@ export async function removePlayer(name: string, instance: Instance) {
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(instance.id).collection('settings').doc('game');
+    const ref = stateRef(instance);
 
     await db.runTransaction(async t => {
         t.update(ref, {

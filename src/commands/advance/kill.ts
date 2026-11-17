@@ -13,6 +13,7 @@ import { getSetup, Setup, } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
 import { Instance } from "../../utils/instance";
 import { revokeMafiaAccess } from "../../utils/mafia/main";
+import { stateRef } from "../../utils/mafia/state";
 
 export const KillCommand = {
     name: "kill",
@@ -98,7 +99,7 @@ export async function killPlayer(name: string, instance: Instance) {
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(instance.id).collection('settings').doc('game');
+    const ref = stateRef(instance);
 
     await db.runTransaction(async t => {
         t.update(ref, {

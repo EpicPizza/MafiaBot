@@ -6,11 +6,12 @@ import { Event, type TextCommand } from '../../discord';
 import { fromZod } from '../../utils/text';
 import { removeReactions } from "../../discord/helpers";
 import { firebaseAdmin } from "../../utils/firebase";
-import { getGameByID, getGameSetup } from "../../utils/mafia/games";
+import { checkModPlayConflict, getGameByID, getGameSetup } from "../../utils/mafia/games";
 import { setupPlayer } from "../../utils/mafia/main";
 import { getUserByName } from "../../utils/mafia/user";
 import { getSetup } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
+import { stateRef } from "../../utils/mafia/state";
 
 export const AddCommand = {
     name: "add",
@@ -57,10 +58,12 @@ export const AddCommand = {
 
         if(!user) throw new Error("Player not found.");
 
+        await checkModPlayConflict(user.id, 'player', interaction.instance);
+
         await setupPlayer(user.id, gameSetup, interaction.instance);
 
         const db = firebaseAdmin.getFirestore();
-        await db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game').update({ players: FieldValue.arrayUnion({ id: user.id, alignment: null }) });
+        await stateRef(interaction.instance).update({ players: FieldValue.arrayUnion({ id: user.id, alignment: null }) });
         await db.collection('instances').doc(interaction.instance.id).collection('games').doc(game.id).update({ signups: FieldValue.arrayUnion(user.id) });
 
         if(interaction.type != 'text') {

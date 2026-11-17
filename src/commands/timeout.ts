@@ -11,6 +11,7 @@ import { firebase } from "googleapis/build/src/apis/firebase";
 import { firebaseAdmin } from "../utils/firebase";
 import { getUser } from "../utils/mafia/user";
 import { FieldValue } from "firebase-admin/firestore";
+import { stateRef } from "../utils/mafia/state";
 
 module.exports = {
     data: [
@@ -121,7 +122,7 @@ module.exports = {
             }
 
             const db = firebaseAdmin.getFirestore();
-            const ref = db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game');
+            const ref = stateRef(interaction.instance);
 
             const game = await getGameByID(global.game ?? "", interaction.instance);
             const gameSetup = await getGameSetup(game, interaction.instance.setup);

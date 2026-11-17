@@ -9,6 +9,7 @@ import { getGameByID } from "../../utils/mafia/games";
 import { deleteCollection } from "../../utils/mafia/main";
 import { getSetup } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
+import { stateRef } from "../../utils/mafia/state";
 
 export const ClearCommand = {
     name: "clear",
@@ -120,7 +121,7 @@ export const DayCommand = {
 
         const db = firebaseAdmin.getFirestore();
 
-        await db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game').update({
+        await stateRef(interaction.instance).update({
             day: day,
         });
 

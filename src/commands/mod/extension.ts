@@ -7,6 +7,7 @@ import { fromZod } from '../../utils/text';
 import { getAllExtensions } from "../../utils/extensions";
 import { firebaseAdmin } from "../../utils/firebase";
 import { Subcommand } from "../../utils/subcommands";
+import { settingsRef } from "../../utils/mafia/state";
 
 export const ExtensionCommand = {
     name: "extension",
@@ -92,7 +93,7 @@ export const ExtensionCommand = {
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game');
+            const ref = settingsRef(interaction.instance);
 
             await ref.update({
                 extensions: FieldValue.arrayUnion(extension.substring(0, 1).toUpperCase() + extension.substring(1, extension.length).toLowerCase())
@@ -110,7 +111,7 @@ export const ExtensionCommand = {
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game');
+            const ref = settingsRef(interaction.instance);
 
             await ref.update({
                 extensions: FieldValue.arrayRemove(extension.substring(0, 1).toUpperCase() + extension.substring(1, extension.length).toLowerCase())

@@ -8,6 +8,7 @@ import { firebaseAdmin } from "../../utils/firebase";
 import { lockGame, unlockGame } from "../../utils/mafia/main";
 import { getFuture, getGrace, setFuture, setGrace } from "../../utils/mafia/timing";
 import { Subcommand, Subinteraction } from "../../utils/subcommands";
+import { stateRef } from "../../utils/mafia/state";
 
 export const LockingSelect = {
     type: "select",
@@ -138,7 +139,7 @@ export const GraceCommand = {
         let grace = interaction.type == 'text' ? interaction.program.processedArgs[0] == 'on' : interaction.options.getBoolean('grace') ?? false;
 
         if(interaction.type == 'text') {
-            await db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game').update({
+            await stateRef(interaction.instance).update({
                 grace: grace
             });
 
@@ -422,7 +423,7 @@ async function handleGraceButton(interaction: Event<ButtonInteraction>) {
         if(date == "now") {
             await lockGame(interaction.instance);
 
-            db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game').update({
+            stateRef(interaction.instance).update({
                 grace: id.grace
             });
 
@@ -458,7 +459,7 @@ async function handleUnlockButton(interaction: Event<ButtonInteraction>) {
     if(date == "now") {
         await unlockGame(interaction.instance, id.type);
 
-        db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game').update({
+        stateRef(interaction.instance).update({
             grace: id.grace
         });
 
@@ -496,7 +497,7 @@ async function handleLockingGrace(interaction: Event<StringSelectMenuInteraction
     const date = value == "now" ? "now" : new Date(parseInt((value ?? new Date().valueOf())) + minuteOffset);
 
     if(date == "now") {
-        await db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game').update({
+        await stateRef(interaction.instance).update({
             grace: id.grace
         });
 

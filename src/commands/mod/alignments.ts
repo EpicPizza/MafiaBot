@@ -11,6 +11,7 @@ import { getUser, getUsers } from "../../utils/mafia/user";
 import { Setup, getSetup } from "../../utils/setup";
 import { Subinteraction } from "../../utils/subcommands";
 import { Instance } from "../../utils/instance";
+import { stateRef } from "../../utils/mafia/state";
 
 export const ShowAlignments = {
     name: "alignments",
@@ -108,7 +109,7 @@ export const ConfirmAlignmentsButton = {
 
         const db = firebaseAdmin.getFirestore();
 
-        await db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game').update({
+        await stateRef(interaction.instance).update({
             day: 1,
         });
 

@@ -4,11 +4,12 @@ import { getSetup } from "../setup";
 import { getGameByID, getGameSetup } from "./games";
 import { lockGame, unlockGame } from "./main";
 import { Instance } from '../instance';
+import { graceRef, lockRef, stateRef } from './state';
 
 export async function setFuture(date: Date, increment: boolean, locking: boolean, grace: boolean, instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(instance.id).collection('settings').doc("lock");
+    const ref = lockRef(instance);
 
     const data = (await ref.get()).data();
 
@@ -25,7 +26,7 @@ export async function setFuture(date: Date, increment: boolean, locking: boolean
 export async function setGrace(type: boolean, date: Date, instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(instance.id).collection('settings').doc("grace");
+    const ref = graceRef(instance);
 
     const data = (await ref.get()).data();
 
@@ -38,9 +39,11 @@ export async function setGrace(type: boolean, date: Date, instance: Instance) {
 }
 
 export async function getGrace(instance: Instance) {
+    if(instance.global.game == null) return undefined;
+
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(instance.id).collection('settings').doc("grace");
+    const ref = graceRef(instance);
 
     const data = (await ref.get()).data();
 
@@ -55,9 +58,11 @@ export async function getGrace(instance: Instance) {
 }
 
 export async function getFuture(instance: Instance) {
+    if(instance.global.game == null) return undefined;
+
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(instance.id).collection('settings').doc("lock");
+    const ref = lockRef(instance);
 
     const data = (await ref.get()).data();
 
@@ -73,9 +78,11 @@ export async function getFuture(instance: Instance) {
 }
 
 export async function checkFutureLock(instance: Instance) {
+    if(instance.global.game == null) return undefined;
+
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(instance.id).collection('settings').doc("lock");
+    const ref = lockRef(instance);
 
     const data = (await ref.get()).data();
 
@@ -86,7 +93,7 @@ export async function checkFutureLock(instance: Instance) {
     if(data.when == null) return;
 
     if(data.when.toDate().valueOf() - (25 * 1000) < new Date().valueOf()) {
-        await db.collection('instances').doc(instance.id).collection('settings').doc('game').update({
+        await stateRef(instance).update({
             grace: data.grace,
         });
 
@@ -137,9 +144,11 @@ export async function checkFutureLock(instance: Instance) {
 }
 
 export async function checkFutureGrace(instance: Instance) {
+    if(instance.global.game == null) return undefined;
+
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(instance.id).collection('settings').doc("grace");
+    const ref = graceRef(instance);
 
     const data = (await ref.get()).data();
 
@@ -149,7 +158,7 @@ export async function checkFutureGrace(instance: Instance) {
 
     if(data.when.toDate().valueOf() < new Date().valueOf()) {
         try {
-            await db.collection('instances').doc(instance.id).collection('settings').doc('game').update({
+            await stateRef(instance).update({
                 grace: data.type,
             });
 

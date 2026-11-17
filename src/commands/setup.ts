@@ -155,18 +155,7 @@ module.exports = {
 
             const ref = db.collection('instances').doc(interaction.instance.id).collection('settings');
 
-            await ref.doc('lock').set({
-                increment: false,
-                when: null,
-                type: false,
-                grace: true,
-            })
-
-            await ref.doc('grace').set({
-                when: null,
-                type: false,
-            })
-
+            // Lock/grace timers and game state (started, locked, players, day, grace) live under games/{id}/state.
             await ref.doc('setup').set({
                 primary: {
                     alive: null,
@@ -197,14 +186,9 @@ module.exports = {
             });
 
             await ref.doc('game').set({
-                day: 0,
                 game: null,
-                locked: false,
-                players: [],
-                started: false,
                 bulletin: null,
                 extensions: [],
-                grace: false,
                 admin: [],
                 hammer: true,
             })

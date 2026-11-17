@@ -6,7 +6,7 @@ import { fromZod } from '../../utils/text';
 import client from "../../discord/client";
 import { removeReactions } from "../../discord/helpers";
 import { firebaseAdmin } from "../../utils/firebase";
-import { archiveGame, createGame, getGameByName, getGameSetup } from "../../utils/mafia/games";
+import { archiveGame, checkModPlayConflict, createGame, getGameByName, getGameSetup } from "../../utils/mafia/games";
 import { getUserByName, getUsersArray } from "../../utils/mafia/user";
 import { getSetup } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
@@ -51,6 +51,8 @@ export const AssignCommand = {
         const game = await getGameByName(gameName, interaction.instance);
         const player = await getUserByName(playerName, interaction.instance);
         if (!player) throw new Error("Player not found.");
+
+        await checkModPlayConflict(player.id, 'mod', interaction.instance);
 
         const db = firebaseAdmin.getFirestore();
 

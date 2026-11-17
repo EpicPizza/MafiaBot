@@ -13,6 +13,7 @@ import { getSetup, Setup, } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
 import { setAlignments } from "../mod/start";
 import { Instance } from "../../utils/instance";
+import { stateRef } from "../../utils/mafia/state";
 
 export const AlignmentCommand = {
     name: "alignment",
@@ -79,7 +80,7 @@ export const AlignmentCommand = {
 
         const db = firebaseAdmin.getFirestore();
 
-        const ref = db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game');
+        const ref = stateRef(interaction.instance);
 
         await db.runTransaction(async t => {
             for(let i = 0; i < global.players.length; i++) {
