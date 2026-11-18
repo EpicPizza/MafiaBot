@@ -14,6 +14,7 @@ import { Subcommand } from "../../utils/subcommands";
 import { setAlignments } from "../mod/start";
 import { Instance } from "../../utils/instance";
 import { stateRef } from "../../utils/mafia/state";
+import { getRunningGame, type GameContext } from "../../utils/mafia/context";
 
 export const AlignmentCommand = {
     name: "alignment",
@@ -50,13 +51,13 @@ export const AlignmentCommand = {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
        
-        const global = interaction.instance.global;
+        const ctx = await getRunningGame(interaction.instance);
+       
+        const global = ctx.state;
         const setup  = interaction.instance.setup;
-        
-        if(global.started == false) throw new Error("Game has not started.");
 
-        const game = await getGameByID(global.game ?? "", interaction.instance);
-         const gameSetup = await getGameSetup(game, setup);
+        const game = ctx.game;
+         const gameSetup = ctx.gameSetup;
 
         const player = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');
         const alignment = interaction.type == 'text' ? interaction.program.processedArgs[1] as string : interaction.options.getString('alignment');
@@ -80,7 +81,7 @@ export const AlignmentCommand = {
 
         const db = firebaseAdmin.getFirestore();
 
-        const ref = stateRef(interaction.instance);
+        const ref = stateRef(interaction.instance, ctx.game.id);
 
         await db.runTransaction(async t => {
             for(let i = 0; i < global.players.length; i++) {
@@ -139,12 +140,12 @@ export const InitialCommand = {
 } satisfies Subcommand;
 
 
-async function hammerExtensions(instance: Instance, game: Signups, hammered: string) {
-    const extensions = await getEnabledExtensions(instance.global);
+async function hammerExtensions(ctx: GameContext, hammered: string) {
+    const extensions = getEnabledExtensions(ctx);
 
     const promises = [] as Promise<any>[];
 
-    extensions.forEach(extension => { promises.push(extension.onHammer(instance, game, hammered)) });
+    extensions.forEach(extension => { promises.push(extension.onHammer(ctx, hammered)) });
 
     const results = await Promise.allSettled(promises);
 

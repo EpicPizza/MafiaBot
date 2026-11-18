@@ -5,6 +5,7 @@ import { getAuthority, getCachedInstances, Instance } from "../instance";
 import { getReactions, handleMentions, Reaction } from "../archive";
 import { getSetup } from "../setup";
 import { getEnabledExtensions } from "../extensions";
+import { findRunningGame } from "./context";
 
 export type MessageAction = {
     type: 'delete',
@@ -192,7 +193,10 @@ export async function dumpTracking() {
     const instances = await getCachedInstances();
     
     await Promise.all(instances.map(async instance => {
-        const extensions = getEnabledExtensions(instance.global);
+        const ctx = await findRunningGame(instance, true);
+        if(ctx == undefined) return;
+
+        const extensions = getEnabledExtensions(ctx);
         
         await Promise.all(extensions.map(extension => extension.onDump(compressedStats, messageBatch, reactionBatch)));
     }));
@@ -312,12 +316,14 @@ export async function createMessage(message: Message, checks: boolean = true) {
         const instance = await getAuthority(message.guildId);
         if(!instance || (instance.setup.primary.guild.id == message.guildId && instance.setup.primary.chat.id != message.channelId)) return; //don't need to track every message in the main server
         
-        if(instance.setup.primary.chat.id == message.channelId && instance.global.started) {
+        const ctx = instance.setup.primary.chat.id == message.channelId ? await findRunningGame(instance, true) : undefined;
+
+        if(ctx) {
             statsBuffer.push({
                 type: 'add',
                 id: message.author.id,
-                day: instance.global.day,
-                game: instance.global.game ?? "---",
+                day: ctx.state.day,
+                game: ctx.game.id,
                 instance: instance.id,
                 images: message.attachments.reduce((acc, value) => acc + (value.contentType?.startsWith("image") ? 1 : 0), 0),
                 words: message.content.split(" ").length,
@@ -440,6 +446,8 @@ export async function catchupChannel(channel: TextChannel, callback: Function, s
     const instance = await getAuthority(channel.guildId);
     if(!instance || (instance.setup.primary.guild.id == channel.guildId && instance.setup.primary.chat.id != channel.id)) return; //don't need to track every message in the main server
 
+    const ctx = statsTracking ? await findRunningGame(instance, true) : undefined;
+
     const db = firebaseAdmin.getFirestore();
     const ref = db.collection('channels').doc(channel.id).collection('messages');
 
@@ -465,12 +473,12 @@ export async function catchupChannel(channel: TextChannel, callback: Function, s
                 return;
             }
 
-            if(instance.setup.primary.chat.id == message.channelId && instance.global.started && statsTracking) {
+            if(instance.setup.primary.chat.id == message.channelId && ctx) {
                 statsBuffer.push({
                     type: 'add',
                     id: message.author.id,
-                    day: instance.global.day,
-                    game: instance.global.game ?? "---",
+                    day: ctx.state.day,
+                    game: ctx.game.id,
                     instance: instance.id,
                     images: message.attachments.reduce((acc, value) => acc + (value.contentType?.startsWith("image") ? 1 : 0), 0),
                     words: message.content.split(" ").length,

@@ -14,6 +14,7 @@ import { Subcommand } from "../../utils/subcommands";
 import { Instance } from "../../utils/instance";
 import { revokeMafiaAccess } from "../../utils/mafia/main";
 import { stateRef } from "../../utils/mafia/state";
+import { getRunningGame, type GameContext } from "../../utils/mafia/context";
 
 export const KillCommand = {
     name: "kill",
@@ -47,10 +48,7 @@ export const KillCommand = {
         const playerInput = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');
         if(playerInput == null) throw new Error("Choose a player.");
 
-        const global = interaction.instance.global;
-        const setup  = interaction.instance.setup;
-
-        await killPlayer(playerInput, interaction.instance);
+        await killPlayer(playerInput, await getRunningGame(interaction.instance));
         
         if(interaction.type != 'text') {
             await interaction.editReply({ content: "Player killed."});
@@ -62,12 +60,12 @@ export const KillCommand = {
     }
 } satisfies Subcommand;
 
-export async function onRemove(instance: Instance, game: Signups, removed: string) {
-    const extensions = await getEnabledExtensions(instance.global);
+export async function onRemove(ctx: GameContext, removed: string) {
+    const extensions = getEnabledExtensions(ctx);
 
     const promises = [] as Promise<any>[];
 
-    extensions.forEach(extension => { promises.push(extension.onRemove(instance, game, removed)) });
+    extensions.forEach(extension => { promises.push(extension.onRemove(ctx, removed)) });
 
     const results = await Promise.allSettled(promises);
 
@@ -80,13 +78,8 @@ export async function onRemove(instance: Instance, game: Signups, removed: strin
     }
 }
 
-export async function killPlayer(name: string, instance: Instance) {
-    const global = instance.global;
-
-    if(global.started == false) throw new Error("Game has not started.");
-
-    const game = await getGameByID(global.game ?? "", instance);
-    const gameSetup = await getGameSetup(game, instance.setup);
+export async function killPlayer(name: string, ctx: GameContext) {
+    const { instance, game, gameSetup, state: global } = ctx;
     
     const user = await getUserByName(name, instance);
     if(!user) throw new Error("Player not found.");
@@ -99,7 +92,7 @@ export async function killPlayer(name: string, instance: Instance) {
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = stateRef(instance);
+    const ref = stateRef(instance, game.id);
 
     await db.runTransaction(async t => {
         t.update(ref, {
@@ -107,5 +100,5 @@ export async function killPlayer(name: string, instance: Instance) {
         })
     });
 
-    await onRemove(instance, game, user.id);
+    await onRemove(ctx, user.id);
 }

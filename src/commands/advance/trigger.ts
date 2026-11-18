@@ -12,6 +12,7 @@ import { getUser, User } from "../../utils/mafia/user";
 import { getSetup, Setup, } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
 import { Instance } from "../../utils/instance";
+import { getRunningGame, type GameContext } from "../../utils/mafia/context";
 
 export const TriggerCommand = {
     name: "trigger",
@@ -42,12 +43,12 @@ export const TriggerCommand = {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
        
-        const global = interaction.instance.global;
+        const ctx = await getRunningGame(interaction.instance);
+       
+        const global = ctx.state;
         const setup  = interaction.instance.setup;
-        
-        if(global.started == false) throw new Error("Game has not started.");
 
-        const game = await getGameByID(global.game ?? "", interaction.instance);
+        const game = ctx.game;
 
         const player = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');
 
@@ -67,8 +68,8 @@ export const TriggerCommand = {
 
         if(!user) throw new Error("Player not found.");
 
-        await lockGame(interaction.instance);
-        await hammerExtensions(interaction.instance, game, user.id);
+        await lockGame(ctx);
+        await hammerExtensions(ctx, user.id);
 
         await new Promise((resolve) => {
             setTimeout(() => {
@@ -88,12 +89,12 @@ export const TriggerCommand = {
     }
 } satisfies Subcommand;
 
-async function hammerExtensions(instance: Instance, game: Signups, hammered: string) {
-    const extensions = await getEnabledExtensions(instance.global);
+async function hammerExtensions(ctx: GameContext, hammered: string) {
+    const extensions = getEnabledExtensions(ctx);
 
     const promises = [] as Promise<any>[];
 
-    extensions.forEach(extension => { promises.push(extension.onHammer(instance, game, hammered)) });
+    extensions.forEach(extension => { promises.push(extension.onHammer(ctx, hammered)) });
 
     const results = await Promise.allSettled(promises);
 

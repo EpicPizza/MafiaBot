@@ -10,6 +10,7 @@ import { getStats } from "../utils/mafia/stats";
 import { getUsersArray, User } from "../utils/mafia/user";
 import { Setup } from "../utils/setup";
 import { Instance } from "../utils/instance";
+import { findRunningGame } from "../utils/mafia/context";
 
 const Format = z.union([ z.literal('complete'), z.literal('gxe'), z.literal('wr'), z.literal('alphabetical'), z.literal('pronouns') ]);
 
@@ -109,7 +110,7 @@ module.exports = {
 async function handlePlayerList(interaction: Event<ChatInputCommandInteraction | TextCommand | ButtonInteraction>) {
     interaction.inInstance();
 
-    const global = interaction.instance.global;
+    const running = await findRunningGame(interaction.instance);
 
     const format = 'customId' in interaction ? JSON.parse(interaction.customId).format as ReturnType<typeof checkType> 
         : interaction.type == 'text' ? checkType(interaction.program.getOptionValue('format'))
@@ -135,25 +136,23 @@ async function handlePlayerList(interaction: Event<ChatInputCommandInteraction |
     } else if(day != null) {
         const db = firebaseAdmin.getFirestore();
 
-        if(global.started == false) throw new Error("Game has not started.");
+        if(running == undefined) throw new Error("Game has not started.");
 
-        const game = await getGameByID(global.game ?? "---", interaction.instance);
-
-        if(game == null) throw new Error("Game not found. (current)");
+        const game = running.game;
 
         const currentPlayers = (await db.collection('instances').doc(interaction.instance.id).collection('games').doc(game.id).collection('days').doc(day.toString()).get()).data()?.players as string[] | undefined ?? [];
 
         if(currentPlayers.length == 0) throw new Error("No data available.");
 
         users = await getUsersArray(currentPlayers, interaction.instance);
-    } else if(global.started == false && games.length == 1) {
+    } else if(running == undefined && games.length == 1) {
         const game = await getGameByName(games[0].name, interaction.instance);
         
         if(game == null) throw new Error("Game not found.");
 
         reference = game.name;
         users = await getUsersArray(game.signups, interaction.instance);  
-    } else if(global.started == false && !('customId' in interaction)) {
+    } else if(running == undefined && !('customId' in interaction)) {
         const embed = new EmbedBuilder()
             .setTitle("Game has not started.")
             .setDescription("Choose a game to show its signups.")
@@ -189,10 +188,10 @@ async function handlePlayerList(interaction: Event<ChatInputCommandInteraction |
         } 
 
         return await interaction.reply({ embeds: [embed], components: rows });
-    } else if(global.started == false && 'customId' in interaction) {
+    } else if(running == undefined && 'customId' in interaction) {
         throw new Error("Invalid button!");
     } else {
-        users = await getUsersArray(global.players.map(player => player.id), interaction.instance);
+        users = await getUsersArray(running!.state.players.map(player => player.id), interaction.instance);
     }
 
     const stats = await getStats(interaction.instance);

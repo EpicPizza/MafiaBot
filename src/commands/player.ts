@@ -9,6 +9,7 @@ import { User, createUser, editUser, getAllNicknames, getUser, getUserByName } f
 import { getCachedInstances } from "../utils/instance";
 import { firebaseAdmin } from "../utils/firebase";
 import client from "../discord/client";
+import { isAliveAnywhere } from "../utils/mafia/state";
 
 const setNickname = z.object({
     name: z.literal('set-nickname'),
@@ -173,7 +174,7 @@ module.exports = {
         } else if(interaction.type != 'text' && interaction.isModalSubmit()) {
             const global = interaction.instance.global;
 
-            if(global.started) throw new Error("Nickname cannot be edited durring a game.");
+            if(await isAliveAnywhere(interaction.user.id, interaction.instance)) throw new Error("Nickname cannot be edited durring a game.");
 
             if(interaction.fields.getTextInputValue('nickname') == "") return await interaction.reply("An error occured, please try again.");
 
@@ -262,7 +263,7 @@ async function showModal(interaction: Event<ButtonInteraction | ChatInputCommand
 
     const global = interaction.instance.global;
 
-    if(global.players.find(player => player.id == interaction.user.id)) throw new Error("Cannot change nickname while you're in a game.");
+    if(await isAliveAnywhere(interaction.user.id, interaction.instance)) throw new Error("Cannot change nickname while you're in a game.");
 
     const user = await getUser(interaction.user.id, interaction.instance);
     

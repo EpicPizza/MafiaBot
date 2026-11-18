@@ -9,6 +9,7 @@ import { lockGame, unlockGame } from "../../utils/mafia/main";
 import { getFuture, getGrace, setFuture, setGrace } from "../../utils/mafia/timing";
 import { Subcommand, Subinteraction } from "../../utils/subcommands";
 import { stateRef } from "../../utils/mafia/state";
+import { getRunningGame } from "../../utils/mafia/context";
 
 export const LockingSelect = {
     type: "select",
@@ -55,13 +56,12 @@ export const LockCommand = {
     execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
         interaction.inInstance();
 
-        const global = interaction.instance.global;
-
-        if(!global.started) throw new Error("Game not started.");
+        const ctx = await getRunningGame(interaction.instance);
+        const global = ctx.state;
         if(global.locked) throw new Error("Game is already locked.");
 
         if(interaction.type == 'text') {
-            await lockGame(interaction.instance);
+            await lockGame(ctx);
 
             await interaction.message.react('✅');
 
@@ -90,14 +90,13 @@ export const UnlockCommand = {
     execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
         interaction.inInstance();
 
-        const global = interaction.instance.global;
-
-        if(!global.started) throw new Error("Game not started.");
+        const ctx = await getRunningGame(interaction.instance);
+        const global = ctx.state;
         if(global.day == 0) throw new Error("Setup alignments first.");
         if(!global.locked) throw new Error("Game is already unlocked.");
 
         if(interaction.type == 'text') {
-            await unlockGame(interaction.instance, (interaction.program.processedArgs[1] as string) == 'stay' ? false : true);
+            await unlockGame(ctx, (interaction.program.processedArgs[1] as string) == 'stay' ? false : true);
 
             await interaction.message.react('✅');
 
@@ -130,16 +129,15 @@ export const GraceCommand = {
     execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
         interaction.inInstance();
 
-        const global = interaction.instance.global;
-
-        if(!global.started) throw new Error("Game not started.");
+        const ctx = await getRunningGame(interaction.instance);
+        const global = ctx.state;
         
         const db = firebaseAdmin.getFirestore();
 
         let grace = interaction.type == 'text' ? interaction.program.processedArgs[0] == 'on' : interaction.options.getBoolean('grace') ?? false;
 
         if(interaction.type == 'text') {
-            await stateRef(interaction.instance).update({
+            await stateRef(interaction.instance, ctx.game.id).update({
                 grace: grace
             });
 
@@ -148,7 +146,7 @@ export const GraceCommand = {
             return;
         }
 
-        const timing = await getGrace(interaction.instance);
+        const timing = await getGrace(ctx);
 
         const embed = new EmbedBuilder()
             .setTitle('Choose a time to set grace to ' + (grace ? "on" : "off") + ".")
@@ -262,7 +260,9 @@ export const Minute = {
 async function handleLocking(interaction: Event<ChatInputCommandInteraction>, type: boolean) {
     interaction.inInstance();
 
-    const timing = await getFuture(interaction.instance);
+    const ctx = await getRunningGame(interaction.instance);
+
+    const timing = await getFuture(ctx);
 
     const embed = new EmbedBuilder()
         .setTitle('Choose a time to ' + (type ? "lock" : "unlock") + " channel.")
@@ -390,7 +390,8 @@ async function handleGraceButton(interaction: Event<ButtonInteraction>) {
     interaction.inInstance();
 
     const setup = interaction.instance.setup;
-    const global = interaction.instance.global;
+    const ctx = await getRunningGame(interaction.instance);
+    const global = ctx.state;
     const db = firebaseAdmin.getFirestore();
 
     const id = JSON.parse(interaction.customId) as { name: "set-grace", grace: boolean, type: boolean, value: string, };
@@ -421,9 +422,9 @@ async function handleGraceButton(interaction: Event<ButtonInteraction>) {
         })
     } else {
         if(date == "now") {
-            await lockGame(interaction.instance);
+            await lockGame(ctx);
 
-            stateRef(interaction.instance).update({
+            stateRef(interaction.instance, ctx.game.id).update({
                 grace: id.grace
             });
 
@@ -433,7 +434,7 @@ async function handleGraceButton(interaction: Event<ButtonInteraction>) {
                 embeds: [],
             });
         } else {
-            await setFuture(date, false, true, id.grace, interaction.instance);
+            await setFuture(date, false, true, id.grace, ctx);
 
             await interaction.update({
                 content: "Channel will lock at <t:" + Math.round(date.valueOf() / 1000) + ":T>, <t:" + Math.round(date.valueOf() / 1000) + ":d>.",
@@ -449,6 +450,8 @@ async function handleGraceButton(interaction: Event<ButtonInteraction>) {
 async function handleUnlockButton(interaction: Event<ButtonInteraction>) {
     interaction.inInstance();
 
+    const ctx = await getRunningGame(interaction.instance);
+
     const setup = interaction.instance.setup;
     const db = firebaseAdmin.getFirestore();
 
@@ -457,9 +460,9 @@ async function handleUnlockButton(interaction: Event<ButtonInteraction>) {
     const date = id.value == "now" ? "now" : new Date(parseInt(id.value ?? new Date().valueOf()));
 
     if(date == "now") {
-        await unlockGame(interaction.instance, id.type);
+        await unlockGame(ctx, id.type);
 
-        stateRef(interaction.instance).update({
+        stateRef(interaction.instance, ctx.game.id).update({
             grace: id.grace
         });
 
@@ -469,7 +472,7 @@ async function handleUnlockButton(interaction: Event<ButtonInteraction>) {
             content: "Channel unlocked.",
         });
     } else {
-        await setFuture(date, id.type, false, id.grace, interaction.instance);
+        await setFuture(date, id.type, false, id.grace, ctx);
 
         await interaction.update({
             content: "Channel will unlock at <t:" + Math.round(date.valueOf() / 1000) + ":T>, <t:" + Math.round(date.valueOf() / 1000) + ":d>.",
@@ -484,6 +487,8 @@ async function handleUnlockButton(interaction: Event<ButtonInteraction>) {
 async function handleLockingGrace(interaction: Event<StringSelectMenuInteraction>) {
     interaction.inInstance();
 
+    const ctx = await getRunningGame(interaction.instance);
+
     const setup = interaction.instance.setup;
     const db = firebaseAdmin.getFirestore();
 
@@ -497,7 +502,7 @@ async function handleLockingGrace(interaction: Event<StringSelectMenuInteraction
     const date = value == "now" ? "now" : new Date(parseInt((value ?? new Date().valueOf())) + minuteOffset);
 
     if(date == "now") {
-        await stateRef(interaction.instance).update({
+        await stateRef(interaction.instance, ctx.game.id).update({
             grace: id.grace
         });
 
@@ -507,7 +512,7 @@ async function handleLockingGrace(interaction: Event<StringSelectMenuInteraction
             embeds: [],
         });
     } else {
-        await setGrace(id.grace, date, interaction.instance);
+        await setGrace(id.grace, date, ctx);
 
         await interaction.update({
             content: "Grace will be set to " + (id.grace ? "on" : "off") + " at <t:" + Math.round(date.valueOf() / 1000) + ":T>, <t:" + Math.round(date.valueOf() / 1000) + ":d>.",

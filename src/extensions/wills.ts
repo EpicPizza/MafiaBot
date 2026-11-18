@@ -8,6 +8,7 @@ import { deleteCollection } from "../utils/mafia/main";
 import { getUser, getUserByChannel } from "../utils/mafia/user";
 import { checkMod } from "../utils/mod";
 import { getSetup } from "../utils/setup";
+import { getRunningGame } from "../utils/mafia/context";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -48,7 +49,9 @@ module.exports = {
         }
     ],
     interactions: [],
-    onStart: async (instance, game) => {
+    onStart: async (ctx) => {
+        const { instance, game } = ctx;
+
         /**
          * Runs during game start processes.
          */
@@ -63,8 +66,8 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onLock: async (instance, game) => {},
-    onUnlock: async (instance, game, incremented) => {},
+    onLock: async (ctx) => {},
+    onUnlock: async (ctx, incremented) => {},
     onCommand: async (command: Event<TextCommand>) => {
         /**
          * Text commands only for the forseeable future.
@@ -75,7 +78,7 @@ module.exports = {
         
         command.inInstance();
 
-        const global = command.instance.global;
+        const global = (await getRunningGame(command.instance)).state;
         const setup = command.instance.setup;
         
         if(command.name == "set") {
@@ -100,7 +103,7 @@ module.exports = {
 
             await command.message.react("✅");
         } else if(command.name == "lock") {
-            await checkMod(setup, global, command.user.id, command.message.guildId ?? "");
+            await checkMod(setup, command.instance.global, command.user.id, command.message.guildId ?? "");
             
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
 
@@ -119,7 +122,7 @@ module.exports = {
 
             await command.message.react("✅");
         } else {
-            await checkMod(setup, global, command.user.id, command.message.guildId ?? "");
+            await checkMod(setup, command.instance.global, command.user.id, command.message.guildId ?? "");
 
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
 
@@ -142,10 +145,14 @@ module.exports = {
     },
     onInteraction: async (extensionInteraction: ExtensionInteraction) => {},
     onMessage: async (message) => {},
-    onEnd: async (instance, game) => {},
-    onVote: async (instance, game, voter, voting, type, users, transaction) => {},
-    onVotes: async (instance, game, board ) => { return ""; },
-    onHammer: async (instance, game, hammered) => {
+    onEnd: async (ctx) => {},
+    onVote: async (ctx, voter, voting, type, users, transaction) => {},
+    onVotes: async (ctx, board ) => {
+        const { instance, game } = ctx;
+ return ""; },
+    onHammer: async (ctx, hammered) => {
+        const { instance, game } = ctx;
+
         const user = await getUser(hammered, instance);
 
         if(!user) return;
@@ -178,7 +185,7 @@ module.exports = {
 
         await wait(5000);
     },
-    onRemove: async (instance, game, removed: string) => {},
+    onRemove: async (ctx, removed: string) => {},
     onDump: async (statsBatch, messageBatch, reactionBatch) => {},
 } satisfies Extension;
 

@@ -12,6 +12,7 @@ import { Subinteraction } from "../../utils/subcommands";
 import { Global } from "../../utils/global";
 import { Instance } from "../../utils/instance";
 import { stateRef } from "../../utils/mafia/state";
+import { findRunningGame, getRunningGame } from "../../utils/mafia/context";
 
 export const StartCommand = {
     name: "start",
@@ -45,9 +46,7 @@ export const StartCommand = {
         
         if(game == null) throw new Error("")
 
-        const global = interaction.instance.global;
-
-        if(global.started == true) throw new Error("Game has already started."); ;
+        if(await findRunningGame(interaction.instance)) throw new Error("Game has already started.");
 
         const db = firebaseAdmin.getFirestore();
 
@@ -120,9 +119,7 @@ export const WebsiteStartCommand = {
         
         if(game == null) throw new Error("")
 
-        const global = interaction.instance.global;
-
-        if(global.started == true) throw new Error("Game has already started."); ;
+        if(await findRunningGame(interaction.instance)) throw new Error("Game has already started.");
 
         await startGame(interaction, game.name as string, interaction.instance);
 
@@ -193,10 +190,11 @@ export const DefaultAlignment = {
 
         await getUsers(selected, interaction.instance);
 
-        const ref = stateRef(interaction.instance);
+        const ctx = await getRunningGame(interaction.instance);
+        const ref = stateRef(interaction.instance, ctx.game.id);
 
         await db.runTransaction(async t => {
-            const global = interaction.instance.global;
+            const global = ctx.state;
 
             for(let i = 0; i < global.players.length; i++) {
                 if(selected.find(player => global.players[i].id == player)) {
@@ -235,10 +233,11 @@ export const MafiaAlignment = {
 
         await getUsers(selected, interaction.instance);
 
-        const ref = stateRef(interaction.instance);
+        const ctx = await getRunningGame(interaction.instance);
+        const ref = stateRef(interaction.instance, ctx.game.id);
 
         await db.runTransaction(async t => {
-            const global = interaction.instance.global;
+            const global = ctx.state;
 
             for(let i = 0; i < global.players.length; i++) {
                 if(selected.find(player => global.players[i].id == player)) {
@@ -277,10 +276,11 @@ export const NeutralAlignment = {
 
         await getUsers(selected, interaction.instance);
 
-        const ref = stateRef(interaction.instance);
+        const ctx = await getRunningGame(interaction.instance);
+        const ref = stateRef(interaction.instance, ctx.game.id);
 
         await db.runTransaction(async t => {
-            const global = interaction.instance.global;
+            const global = ctx.state;
 
             for(let i = 0; i < global.players.length; i++) {
                 if(selected.find(player => global.players[i].id == player)) {
@@ -349,13 +349,9 @@ export const CustomModal = {
 
         const id = JSON.parse(interaction.customId);
 
-        const global = interaction.instance.global;
-        if(global.started == false) throw new Error("Game has not started.");
-        const game = await getGameByID(global.game ?? "---", interaction.instance);
-        const setup = interaction.instance.setup;
-        if(game == null) throw new Error("Game not found.");
+        const runningGame = await getRunningGame(interaction.instance);
+        const { game, gameSetup } = runningGame;
         if(game.signups.length == 0) throw new Error("Game must have more than one player.");
-        const gameSetup = await getGameSetup(game, setup);
 
         const message = await gameSetup.spec.messages.fetch(id.message);
         const selected = getSelected(message);
@@ -367,10 +363,11 @@ export const CustomModal = {
 
         await getUsers(selected, interaction.instance);
 
-        const ref = stateRef(interaction.instance);
+        const ctx = await getRunningGame(interaction.instance);
+        const ref = stateRef(interaction.instance, ctx.game.id);
 
         await db.runTransaction(async t => {
-            const global = interaction.instance.global;
+            const global = ctx.state;
 
             for(let i = 0; i < global.players.length; i++) {
                 if(selected.find(player => global.players[i].id == player)) {
@@ -493,17 +490,9 @@ export async function setAlignments(instance: Instance) {
         .setColor(Colors.Orange)
         .setDescription('Everyone starts at default alignment. Select players to change their alignment. Mafia alignment adds them to mafia server. Custom alignment behave the same default alignment, some extensions may treat this alignment differently.\n\nOnce done setting alignments, click the finish button.')
 
-    if(instance.global.game == null) throw new Error("Game not found.");
+    const { game, gameSetup } = await getRunningGame(instance);
 
-    const game = await getGameByID(instance.global.game, instance);
-
-    if(instance.setup == undefined) throw new Error("Setup not complete.");
-    if(typeof instance.setup == 'string') throw new Error("An unexpected error occurred.");
-    if(!instance.global.started) throw new Error("Game has not started.");
-    if(game == null) throw new Error("Game not found.");
     if(game.signups.length == 0) throw new Error("Game must have more than one player.");
-
-    const gameSetup = await getGameSetup(game, instance.setup);
 
     const rows = [] as ActionRowBuilder<SelectMenuBuilder | ButtonBuilder>[];
 

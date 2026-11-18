@@ -21,7 +21,7 @@ export interface GameOptions {
     hammer: boolean,
 }
 
-export type InstanceSettings = Omit<Global, keyof GameState | keyof GameOptions>;
+export type InstanceSettings = Global;
 
 const legacyFields = ['bulletin', 'extensions', 'hammer'];
 
@@ -41,10 +41,6 @@ function getDB(db?: Firestore) {
 
 export function settingsRef(instance: Instance | string, db?: Firestore) {
     return getDB(db).collection('instances').doc(typeof instance == 'string' ? instance : instance.id).collection('settings').doc('game');
-}
-
-function gameDocRef(instanceId: string, game: string, db?: Firestore) {
-    return getDB(db).collection('instances').doc(instanceId).collection('games').doc(game);
 }
 
 function stateCollection(instanceId: string, game: string, db?: Firestore) {
@@ -81,6 +77,13 @@ export async function createGameState(instance: Instance, game: string, state: P
     ]);
 }
 
+// Whether this specific game has started and not ended. Works for any game, not just the one the pointer names.
+export async function isGameStarted(instance: Instance, game: string) {
+    const data = (await stateCollection(instance.id, game).doc('game').get()).data();
+
+    return data?.started == true;
+}
+
 // Spectator rule: someone alive in any started game gets no spectator access until they're out of every game.
 // `except` skips the game the player is dying/ending in, since its state may not be updated yet.
 export async function isAliveAnywhere(id: string, instance: Instance, except?: string | null) {
@@ -99,7 +102,7 @@ export async function isAliveAnywhere(id: string, instance: Instance, except?: s
     });
 }
 
-// Reads instance settings and the running game's state and merges them into the Global shape the rest of the bot uses.
+// Reads instance settings (running game pointer, admins). Game data is loaded separately as a GameContext.
 export async function loadGlobal(instanceId: string, db: Firestore): Promise<Global | undefined> {
     const ref = settingsRef(instanceId, db);
     let settings = (await ref.get()).data();
@@ -118,23 +121,7 @@ export async function loadGlobal(instanceId: string, db: Firestore): Promise<Glo
         admin: settings.admin ?? [],
     } satisfies InstanceSettings;
 
-    let state = defaultState;
-    let options: GameOptions = { extensions: [], hammer: true };
-
-    if(instance.game != null) {
-        const [stateDoc, gameDoc] = await Promise.all([
-            stateCollection(instanceId, instance.game, db).doc('game').get(),
-            gameDocRef(instanceId, instance.game, db).get(),
-        ]);
-
-        const data = stateDoc.data();
-        if(data) state = { ...defaultState, ...data } as GameState;
-
-        const game = gameDoc.data();
-        if(game) options = { extensions: game.extensions ?? [], hammer: game.hammer ?? true };
-    }
-
-    return { ...instance, ...state, ...options, players: [...state.players] };
+    return instance;
 }
 
 // One-time move of settings/game, settings/lock and settings/grace into the running game's state docs,

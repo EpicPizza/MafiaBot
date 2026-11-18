@@ -7,6 +7,7 @@ import { removeReactions } from "../../discord/helpers";
 import { wipe } from "../../utils/mafia/vote";
 import { Subcommand } from "../../utils/subcommands";
 import { getGameByID } from "../../utils/mafia/games";
+import { getRunningGame } from "../../utils/mafia/context";
 
 export const WipeCommand = {
     name: "wipe",
@@ -43,21 +44,18 @@ export const WipeCommand = {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
        
-        const global = interaction.instance.global;
         const setup  = interaction.instance.setup;
 
-        const game = await getGameByID(global.game ?? "---", interaction.instance);
-        if(game == undefined) throw new Error("Game not found!");
-
         if(setup.primary.chat.id != (interaction.type == 'text' ? interaction.message.channelId : interaction.channelId )) throw new Error("Must be in main chat!");
-        if(global.started == false) throw new Error("Game has not started.");
+
+        const ctx = await getRunningGame(interaction.instance);
 
         const day = interaction.type == 'text' ? interaction.program.processedArgs[0] as number : interaction.options.getNumber("day");
         if(day == null) throw new Error("Day not specified.");
 
         const message = interaction.type == 'text' ? (interaction.program.args.length > 1 ? interaction.program.processedArgs[2] as string ?? "" : "") : interaction.options.getString('message') ?? "";
 
-        const setMessage = await wipe(global, message, game, interaction.instance);
+        const setMessage = await wipe(ctx, message);
 
         if(interaction.type != 'text') {
             const message = await interaction.editReply({ content: "Day wiped."});

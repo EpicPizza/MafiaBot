@@ -8,6 +8,7 @@ import { firebaseAdmin } from "../firebase";
 import { getSetup } from "../setup";
 import { getPlayerObjects, getUser } from "./user";
 import { Instance } from "../instance";
+import { isGameStarted } from "./state";
 
 export interface Signups {
     name: string,
@@ -190,10 +191,8 @@ async function runSignupHooks(hook: 'onSignup' | 'onLeave', game: Signups, id: s
 
 export async function openSignups(name: string, instance: Instance) {
     const game = await getGameByName(name, instance);
-    const global = instance.global;
-
     if (game == null) throw new Error("Game not found.");
-    if (global.started && global.game == game.id) throw new Error("Game has already started, signups are closed.");
+    if (await isGameStarted(instance, game.id)) throw new Error("Game has already started, signups are closed.");
 
     const db = firebaseAdmin.getFirestore();
 
@@ -206,10 +205,8 @@ export async function openSignups(name: string, instance: Instance) {
 
 export async function closeSignups(name: string, instance: Instance) {
     const game = await getGameByName(name, instance);
-    const global = instance.global;
-
     if (game == null) throw new Error("Game not found.")
-    if (global.started && game.id == global.game) throw new Error("Game has already started, signups are closed.");
+    if (await isGameStarted(instance, game.id)) throw new Error("Game has already started, signups are closed.");
 
     const db = firebaseAdmin.getFirestore();
 
@@ -321,11 +318,9 @@ export async function refreshSignup(name: string, instance: Instance) {
 export async function archiveGame(interaction: ChatInputCommandInteraction | TextCommand, name: string, instance: Instance) {
     const setup = instance.setup;
     const game = await getGameByName(name, instance, true);
-    const global = instance.global;
-
     if (typeof setup == 'string') throw new Error("Setup Incomplete");
-    if (game == null || global == null) throw new Error("Game not found.");
-    if (global.game == game.id && global.started) throw new Error("Game in progress.");
+    if (game == null) throw new Error("Game not found.");
+    if (await isGameStarted(instance, game.id)) throw new Error("Game in progress.");
 
     const spec = await setup.secondary.guild.channels.fetch(game.channels.spec).catch(() => undefined);
     if (spec != undefined && spec.type == ChannelType.GuildText) await spec.setParent(setup.secondary.archive, { lockPermissions: true });

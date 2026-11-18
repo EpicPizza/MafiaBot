@@ -11,6 +11,7 @@ import { getGameByID } from "../utils/mafia/games";
 import { getAllNicknames, getUserByName, getUsersArray } from "../utils/mafia/user";
 import { TransactionResult, defaultVote, handleHammer } from "../utils/mafia/vote";
 import { getSetup } from "../utils/setup";
+import { getRunningGame, type GameContext } from "../utils/mafia/context";
 
 module.exports = {
     data: [
@@ -66,7 +67,9 @@ module.exports = {
     execute: async (interaction: Event<ChatInputCommandInteraction | ContextMenuCommandInteraction | TextCommand | AutocompleteInteraction>) => {
         interaction.inInstance();
 
-        const global = interaction.instance.global;
+        const ctx = await getRunningGame(interaction.instance);
+
+        const global = ctx.state;
         
         if(interaction.type != 'text' && interaction.isAutocomplete()) {
             if(global.started == false) {
@@ -135,7 +138,7 @@ module.exports = {
         if(interaction.type != 'text') await interaction.deferReply();
         
         const setup = interaction.instance.setup;
-        const game = await getGameByID(global.game ?? "", interaction.instance);
+        const game = ctx.game;
 
         if(interaction.type == 'text') {
             if(interaction.message.channelId != setup.primary.chat.id) throw new Error("Must vote in main chat.");
@@ -151,7 +154,7 @@ module.exports = {
         let voting = users.find(user => (typeof player == 'string' ? user.nickname.toLowerCase() == player.toLowerCase() || user.id == player || (player.startsWith("<@") && player.length > 4 && player.substring(2, player.length - 1) == user.id) : false));
         if(voting == undefined) voting = await getUserByName(typeof player == 'string' ? player as string : "---", interaction.instance, true);
         
-        const extensions = await getEnabledExtensions(global);
+        const extensions = await getEnabledExtensions(ctx);
         const extension = extensions.find(extension => extension.priority.includes("onVote"));
 
         const type = (!(interaction.type == 'text') ? interaction.commandName == "unvote" : (interaction.name == "unvote" || interaction.program.args.length == 0)) ? "unvote" : "vote";
@@ -166,9 +169,9 @@ module.exports = {
         const result = await db.runTransaction(async t => {
             let result: undefined | TransactionResult = undefined;
 
-            if(extension) result = await extension.onVote(interaction.instance, game, voter, voting, type, users, t) ?? undefined;
+            if(extension) result = await extension.onVote(ctx, voter, voting, type, users, t) ?? undefined;
 
-            if(result == undefined) result = await defaultVote(interaction.instance, game, voter, voting, type, users, t);
+            if(result == undefined) result = await defaultVote(ctx, voter, voting, type, users, t);
 
             return result;
         }) satisfies TransactionResult;
@@ -183,7 +186,7 @@ module.exports = {
             if(result.setMessage) await result.setMessage(message.id);
         }
 
-        await handleHammer(result.hammer, game, interaction.instance);
+        await handleHammer(result.hammer, ctx);
     }
 }
 

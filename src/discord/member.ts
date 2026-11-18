@@ -4,6 +4,7 @@ import { firebaseAdmin } from '../utils/firebase';
 import { editOverwrites } from "../utils/mafia/main";
 import { RoleQueue } from '../utils/mafia/invite';
 import { getAuthority } from '../utils/instance';
+import { findRunningGame } from '../utils/mafia/context';
 
 export async function guildMemberUpdateHandler(...[oldMember, newMember]: ClientEvents[Events.GuildMemberUpdate]) {
     try {
@@ -72,7 +73,7 @@ export async function guildMemberAddHanlder(...[member]: ClientEvents[Events.Gui
         const instance = await getAuthority(member.guild.id, false);
         if(instance == undefined) return;
 
-        const global = instance.global;
+        const started = (await findRunningGame(instance)) != undefined;
         const setup = instance.setup;
 
         const db = firebaseAdmin.getFirestore();
@@ -105,7 +106,7 @@ export async function guildMemberAddHanlder(...[member]: ClientEvents[Events.Gui
             await Promise.allSettled(addRoles.map(role => member.roles.add(role)));
             await Promise.allSettled(removeRoles.map(role => member.roles.remove(role)));
 
-            if(!global.started) {
+            if(!started) {
                 if(addRoles.length > 0) message += "Added roles: " + addRoles.map(role => role.name).join(", ") + "\n";
                 if(removeRoles.length > 0) message += "Removed roles: " + removeRoles.map(role => role.name).join(", ") + "\n";
                 if(addRoles.length > 0 || removeRoles.length > 0) message += "\n";
@@ -115,7 +116,7 @@ export async function guildMemberAddHanlder(...[member]: ClientEvents[Events.Gui
                 const permissionsChannel = guild.channels.cache.get(queue.permissions.channel);
                 if(permissionsChannel && (permissionsChannel.type == ChannelType.GuildText || permissionsChannel.type == ChannelType.GuildCategory)) await permissionsChannel.permissionOverwrites.create(member.id, editOverwrites());
 
-                if(!global.started) {
+                if(!started) {
                     message += "Read permissions for " + permissionsChannel?.url + "\n\n";
                 }
             }
@@ -137,7 +138,7 @@ export async function guildMemberAddHanlder(...[member]: ClientEvents[Events.Gui
         }
 
         // mafia server no longer kicks during games, access to mafia chat is handled by category permission overwrites
-        if(roles.length == 0 && setup.secondary.guild.id == member.guild.id && member.kickable && global.started) {
+        if(roles.length == 0 && setup.secondary.guild.id == member.guild.id && member.kickable && started) {
             await member.kick();
 
             await setup.secondary.logs.send({ embeds: [

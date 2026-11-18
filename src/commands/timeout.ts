@@ -12,6 +12,7 @@ import { firebaseAdmin } from "../utils/firebase";
 import { getUser } from "../utils/mafia/user";
 import { FieldValue } from "firebase-admin/firestore";
 import { stateRef } from "../utils/mafia/state";
+import { getRunningGame, type GameContext } from "../utils/mafia/context";
 
 module.exports = {
     data: [
@@ -50,8 +51,9 @@ module.exports = {
     execute: async (interaction: Event<ChatInputCommandInteraction | TextCommand | ButtonInteraction>) => {
         interaction.inInstance();
 
-        const global = interaction.instance.global;
-        if(!global.started) throw new Error("Game not started.");
+        const ctx = await getRunningGame(interaction.instance);
+
+        const global = ctx.state;
         
         if (!("customId" in interaction)) {
             
@@ -122,10 +124,10 @@ module.exports = {
             }
 
             const db = firebaseAdmin.getFirestore();
-            const ref = stateRef(interaction.instance);
+            const ref = stateRef(interaction.instance, ctx.game.id);
 
-            const game = await getGameByID(global.game ?? "", interaction.instance);
-            const gameSetup = await getGameSetup(game, interaction.instance.setup);
+            const game = ctx.game;
+            const gameSetup = ctx.gameSetup;
             
             const user = await getUser(interaction.user.id, interaction.instance);
             if(!user) throw new Error("Player not found.");
@@ -148,20 +150,20 @@ module.exports = {
 
             // set grace to 15 mins
             let newGraceTime = new Date().valueOf() + 15 /* mins */ * 1000 /* ms per sec */ * 60 /* sec per min */;
-            let oldGrace = await getGrace(interaction.instance);
+            let oldGrace = await getGrace(ctx);
             if (oldGrace && oldGrace.when.valueOf() > newGraceTime) {
             } else {
-                await setGrace(true, new Date(newGraceTime), interaction.instance);
+                await setGrace(true, new Date(newGraceTime), ctx);
             }
             
             // extend future
             let newFutureTime = new Date().valueOf() + 30 /* mins */ * 1000 /* ms per sec */ * 60 /* sec per min */;
-            let oldFuture = await getFuture(interaction.instance);
+            let oldFuture = await getFuture(ctx);
             console.log("Old Future", oldFuture?.when.toLocaleTimeString());
             console.log("New Future", new Date(newFutureTime).toLocaleTimeString());
             let doSetFuture = oldFuture != undefined && newFutureTime > oldFuture.when.valueOf();
             if (doSetFuture) {
-                await setFuture(new Date(newFutureTime), false, true, false, interaction.instance);
+                await setFuture(new Date(newFutureTime), false, true, false, ctx);
             }
 
             const embed = new EmbedBuilder()

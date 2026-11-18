@@ -4,9 +4,8 @@ import { CollectionReference, DocumentSnapshot, Firestore, Query } from "firebas
 import client from "../../discord/client";
 import { removeReactions } from "../../discord/helpers";
 import { type TextCommand } from '../../discord';
-import { getEnabledExtensions, getExtensions } from "../extensions";
+import { getExtensions } from "../extensions";
 import { firebaseAdmin } from "../firebase";
-import { type Global } from '../global';
 import { clearFiles } from "../google/doc";
 import { type Setup } from "../setup";
 import { GameSetup, Signups, getGameByID, getGameByName, getGameSetup, refreshSignup } from "./games";
@@ -14,6 +13,7 @@ import { onjoin } from "./invite";
 import { User, getPlayerObjects, getUsersArray } from "./user";
 import { Instance } from "../instance";
 import { createGameState, isAliveAnywhere, settingsRef, stateRef } from "./state";
+import { findRunningGame, getGameContext, getRunningGame, updateCachedContext, clearCachedContext, type GameContext } from "./context";
 import { pruneRoleQueue } from "./invite";
 
 const pings = true;
@@ -77,12 +77,12 @@ export function viewOverwrites() {
     }
 }
 
-export async function unlockExtensions(instance: Instance, game: Signups, increment: boolean) {
-    const extensions = await getEnabledExtensions(instance.global);
+export async function unlockExtensions(ctx: GameContext, increment: boolean) {
+    const extensions = getExtensions(ctx.state.extensions);
 
     const promises = [] as Promise<any>[];
 
-    extensions.forEach(extension => { promises.push(extension.onUnlock(instance, game, increment)) });
+    extensions.forEach(extension => { promises.push(extension.onUnlock(ctx, increment)) });
 
     const results = await Promise.allSettled(promises);
 
@@ -95,10 +95,9 @@ export async function unlockExtensions(instance: Instance, game: Signups, increm
     }
 }
 
-export async function unlockGame(instance: Instance, increment: boolean = false, ping: boolean = true) {
-    const global = instance.global;
+export async function unlockGame(ctx: GameContext, increment: boolean = false, ping: boolean = true) {
+    const { instance, game, state: global } = ctx;
     const setup = instance.setup;
-    const game = await getGameByID(global.game ?? "", instance);
 
     if(setup == undefined) throw new Error("Setup not complete.");
     if(typeof setup == 'string') throw new Error("An unexpected error occurred.");
@@ -134,37 +133,43 @@ export async function unlockGame(instance: Instance, increment: boolean = false,
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = stateRef(instance);
+    const ref = stateRef(instance, game.id);
+
+    const day = increment ? global.day + 1 : global.day;
 
     await ref.update({
         started: true,
         locked: false,
-        day: increment ? global.day + 1 : global.day,
+        day: day,
     });
 
-    await db.collection('instances').doc(instance.id).collection('games').doc(game.id).collection('days').doc((increment ? global.day + 1 : global.day).toString()).set({
-        game: global.game,
+    global.locked = false;
+    global.day = day;
+    updateCachedContext(ctx);
+
+    await db.collection('instances').doc(instance.id).collection('games').doc(game.id).collection('days').doc(day.toString()).set({
+        game: game.id,
     }, { merge: true });
 
     const message = await setup.primary.chat.send((pings && ping ? "<@&" + setup.primary.alive.id + ">" : "") + " Game has unlocked!");
 
     if(increment == true) {
-        await db.collection('instances').doc(instance.id).collection('games').doc(game.id).collection('days').doc((global.day + 1).toString()).set({
-            game: global.game,
+        await db.collection('instances').doc(instance.id).collection('games').doc(game.id).collection('days').doc(day.toString()).set({
+            game: game.id,
             players: global.players.map((player) => player.id),
             start: message.createdTimestamp,
         });
     }
 
-    await unlockExtensions(instance, game, increment);
+    await unlockExtensions(ctx, increment);
 }
 
-export async function lockExtensions(instance: Instance, game: Signups) {
-    const extensions = await getEnabledExtensions(instance.global);
+export async function lockExtensions(ctx: GameContext) {
+    const extensions = getExtensions(ctx.state.extensions);
 
     const promises = [] as Promise<any>[];
 
-    extensions.forEach(extension => { promises.push(extension.onLock(instance, game)) });
+    extensions.forEach(extension => { promises.push(extension.onLock(ctx)) });
 
     const results = await Promise.allSettled(promises);
 
@@ -177,10 +182,9 @@ export async function lockExtensions(instance: Instance, game: Signups) {
     }
 }
 
-export async function lockGame(instance: Instance) {
-    const global = instance.global;
+export async function lockGame(ctx: GameContext) {
+    const { instance, game, state: global } = ctx;
     const setup = instance.setup;
-    const game = await getGameByID(global.game ?? "", instance);
 
     if(setup == undefined) throw new Error("Setup not complete.");
     if(typeof setup == 'string') throw new Error("An unexpected error occurred.");
@@ -206,16 +210,19 @@ export async function lockGame(instance: Instance) {
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = stateRef(instance);
+    const ref = stateRef(instance, game.id);
 
     await ref.update({
         started: true,
         locked: true,
     });
 
+    global.locked = true;
+    updateCachedContext(ctx);
+
     await setup.primary.chat.send("Game has locked!");
 
-    await lockExtensions(instance, game);
+    await lockExtensions(ctx);
 }
 
 export async function checkSignups(signups: string[], setup: Setup) { //probably could be optimized in a better way but who cares :)
@@ -277,7 +284,7 @@ export async function prepareGame(game: Signups, instance: Instance) {
     await createGameState(instance, game.id, state);
     await settingsRef(instance).update({ game: game.id });
 
-    instance.global = { ...instance.global, ...state, game: game.id, extensions: game.extensions ?? [], hammer: game.hammer ?? true };
+    instance.global = { ...instance.global, game: game.id };
 }
 
 export async function finishSignups(game: Signups, instance: Instance) {
@@ -395,7 +402,8 @@ async function setTag(userProfile: User, player: GuildMember) {
     });
 }
 
-export async function setupPlayer(id: string, gameSetup: GameSetup, instance: Instance) {
+export async function setupPlayer(id: string, ctx: GameContext) {
+    const { instance, gameSetup } = ctx;
     const setup = instance.setup;
 
     const db = firebaseAdmin.getFirestore();
@@ -442,7 +450,8 @@ export async function setupPlayer(id: string, gameSetup: GameSetup, instance: In
             message: {
                 channel: channel.id,
                 content: "Welcome <@" + userProfile.id + ">! Check out the pins in the main mafia channel if you're still unsure how to play. You can also ask questions here to the game mod."
-            }
+            },
+            game: ctx.game.id,
         }, instance);
 
         const dm = await client.users.cache.get(id)?.createDM();
@@ -461,12 +470,12 @@ export async function setupPlayer(id: string, gameSetup: GameSetup, instance: In
     }
 }
 
-export async function startExtensions(instance: Instance, game: Signups) {
-    const extensions = getExtensions(game.extensions ?? []);
+export async function startExtensions(ctx: GameContext) {
+    const extensions = getExtensions(ctx.state.extensions);
 
     const promises = [] as Promise<any>[];
 
-    extensions.forEach(extension => { promises.push(extension.onStart(instance, game)) });
+    extensions.forEach(extension => { promises.push(extension.onStart(ctx)) });
 
     const results = await Promise.allSettled(promises);
 
@@ -486,9 +495,7 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
         await interaction.message.react("<a:loading:1256150236112621578>");
     }
 
-    const global = instance.global;
-
-    if(global.started) throw new Error("Game has already started.");
+    if(await findRunningGame(instance)) throw new Error("Game has already started.");
 
     const game = await getGameByName(name, instance);
     const setup = instance.setup;
@@ -504,6 +511,8 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
     await checkSignups(game.signups, setup);
 
     await prepareGame(game, instance);
+
+    const ctx = await getGameContext(instance, game.id);
 
     //at this point, things have been checked and accounted for and we can do multiple things at once now!
 
@@ -528,11 +537,11 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
     promises.push(clearMafiaAccess(setup, gameSetup));
     promises.push(finishSignups(game, instance));
     promises.push(setupPermissions(setup, true));
-    promises.push(startExtensions(instance, game));
+    promises.push(startExtensions(ctx));
     promises.push(setup.secondary.dms.permissionOverwrites.edit(setup.secondary.spec.id, viewOverwrites()));
 
     for(let i = 0; i < game.signups.length; i++) {
-        promises.push(setupPlayer(game.signups[i], gameSetup, instance));
+        promises.push(setupPlayer(game.signups[i], ctx));
     }
 
     const results = await Promise.allSettled(promises);
@@ -570,7 +579,7 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
         await interaction.message.react("✅")
     }
 
-    //await startLog(setup, global, game);
+    //await startLog(setup, ctx, instance);
 }
 
 export async function markGame(timestamp: number | undefined, gameId: string, instance: Instance, type: 'start' | 'end') {
@@ -584,7 +593,8 @@ export async function markGame(timestamp: number | undefined, gameId: string, in
     });
 }
 
-export async function startLog(setup: Setup, global: Global, game: Signups, instance: Instance) {
+export async function startLog(setup: Setup, ctx: GameContext, instance: Instance) {
+    const game = ctx.game;
     const users = await getUsersArray(game.signups, instance);
 
     const embed = new EmbedBuilder()
@@ -597,7 +607,7 @@ export async function startLog(setup: Setup, global: Global, game: Signups, inst
             },
             {
                 name: "Extensions",
-                value: global.extensions.join("\n"),
+                value: ctx.state.extensions.join("\n"),
                 inline: true,
             },
             {
@@ -655,19 +665,26 @@ export async function startLog(setup: Setup, global: Global, game: Signups, inst
     await setup.secondary.logs.send({ embeds: [ tertiaryEmbed ] });
 }
 
-export async function clearGame(global: Global, instance: Instance) {
+export async function clearGame(ctx: GameContext) {
+    const { instance, game, state } = ctx;
     const db = firebaseAdmin.getFirestore();
 
     // The game's state doc is kept (with started: false) as a record of how it ended.
-    if(global.game) await stateRef(instance, global.game).update({ started: false, locked: false });
+    await stateRef(instance, game.id).update({ started: false, locked: false });
 
-    await settingsRef(instance).update({ game: null });
+    state.started = false;
+    state.locked = false;
+    clearCachedContext(instance, game.id);
 
-    const gameRef = db.collection('instances').doc(instance.id).collection('games').doc(global.game ?? "---");
+    if(instance.global.game == game.id) {
+        await settingsRef(instance).update({ game: null });
+    }
+
+    const gameRef = db.collection('instances').doc(instance.id).collection('games').doc(game.id);
 
     await gameRef.update({
         state: "completed",
-        days: global.day,
+        days: state.day,
     } satisfies Partial<Signups>)
 }
 
@@ -699,10 +716,11 @@ export async function archiveChannels(setup: Setup) {
     }
 }
 
-export async function setMafiaSpectator(mafiaPlayer: GuildMember | undefined, id: string, setup: Setup, gameSetup: GameSetup, userProfile: User, instance: Instance, dm: boolean = true) {
-    const db = firebaseAdmin.getFirestore();
+export async function setMafiaSpectator(mafiaPlayer: GuildMember | undefined, id: string, userProfile: User, ctx: GameContext, dm: boolean = true) {
+    const { instance, gameSetup } = ctx;
+    const setup = instance.setup;
 
-    const spectate = !(await isAliveAnywhere(id, instance, instance.global.game));
+    const spectate = !(await isAliveAnywhere(id, instance, ctx.game.id));
     
     if(mafiaPlayer) {
         await revokeMafiaAccess(mafiaPlayer.id, setup, gameSetup.mafia);
@@ -720,7 +738,8 @@ export async function setMafiaSpectator(mafiaPlayer: GuildMember | undefined, id
             roles: {
                 add: ["spectator"],
                 remove: ["access"],
-            }
+            },
+            game: ctx.game.id,
         }, instance);
             
         const dm = await client.users.cache.get(id)?.createDM();
@@ -733,18 +752,21 @@ export async function setMafiaSpectator(mafiaPlayer: GuildMember | undefined, id
     }
 }
 
-export async function clearPlayer(id: string, setup: Setup, gameSetup: GameSetup, instance: Instance) {
+export async function clearPlayer(id: string, ctx: GameContext) {
+    const { instance } = ctx;
+    const setup = instance.setup;
+
     const promises = [] as Promise<any>[];
 
     const { deadPlayer, userProfile, player, mafiaPlayer } = await getPlayerObjects(id, instance);
 
     if(player) promises.push(player.roles.remove(setup.primary.alive));
 
-    if(deadPlayer && !(await isAliveAnywhere(id, instance, instance.global.game))) {
+    if(deadPlayer && !(await isAliveAnywhere(id, instance, ctx.game.id))) {
         promises.push(deadPlayer.roles.add(setup.secondary.spec));
     }
 
-    promises.push(setMafiaSpectator(mafiaPlayer, id, setup, gameSetup, userProfile, instance, true));
+    promises.push(setMafiaSpectator(mafiaPlayer, id, userProfile, ctx, true));
 
     const results = await Promise.allSettled(promises);
 
@@ -757,12 +779,12 @@ export async function clearPlayer(id: string, setup: Setup, gameSetup: GameSetup
     }
 }
 
-export async function endExtensions(instance: Instance, game: Signups) {
-    const extensions = getExtensions(game.extensions ?? []);
+export async function endExtensions(ctx: GameContext) {
+    const extensions = getExtensions(ctx.state.extensions);
 
     const promises = [] as Promise<any>[];
 
-    extensions.forEach(extension => { promises.push(extension.onEnd(instance, game)) });
+    extensions.forEach(extension => { promises.push(extension.onEnd(ctx)) });
 
     const results = await Promise.allSettled(promises);
 
@@ -782,22 +804,16 @@ export async function endGame(interaction: ChatInputCommandInteraction | TextCom
         await interaction.message.react("<a:loading:1256150236112621578>");
     }
 
-    const global = instance.global;
-
-    if(global.started == false) throw new Error("Game has not started." );
-
-    const game = await getGameByID(global.game ?? "bruh", instance);
+    const ctx = await getRunningGame(instance);
+    const { game } = ctx;
     const setup = instance.setup;
     
     if(setup == undefined) throw new Error("Setup not complete.");
     if(typeof setup == 'string') throw new Error("An unexpected error occurred." );
-    if(game == null) throw new Error("Game not found.");
-
-    const gameSetup = await getGameSetup(game, setup);
 
     //await checkSignups(game.signups, setup);
 
-    await clearGame(global, instance);
+    await clearGame(ctx);
 
     const promises = [] as Promise<unknown>[];
 
@@ -809,11 +825,11 @@ export async function endGame(interaction: ChatInputCommandInteraction | TextCom
     
     promises.push(setupPermissions(setup, false));
     promises.push(archiveChannels(setup));
-    promises.push(endExtensions(instance, game));
+    promises.push(endExtensions(ctx));
     promises.push(clearFiles());
 
     for(let i = 0; i < game.signups.length; i++) {
-        promises.push(clearPlayer(game.signups[i], setup, gameSetup, instance));
+        promises.push(clearPlayer(game.signups[i], ctx));
     }
 
     const results = await Promise.allSettled(promises);
@@ -844,13 +860,13 @@ export async function endGame(interaction: ChatInputCommandInteraction | TextCom
     }
 }
 
-export async function editPlayer(options: { id: string, alignment: 'mafia' | null }, instance: Instance) {
+export async function editPlayer(options: { id: string, alignment: 'mafia' | null }, ctx: GameContext) {
     const db = firebaseAdmin.getFirestore();
 
-    const ref = stateRef(instance);
+    const ref = stateRef(ctx.instance, ctx.game.id);
 
     await db.runTransaction(async t => {
-        const global = instance.global;
+        const global = ctx.state;
 
         const player = global.players.find((value) => { value.id == options.id });
 

@@ -25,7 +25,9 @@ module.exports = {
     help: "no meow",
     commands: [],
     interactions: [],
-    onStart: async (instance, game) => {
+    onStart: async (ctx) => {
+        const { instance, game } = ctx;
+
         /**
          * Runs during game start processes.
          */
@@ -38,14 +40,18 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onLock: async (instance, game) => {
+    onLock: async (ctx) => {
+        const { instance, game } = ctx;
+
         /**
          * Runs after game has locked.
          */
 
         console.log("Extension Lock");
     },
-    onUnlock: async (instance, game, incremented) => {
+    onUnlock: async (ctx, incremented) => {
+        const { instance, game } = ctx;
+
         /**
          * Runa after game has unlocked.
          * 
@@ -105,7 +111,9 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onEnd: async (instance, game) => {
+    onEnd: async (ctx) => {
+        const { instance, game } = ctx;
+
         /**
          * Runs during game end processes.
          */
@@ -118,16 +126,18 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onVote: async (instance, game, voter, voting, type, users, transaction) => {},
-    onVotes: async (instance, game, board ) => { 
+    onVote: async (ctx, voter, voting, type, users, transaction) => {},
+    onVotes: async (ctx, board ) => {
+        const { instance, game } = ctx;
+ 
         return "Example footer.";
 
         /**
          * Return what is show in the footer in ?votes.
          */
     },
-    onHammer: async (instance, game, hammered) => {},
-    onRemove: async (instance, game, removed) => {},
+    onHammer: async (ctx, hammered) => {},
+    onRemove: async (ctx, removed) => {},
     onDump: async (statsBatch, messageBatch, reactionBatch) => {
         const instances = await getCachedInstances();
         const db = firebaseAdmin.getFirestore();

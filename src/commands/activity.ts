@@ -8,6 +8,7 @@ import { firebaseAdmin } from "../utils/firebase";
 import { getGameByID } from "../utils/mafia/games";
 import { getUserByName } from "../utils/mafia/user";
 import { TrackedMessage } from "../utils/mafia/tracking";
+import { getRunningGame } from "../utils/mafia/context";
 
 module.exports = {
     data: [
@@ -26,15 +27,10 @@ module.exports = {
     execute: async (interaction: Event<TextCommand>) => {
         interaction.inInstance();
 
-        const global = interaction.instance.global;
+        const ctx = await getRunningGame(interaction.instance);
+        const game = ctx.game;
 
-        if(global.started == false) throw new Error("Game has not started.");
-        if(global.game == null) throw new Error("No active game.");
-
-        const game = await getGameByID(global.game, interaction.instance);
-        if(game == null) throw new Error("Game not found.");
-
-        const day = global.day;
+        const day = ctx.state.day;
 
         const db = firebaseAdmin.getFirestore();
 

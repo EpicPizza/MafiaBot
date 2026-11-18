@@ -5,6 +5,7 @@ import { Data, Event } from '../discord';
 import { TextCommand } from '../discord';
 import { firebaseAdmin } from "../utils/firebase";
 import { getUser, User } from "../utils/mafia/user";
+import { findRunningGame } from "../utils/mafia/context";
 
 module.exports = {
     data: [
@@ -33,9 +34,10 @@ module.exports = {
 
         let user = null as null | User;
 
-        const global = interaction.instance.global;
+        const running = await findRunningGame(interaction.instance);
+        const global = running?.state;
 
-        if(global.started == true) {
+        if(global) {
             const randomPlayer = getRandom(0, global.players.length);
 
             user = await getUser(global.players[randomPlayer].id, interaction.instance) ?? null;

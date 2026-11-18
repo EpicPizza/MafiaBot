@@ -12,6 +12,7 @@ import { archiveChannels, deleteInvites, setupDeadPlayer, viewOverwrites } from 
 import { getPlayerObjects, getUserByName } from "../utils/mafia/user";
 import { checkMod } from "../utils/mod";
 import { Instance } from "../utils/instance";
+import { isGameStarted } from "../utils/mafia/state";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -67,7 +68,9 @@ module.exports = {
         },
     ],
     interactions: [],
-    onStart: async (instance, game) => {
+    onStart: async (ctx) => {
+        const { instance, game } = ctx;
+
         /**
          * Runs during game start processes.
          */
@@ -117,7 +120,7 @@ module.exports = {
          * If pregame is running for this game, set up their dm channel right away.
          */
 
-        if(instance.global.started) return;
+        if(await isGameStarted(instance, game.id)) return;
 
         const gameId = (await settingsRef(instance).get()).data()?.game as undefined | string;
         if(gameId == undefined || gameId != game.id) return;
@@ -138,7 +141,7 @@ module.exports = {
          * If pregame is running for this game, let them know their dm channel stays open.
          */
 
-        if(instance.global.started) return;
+        if(await isGameStarted(instance, game.id)) return;
 
         const gameId = (await settingsRef(instance).get()).data()?.game as undefined | string;
         if(gameId == undefined || gameId != game.id) return;
@@ -152,8 +155,8 @@ module.exports = {
 
         await channel.send("<@" + id + "> You've left the game, but this channel will remain open in case you re-join the game.");
     },
-    onLock: async (instance, game) => {},
-    onUnlock: async (instance, game, incremented) => {},
+    onLock: async (ctx) => {},
+    onUnlock: async (ctx, incremented) => {},
     onCommand: async (command: Event<TextCommand>) => {
         /**
          * Text commands only for the forseeable future.
@@ -186,7 +189,7 @@ module.exports = {
             if(game == undefined) throw new Error("Game not found.");
             const gameSetup = await getGameSetup(game, setup);
 
-            if(global.started) throw new Error("Game has already started.");
+            if(await isGameStarted(instance, game.id)) throw new Error("Game has already started.");
 
             const ref = settingsRef(instance);
             if(((await ref.get()).data()?.game) as undefined | string != undefined) throw new Error("Already started pregame!");
@@ -258,11 +261,13 @@ module.exports = {
     },
     onInteraction: async (extensionInteraction: ExtensionInteraction) => {},
     onMessage: async (message) => {},
-    onEnd: async (instance, game) => {},
-    onVote: async (instance, game, voter, voting, type, users, transaction) => {},
-    onVotes: async (instance, game, board ) => { return ""; },
-    onHammer: async (instance, game, hammered) => {},
-    onRemove: async (instance, game, removed) => {},
+    onEnd: async (ctx) => {},
+    onVote: async (ctx, voter, voting, type, users, transaction) => {},
+    onVotes: async (ctx, board ) => {
+        const { instance, game } = ctx;
+ return ""; },
+    onHammer: async (ctx, hammered) => {},
+    onRemove: async (ctx, removed) => {},
     onDump: async (statsBatch, messageBatch, reactionBatch) => {},
 } satisfies Extension;
 

@@ -9,6 +9,7 @@ import { firebaseAdmin } from "../../utils/firebase";
 import { gameRef, resolveGame } from "../../utils/mafia/games";
 import { getSetup } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
+import { getGameContext } from "../../utils/mafia/context";
 
 export const ExtensionCommand = {
     name: "extension",
@@ -122,7 +123,7 @@ export const ExtensionCommand = {
             });          
             
             if(start === true) {
-                await enabling.onStart(interaction.instance, game);
+                await enabling.onStart(await getGameContext(interaction.instance, game.id));
             }
 
             if(interaction.type == 'text') {
@@ -146,7 +147,7 @@ export const ExtensionCommand = {
             });     
 
             if(end === true) {
-                await disabling.onEnd(interaction.instance, game);
+                await disabling.onEnd(await getGameContext(interaction.instance, game.id));
             }
 
             if(interaction.type == 'text') {

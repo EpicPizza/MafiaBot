@@ -14,6 +14,7 @@ import { getHelpEmbed } from "./help";
 import { getAuthority, Instance } from "../utils/instance";
 import { getWebhook } from "../utils/webhook";
 import { SafeError } from "../utils/error";
+import { findRunningGame } from "../utils/mafia/context";
 
 export async function messageCreateHandler(...[message, throws]: [...ClientEvents[Events.MessageCreate], throws?: boolean]) {
     try {
@@ -176,7 +177,7 @@ export async function messageDeleteHandler(...[message]: ClientEvents[Events.Mes
         if(!(instance && instance.setup.primary.guild.id == message.guildId && instance.setup.primary.chat.id == message.channelId)) return; //don't need to track every message in the main server
 
         const purged = await deleteMessage(message) ?? false;
-        if(instance.global.started == false || purged) return;
+        if(purged || (await findRunningGame(instance, true)) == undefined) return;
 
         const tracked = await fetchMessage(message);
         if(!tracked || !('createdTimestamp' in tracked)) return;

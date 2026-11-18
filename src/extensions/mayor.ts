@@ -14,6 +14,7 @@ import { CustomLog, TransactionResult, Vote, flow, getVotes, handleHammer } from
 import { checkMod } from "../utils/mod";
 import { getSetup } from "../utils/setup";
 import { Instance } from "../utils/instance";
+import { getRunningGame, type GameContext, type RunningState } from "../utils/mafia/context";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -61,7 +62,9 @@ module.exports = {
         },
     ],
     interactions: [],
-    onStart: async (instance, game) => {
+    onStart: async (ctx) => {
+        const { instance, game } = ctx;
+
         /**
          * Runs during game start processes.
          */
@@ -76,8 +79,8 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onLock: async (instance, game) => {},
-    onUnlock: async (instance, game, incremented) => {},
+    onLock: async (ctx) => {},
+    onUnlock: async (ctx, incremented) => {},
     onCommand: async (command: Event<TextCommand>) => {
         /**
          * Text commands only for the forseeable future.
@@ -88,13 +91,13 @@ module.exports = {
         command.inInstance();
 
         const setup = command.instance.setup;
-        const global = command.instance.global;
+        const ctx = await getRunningGame(command.instance);
+        const { game, state: global } = ctx;
 
         const member = await setup.primary.guild.members.fetch(command.user.id);
-        const game = await getGameByID(global.game ?? "", command.instance);
 
         if(command.name == "set") {
-            await checkMod(setup, global, command.user.id, command.message.guildId ?? "");
+            await checkMod(setup, command.instance.global, command.user.id, command.message.guildId ?? "");
 
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
 
@@ -124,7 +127,7 @@ module.exports = {
 
             await command.message.react("✅");
         } else if(command.name == "clear") {
-            await checkMod(setup, global, command.user.id, command.message.guildId ?? "");
+            await checkMod(setup, command.instance.global, command.user.id, command.message.guildId ?? "");
 
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
 
@@ -143,7 +146,7 @@ module.exports = {
 
             await command.message.react("✅");
         } else if(command.name == "check") {
-            const gameSetup = await getGameSetup(game, setup);
+            const gameSetup = ctx.gameSetup;
 
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != gameSetup.spec.guildId || command.message.channel.id != gameSetup.spec.id) throw new Error("This command must be run in dead chat.");
 
@@ -161,7 +164,7 @@ module.exports = {
             if(command.message.channelId != setup.primary.chat.id) throw new Error("Must be in main chat!");
             if(global.locked == true) throw new Error("Game is locked!");
 
-            const result = await reveal(command.user.id, global, game, command.instance);
+            const result = await reveal(command.user.id, ctx);
 
             if(result == undefined) return;
 
@@ -169,11 +172,11 @@ module.exports = {
 
             await command.message.react("✅");
 
-            await handleHammer(result.hammer, game, command.instance);
+            await handleHammer(result.hammer, ctx);
         } else if(command.name == "votes") {
-            await checkMod(setup, global, command.user.id, command.message.guildId ?? "");
+            await checkMod(setup, command.instance.global, command.user.id, command.message.guildId ?? "");
 
-            const gameSetup = await getGameSetup(game, setup);
+            const gameSetup = ctx.gameSetup;
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != gameSetup.spec.guildId || command.message.channel.id != gameSetup.spec.id) throw new Error("This command must be run in dead chat.");
 
             const votes = await getVotes(global.day, game, command.instance);
@@ -196,7 +199,9 @@ module.exports = {
     },
     onInteraction: async (extensionInteraction: ExtensionInteraction) => {},
     onMessage: async (message) => {},
-    onEnd: async (instance, game) => {
+    onEnd: async (ctx) => {
+        const { instance, game } = ctx;
+
         /**
          * Runs during game end processes.
          */
@@ -209,32 +214,36 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onVote: async (instance, game, voter, voting, type, users, transaction) => {
-        const { reply, vote, votes } = await flow.placeVote(transaction, voter, voting, type, users, instance.global.day, game, instance); // doesn't save vote yet since board needs to be created
+    onVote: async (ctx, voter, voting, type, users, transaction) => {
+        const { instance, game } = ctx;
+
+        const { reply, vote, votes } = await flow.placeVote(transaction, voter, voting, type, users, ctx.state.day, game, instance); // doesn't save vote yet since board needs to be created
         
         if(vote == undefined) return { reply };
 
         const mayors = await getMayors(instance);
 
-        const board = getBoard(votes, users, mayors, instance.global.day);
+        const board = getBoard(votes, users, mayors, ctx.state.day);
 
-        const setMessage = flow.finish(transaction, vote, board, instance.global.day, game, instance); // locks in vote
+        const setMessage = flow.finish(transaction, vote, board, ctx.state.day, game, instance); // locks in vote
 
         return {
             reply,
-            hammer: determineHammer(vote, votes, users, mayors, instance.global.day, instance.global),
+            hammer: determineHammer(vote, votes, users, mayors, ctx.state.day, ctx.state),
             setMessage,
         }
     },
-    onVotes: async (instance, game, board ) => {
-        if(instance.global.hammer) {
+    onVotes: async (ctx, board ) => {
+        const { instance, game } = ctx;
+
+        if(ctx.state.hammer) {
             return "";
         } else {
             return "Hammer disabled."
         }
      }, // no need to change from default behavior
-    onHammer: async (instance, game, hammered) => {},
-    onRemove: async (instance, game, removed) => {},
+    onHammer: async (ctx, hammered) => {},
+    onRemove: async (ctx, removed) => {},
     onDump: async (statsBatch, messageBatch, reactionBatch) => {},
 } satisfies Extension;
 
@@ -329,7 +338,7 @@ function getBoard(votes: Vote[], users: User[], mayors: Awaited<ReturnType<typeo
     return board;
 }
 
-function determineHammer(vote: Vote, votes: Vote[], users: User[], mayors: Awaited<ReturnType<typeof getMayors>>, day: number, global: Global): TransactionResult["hammer"] {
+function determineHammer(vote: Vote, votes: Vote[], users: User[], mayors: Awaited<ReturnType<typeof getMayors>>, day: number, global: RunningState): TransactionResult["hammer"] {
     if(vote.for == 'unvote' || global.hammer == false) return { hammered: false, message: null, id: null };
 
     const botPlayers = global.players.filter(player => player.alignment == "bot").map(player => player.id);
@@ -381,7 +390,8 @@ async function updateVotes(day: number, game: Signups, message: string, id: stri
     })
 }
 
-async function reveal(id: string, global: Global, game: Signups, instance: Instance) {
+async function reveal(id: string, ctx: GameContext) {
+    const { instance, game, state: global } = ctx;
     const db = firebaseAdmin.getFirestore();
 
     const ref = db.collection('instances').doc(instance.id).collection('mayor').doc(id);

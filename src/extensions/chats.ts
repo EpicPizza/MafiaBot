@@ -11,6 +11,7 @@ import { getGameByID } from "../utils/mafia/games";
 import { deleteCollection } from "../utils/mafia/main";
 import { getUserByName, User } from "../utils/mafia/user";
 import { checkMod } from "../utils/mod";
+import { getRunningGame } from "../utils/mafia/context";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -59,7 +60,9 @@ module.exports = {
         },
     ],
     interactions: [],
-    onStart: async (instance, game) => {
+    onStart: async (ctx) => {
+        const { instance, game } = ctx;
+
         /**
          * Runs during game start processes.
          */
@@ -74,9 +77,11 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onLock: async (instance, game) => {
+    onLock: async (ctx) => {
+        const { instance, game } = ctx;
+
         const setup = instance.setup;
-        const global = instance.global;
+        const global = ctx.state;
 
         const db = firebaseAdmin.getFirestore();
 
@@ -98,9 +103,11 @@ module.exports = {
             }
         }
     },
-    onUnlock: async (instance, game, incremented) => {
+    onUnlock: async (ctx, incremented) => {
+        const { instance, game } = ctx;
+
         const setup = instance.setup;
-        const global = instance.global;
+        const global = ctx.state;
 
         const db = firebaseAdmin.getFirestore();
 
@@ -132,18 +139,19 @@ module.exports = {
         command.inInstance();
 
         const setup = command.instance.setup;
-        const global = command.instance.global;
+        const ctx = await getRunningGame(command.instance);
+        const global = ctx.state;
 
         const member = await setup.primary.guild.members.fetch(command.user.id);
 
-        await checkMod(setup, global, command.user.id, command.message.guildId ?? "");
+        await checkMod(setup, command.instance.global, command.user.id, command.message.guildId ?? "");
         
         if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
 
         const db = firebaseAdmin.getFirestore();
 
         if(command.name == "create") {
-            const game = await getGameByID(global.game ?? "", command.instance);
+            const game = ctx.game;
 
             const chats = [] as User[];
 
@@ -272,13 +280,17 @@ module.exports = {
     },
     onInteraction: async (extensionInteraction: ExtensionInteraction) => {},
     onMessage: async (message) => {},
-    onEnd: async (instance, game) => {},
-    onVote: async (instance, game, voter, voting, type, users, transaction) => {},
-    onVotes: async (instance, game, board ) => { return ""; },
-    onHammer: async (instance, game, hammered) => {},
-    onRemove: async (instance, game, removed) => {
+    onEnd: async (ctx) => {},
+    onVote: async (ctx, voter, voting, type, users, transaction) => {},
+    onVotes: async (ctx, board ) => {
+        const { instance, game } = ctx;
+ return ""; },
+    onHammer: async (ctx, hammered) => {},
+    onRemove: async (ctx, removed) => {
+        const { instance, game } = ctx;
+
         const setup = instance.setup;
-        const global = instance.global;
+        const global = ctx.state;
 
         const db = firebaseAdmin.getFirestore();
 

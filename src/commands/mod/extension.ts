@@ -8,6 +8,7 @@ import { getAllExtensions } from "../../utils/extensions";
 import { firebaseAdmin } from "../../utils/firebase";
 import { Subcommand } from "../../utils/subcommands";
 import { gameRef, resolveGame } from "../../utils/mafia/games";
+import { isGameStarted } from "../../utils/mafia/state";
 
 export const ExtensionCommand = {
     name: "extension",
@@ -88,7 +89,7 @@ export const ExtensionCommand = {
 
         const game = await resolveGame(interaction.type == 'text' ? interaction.program.getOptionValue('game') as string | undefined : interaction.options.getString("game"), interaction.instance);
         const gameExtensions = game.extensions ?? [];
-        const running = global.started && global.game == game.id;
+        const running = await isGameStarted(interaction.instance, game.id);
 
         const enabled = getAllExtensions().filter(extension => gameExtensions.find(enabled => enabled == extension.name));
         const disabled = getAllExtensions().filter(extension => !gameExtensions.find(enabled => enabled == extension.name));

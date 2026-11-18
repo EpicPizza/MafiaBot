@@ -10,6 +10,7 @@ import { getGameByID, getGameSetup } from "../../utils/mafia/games";
 import { getUserByName, getUsersArray } from "../../utils/mafia/user";
 import { defaultVote, handleHammer, TransactionResult } from "../../utils/mafia/vote";
 import { Subcommand } from "../../utils/subcommands";
+import { getRunningGame, type GameContext } from "../../utils/mafia/context";
 
 export const VoteCommand = {
     name: "vote",
@@ -57,13 +58,13 @@ export const VoteCommand = {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
        
-        const global = interaction.instance.global;
+        const ctx = await getRunningGame(interaction.instance);
+       
+        const global = ctx.state;
         const setup  = interaction.instance.setup;
-        
-        if(global.started == false) throw new Error("Game has not started.");
 
-        const game = await getGameByID(global.game ?? "", interaction.instance);
-        const gameSetup = await getGameSetup(game, setup);
+        const game = ctx.game;
+        const gameSetup = ctx.gameSetup;
 
         const playerInput = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');
         if(playerInput == null) throw new Error("Choose a player.");
@@ -80,7 +81,7 @@ export const VoteCommand = {
         if(advType == null) throw new Error("Vote type not specified.");
         if(advType == "add" && forPlayer == undefined) throw new Error("Player to vote not found.");
 
-        const extensions = await getEnabledExtensions(global);
+        const extensions = await getEnabledExtensions(ctx);
         const extension = extensions.find(extension => extension.priority.includes("onVote"));
         
         const type = advType == 'add' ? 'vote' : 'unvote';
@@ -94,9 +95,9 @@ export const VoteCommand = {
         const result = await db.runTransaction(async t => {
             let result: undefined | TransactionResult = undefined;
 
-            if(extension) result = await extension.onVote(interaction.instance, game, voter, voting, type, users, t) ?? undefined;
+            if(extension) result = await extension.onVote(ctx, voter, voting, type, users, t) ?? undefined;
 
-            if(result == undefined) result = await defaultVote(interaction.instance, game, voter, voting, type, users, t);
+            if(result == undefined) result = await defaultVote(ctx, voter, voting, type, users, t);
 
             return result;
         }) satisfies TransactionResult;
@@ -105,7 +106,7 @@ export const VoteCommand = {
 
         if(result.setMessage) await result.setMessage(message.id);
 
-        await handleHammer(result.hammer, game, interaction.instance);
+        await handleHammer(result.hammer, ctx);
         
         if(interaction.type == 'text') {
             await removeReactions(interaction.message);

@@ -12,6 +12,7 @@ import { getSetup, Setup, } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
 import { addMafiaPlayer } from "../mod/alignments";
 import { Instance } from "../../utils/instance";
+import { getRunningGame, type GameContext } from "../../utils/mafia/context";
 
 export const MafiaCommand = {
     name: "mafia",
@@ -42,13 +43,13 @@ export const MafiaCommand = {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
        
-        const global = interaction.instance.global;
+        const ctx = await getRunningGame(interaction.instance);
+       
+        const global = ctx.state;
         const setup  = interaction.instance.setup;
-        
-        if(global.started == false) throw new Error("Game has not started.");
 
-        const game = await getGameByID(global.game ?? "", interaction.instance);
-         const gameSetup = await getGameSetup(game, setup);
+        const game = ctx.game;
+         const gameSetup = ctx.gameSetup;
 
         const player = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');
 
@@ -68,7 +69,7 @@ export const MafiaCommand = {
 
         if(!user) throw new Error("Player not found.");
 
-        const inServer = await addMafiaPlayer({ id: user.id, alignment: null }, interaction.instance);
+        const inServer = await addMafiaPlayer({ id: user.id, alignment: null }, ctx);
 
         if(inServer) {
             await gameSetup.spec.send("<@" + interaction.user.id + "> " + user.nickname + " has been given access to mafia chat.");
@@ -88,12 +89,12 @@ export const MafiaCommand = {
     }
 } satisfies Subcommand;
 
-async function hammerExtensions(instance: Instance, game: Signups, hammered: string) {
-    const extensions = await getEnabledExtensions(instance.global);
+async function hammerExtensions(ctx: GameContext, hammered: string) {
+    const extensions = getEnabledExtensions(ctx);
 
     const promises = [] as Promise<any>[];
 
-    extensions.forEach(extension => { promises.push(extension.onHammer(instance, game, hammered)) });
+    extensions.forEach(extension => { promises.push(extension.onHammer(ctx, hammered)) });
 
     const results = await Promise.allSettled(promises);
 

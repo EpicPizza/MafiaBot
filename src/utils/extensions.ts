@@ -7,7 +7,8 @@ import type { ZodObject } from 'zod';
 import type { Event, ReactionCommand } from '../discord';
 import type { TextCommand } from '../discord';
 import type { ExtendedClient } from '../discord/client';
-import { type Global } from './global';
+import type { GameContext } from './mafia/context';
+import { findRunningGame } from './mafia/context';
 import type { Signups } from './mafia/games';
 import type { User } from './mafia/user';
 import type { TransactionResult } from './mafia/vote';
@@ -66,28 +67,30 @@ export interface Extension {
     commands: (() => Command)[],
     interactions: ExtensionInteractions[],
     onInteraction: (extensionInteraction: ExtensionInteraction) => Promise<unknown>,
-    onStart: { (instance: Instance, game: Signups): Promise<unknown> },
-    onLock: { (instance: Instance, game: Signups): Promise<unknown> },
-    onUnlock: { (instance: Instance, game: Signups, incremented: boolean): Promise<unknown> },
+    onStart: { (ctx: GameContext): Promise<unknown> },
+    onLock: { (ctx: GameContext): Promise<unknown> },
+    onUnlock: { (ctx: GameContext, incremented: boolean): Promise<unknown> },
     onCommand: { (command: Event<TextCommand>): Promise<unknown> },
     onMessage: { (message: Message): Promise<unknown> },
-    onEnd: { (instance: Instance, game: Signups): Promise<unknown> },
-    onVote: { (instance: Instance, game: Signups, voter: User, voting: User | undefined, type: 'vote' | 'unvote', users: User[], transaction: Transaction): Promise<TransactionResult> | Promise<void> },
-    onVotes: { (instance: Instance, game: Signups, board: string ): string | Promise<string> },
-    onHammer: { (instance: Instance, game: Signups, hammered: string): Promise<unknown> },
-    onRemove: { (instance: Instance, game: Signups, removed: string): Promise<unknown> },
+    onEnd: { (ctx: GameContext): Promise<unknown> },
+    onVote: { (ctx: GameContext, voter: User, voting: User | undefined, type: 'vote' | 'unvote', users: User[], transaction: Transaction): Promise<TransactionResult> | Promise<void> },
+    onVotes: { (ctx: GameContext, board: string ): string | Promise<string> },
+    onHammer: { (ctx: GameContext, hammered: string): Promise<unknown> },
+    onRemove: { (ctx: GameContext, removed: string): Promise<unknown> },
     onSignup?: { (instance: Instance, game: Signups, id: string): Promise<unknown> },
     onLeave?: { (instance: Instance, game: Signups, id: string): Promise<unknown> },
     onDump: { (statsBatch: StatsAction[], messageBatch: MessageAction[], reactionBatch: ReactionAction[]): Promise<unknown> }
 }
 
-export function getEnabledExtensions(global: Global) {
-    return extensions.filter(extension => global.extensions.find(enabled => enabled == extension.name));
+export function getEnabledExtensions(ctx: GameContext) {
+    return getExtensions(ctx.state.extensions);
 }
 
 // Enabled in the running game, or, with no game running, in any active game (for pregame commands like upick).
 async function isExtensionInUse(name: string, instance: Instance) {
-    if(instance.global.game != null) return instance.global.extensions.includes(name);
+    const running = await findRunningGame(instance, true);
+
+    if(running) return running.state.extensions.includes(name);
 
     const games = await firebaseAdmin.getFirestore().collection('instances').doc(instance.id).collection('games').where('state', '==', 'active').get();
 
