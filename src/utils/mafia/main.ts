@@ -13,7 +13,8 @@ import { GameSetup, Signups, getGameByID, getGameByName, getGameSetup, refreshSi
 import { onjoin } from "./invite";
 import { User, getPlayerObjects, getUsersArray } from "./user";
 import { Instance } from "../instance";
-import { createGameState, settingsRef, stateRef } from "./state";
+import { createGameState, isAliveAnywhere, settingsRef, stateRef } from "./state";
+import { pruneRoleQueue } from "./invite";
 
 const pings = true;
 
@@ -361,13 +362,13 @@ export async function setupMafiaPlayer(mafiaPlayer: GuildMember | undefined, set
     }
 }
 
-// Mafia chat access is granted through member permission overwrites on the tertiary ongoing category (and the game's mafia channel,
-// since editing a category through the API does not propagate to its children). Everyone else can stay in the server.
+// Mafia chat access is a member permission overwrite on the game's mafia channel only. Never put member overwrites on the shared
+// tertiary ongoing category: anyone who can view one of its channels receives its overwrite list, which would expose other games' mafia.
 export async function grantMafiaAccess(id: string, setup: Setup, mafia: TextChannel) {
-    await setup.tertiary.ongoing.permissionOverwrites.edit(id, editOverwrites(), { type: OverwriteType.Member });
     await mafia.permissionOverwrites.edit(id, editOverwrites(), { type: OverwriteType.Member });
 }
 
+// Also removes any legacy member overwrite on the category from before access was per channel.
 export async function revokeMafiaAccess(id: string, setup: Setup, mafia: TextChannel | undefined) {
     if(setup.tertiary.ongoing.permissionOverwrites.cache.has(id)) await setup.tertiary.ongoing.permissionOverwrites.delete(id);
     if(mafia?.permissionOverwrites.cache.has(id)) await mafia.permissionOverwrites.delete(id);
@@ -522,9 +523,7 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
         }  
     })());
 
-    promises.push(deleteCollection(db, db.collection('instances').doc(instance.id).collection("notes"), 20));
-    promises.push(deleteCollection(db, db.collection("edits"), 20));
-    promises.push(deleteCollection(db, db.collection('instances').doc(instance.id).collection("roles"), 20));
+    promises.push(pruneRoleQueue(instance));
     promises.push(deleteInvites(setup));
     promises.push(clearMafiaAccess(setup, gameSetup));
     promises.push(finishSignups(game, instance));
@@ -702,12 +701,17 @@ export async function archiveChannels(setup: Setup) {
 
 export async function setMafiaSpectator(mafiaPlayer: GuildMember | undefined, id: string, setup: Setup, gameSetup: GameSetup, userProfile: User, instance: Instance, dm: boolean = true) {
     const db = firebaseAdmin.getFirestore();
+
+    const spectate = !(await isAliveAnywhere(id, instance, instance.global.game));
     
     if(mafiaPlayer) {
-        await mafiaPlayer.roles.add(setup.tertiary.spec);
-        await mafiaPlayer.roles.remove(setup.tertiary.access);
         await revokeMafiaAccess(mafiaPlayer.id, setup, gameSetup.mafia);
-    } else if(dm) {
+
+        if(spectate) {
+            await mafiaPlayer.roles.add(setup.tertiary.spec);
+            await mafiaPlayer.roles.remove(setup.tertiary.access);
+        }
+    } else if(dm && spectate) {
         const invite = await setup.tertiary.guild.invites.create(gameSetup.mafia.id, { unique: true });
 
         await onjoin({
@@ -736,7 +740,7 @@ export async function clearPlayer(id: string, setup: Setup, gameSetup: GameSetup
 
     if(player) promises.push(player.roles.remove(setup.primary.alive));
 
-    if(deadPlayer) {
+    if(deadPlayer && !(await isAliveAnywhere(id, instance, instance.global.game))) {
         promises.push(deadPlayer.roles.add(setup.secondary.spec));
     }
 

@@ -141,16 +141,7 @@ export async function addMafiaPlayer(player: Global["players"][0], instance: Ins
 
         return true;
     } else {
-        // not in the mafia server yet, grant category + channel permissions once they join
-        await onjoin({
-            id: user.id,
-            server: "tertiary",
-            roles: {},
-            permissions: {
-                channel: instance.setup.tertiary.ongoing.id,
-            }
-        }, instance);
-
+        // not in the mafia server yet, grant mafia channel permissions once they join
         await onjoin({
             id: user.id,
             server: "tertiary",

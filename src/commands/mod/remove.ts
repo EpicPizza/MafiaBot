@@ -9,6 +9,7 @@ import { firebaseAdmin } from "../../utils/firebase";
 import { type Global } from '../../utils/global';
 import { Signups, getGameByID, getGameSetup } from "../../utils/mafia/games";
 import { setMafiaSpectator } from "../../utils/mafia/main";
+import { isAliveAnywhere } from "../../utils/mafia/state";
 import { getUserByName } from "../../utils/mafia/user";
 import { checkMod } from "../../utils/mod";
 import { Setup, getSetup } from "../../utils/setup";
@@ -86,7 +87,7 @@ export async function removePlayer(name: string, instance: Instance) {
 
     const dead = await instance.setup.secondary.guild.members.fetch(user.id).catch(() => undefined);
     if(dead == null) throw new Error("Member not found.");
-    await dead.roles.add(instance.setup.secondary.spec);
+    if(!(await isAliveAnywhere(user.id, instance, game.id))) await dead.roles.add(instance.setup.secondary.spec);
 
     const mafia = await instance.setup.tertiary.guild.members.fetch(user.id).catch(() => undefined);
     await setMafiaSpectator(mafia, main.id, instance.setup, gameSetup, user, instance);

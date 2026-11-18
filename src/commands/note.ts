@@ -5,7 +5,7 @@ import { ReactionCommand } from '../discord';
 import { TextCommand } from '../discord';
 import { archiveMessage } from "../utils/archive";
 import { firebaseAdmin } from "../utils/firebase";
-import { getGameByID, getGameSetup } from "../utils/mafia/games";
+import { gameRef, getGameByID, getGameSetup } from "../utils/mafia/games";
 import { getUser } from "../utils/mafia/user";
 import { getSetup } from "../utils/setup";
 import { purgeMessage } from "../utils/mafia/tracking";
@@ -90,7 +90,7 @@ module.exports = {
 
             if(alignment != 'mafia' && sendTo == 'mafia') throw new Error("Not allowed! You're not mafia!");
 
-            await db.collection('instances').doc(interaction.instance.id).collection('notes').doc(user.id).set({
+            await gameRef(interaction.instance, global.game ?? "---").collection('notes').doc(user.id).set({
                 sendTo,
             });
 
@@ -112,7 +112,7 @@ module.exports = {
 
         if(interaction.type == 'text' || interaction.type == 'reaction' ? interaction.message.channelId != setup.primary.chat.id : interaction.channelId != setup.primary.chat.id) return;
 
-        const ref = db.collection('instances').doc(interaction.instance.id).collection('notes').doc(user.id); 
+        const ref = gameRef(interaction.instance, global.game ?? "---").collection('notes').doc(user.id); 
         const sendTo = ((await ref.get()).data()?.sendTo ?? 'DM') as 'DM' | 'mafia';
 
         const channel = setup.secondary.guild.channels.cache.get(user.channel ?? "");

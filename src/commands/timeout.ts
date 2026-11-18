@@ -143,7 +143,7 @@ module.exports = {
             if(main != null) await main.roles.remove(interaction.instance.setup.primary.alive);
 
             let mafia = await interaction.instance.setup.tertiary.guild.members.fetch(user.id).catch(() => undefined);
-            const hadMafiaAccess = interaction.instance.setup.tertiary.ongoing.permissionOverwrites.cache.has(user.id);
+            const hadMafiaAccess = gameSetup.mafia.permissionOverwrites.cache.has(user.id);
             if(mafia != null && hadMafiaAccess) await revokeMafiaAccess(mafia.id, interaction.instance.setup, gameSetup.mafia);
 
             // set grace to 15 mins

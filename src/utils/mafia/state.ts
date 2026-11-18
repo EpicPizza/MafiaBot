@@ -81,6 +81,24 @@ export async function createGameState(instance: Instance, game: string, state: P
     ]);
 }
 
+// Spectator rule: someone alive in any started game gets no spectator access until they're out of every game.
+// `except` skips the game the player is dying/ending in, since its state may not be updated yet.
+export async function isAliveAnywhere(id: string, instance: Instance, except?: string | null) {
+    const db = getDB();
+
+    const games = await db.collection('instances').doc(instance.id).collection('games').where('state', '==', 'active').get();
+
+    const states = await Promise.all(games.docs
+        .filter(game => game.id != except)
+        .map(game => stateCollection(instance.id, game.id).doc('game').get()));
+
+    return states.some(state => {
+        const data = state.data() as GameState | undefined;
+
+        return data?.started == true && data.players.some(player => player.id == id);
+    });
+}
+
 // Reads instance settings and the running game's state and merges them into the Global shape the rest of the bot uses.
 export async function loadGlobal(instanceId: string, db: Firestore): Promise<Global | undefined> {
     const ref = settingsRef(instanceId, db);
