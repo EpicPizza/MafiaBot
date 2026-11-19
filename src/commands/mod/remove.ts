@@ -79,7 +79,7 @@ export async function removePlayer(name: string, ctx: GameContext) {
 
     const main = await instance.setup.primary.guild.members.fetch(user.id).catch(() => undefined);
     if(main == null) throw new Error("Member not found.");
-    await main.roles.remove(instance.setup.primary.alive);
+    await main.roles.remove(ctx.gameSetup.alive);
 
     const dead = await instance.setup.secondary.guild.members.fetch(user.id).catch(() => undefined);
     if(dead == null) throw new Error("Member not found.");

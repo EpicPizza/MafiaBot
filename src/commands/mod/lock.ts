@@ -442,7 +442,7 @@ async function handleGraceButton(interaction: Event<ButtonInteraction>) {
                 embeds: [],
             });
 
-            await setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game will lock at <t:" + Math.round(date.valueOf() / 1000) + ":T>, <t:" + Math.round(date.valueOf() / 1000) + ":d>!")
+            await ctx.gameSetup.main.send("<@&" + ctx.gameSetup.alive.id + "> Game will lock at <t:" + Math.round(date.valueOf() / 1000) + ":T>, <t:" + Math.round(date.valueOf() / 1000) + ":d>!")
         }
     }
 }
@@ -480,7 +480,7 @@ async function handleUnlockButton(interaction: Event<ButtonInteraction>) {
             embeds: [],
         });
 
-        await setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Game will unlock at <t:" + Math.round(date.valueOf() / 1000) + ":T>, <t:" + Math.round(date.valueOf() / 1000) + ":d>!")
+        await ctx.gameSetup.main.send("<@&" + ctx.gameSetup.alive.id + "> Game will unlock at <t:" + Math.round(date.valueOf() / 1000) + ":T>, <t:" + Math.round(date.valueOf() / 1000) + ":d>!")
     }
 }
 
@@ -520,7 +520,7 @@ async function handleLockingGrace(interaction: Event<StringSelectMenuInteraction
             embeds: [],
         });
 
-        await setup.primary.chat.send("<@&" + setup.primary.alive.id + "> Grace will be set to " + (id.grace ? "on" : "off") + " at <t:" + Math.round(date.valueOf() / 1000) + ":T>, <t:" + Math.round(date.valueOf() / 1000) + ":d>!")
+        await ctx.gameSetup.main.send("<@&" + ctx.gameSetup.alive.id + "> Grace will be set to " + (id.grace ? "on" : "off") + " at <t:" + Math.round(date.valueOf() / 1000) + ":T>, <t:" + Math.round(date.valueOf() / 1000) + ":d>!")
     }
 }
 

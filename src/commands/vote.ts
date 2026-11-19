@@ -141,9 +141,9 @@ module.exports = {
         const game = ctx.game;
 
         if(interaction.type == 'text') {
-            if(interaction.message.channelId != setup.primary.chat.id) throw new Error("Must vote in main chat.");
+            if(interaction.message.channelId != ctx.gameSetup.main.id) throw new Error("Must vote in main chat.");
         } else {
-            if(interaction.channelId != setup.primary.chat.id) throw new Error("Must vote in main chat.");
+            if(interaction.channelId != ctx.gameSetup.main.id) throw new Error("Must vote in main chat.");
         }
 
         const users = await getUsersArray(game.signups, interaction.instance);

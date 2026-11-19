@@ -242,7 +242,7 @@ export async function handleHammer(hammer: TransactionResult["hammer"], ctx: Gam
             }, 2000);
         });
 
-        await instance.setup.primary.chat.send(hammer.message);
+        await ctx.gameSetup.main.send(hammer.message);
     }
 }
 

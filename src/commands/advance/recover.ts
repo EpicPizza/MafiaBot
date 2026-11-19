@@ -15,6 +15,7 @@ import { Instance } from "../../utils/instance";
 import { fetchMessage, updateSnipeMessage } from "../../utils/mafia/tracking";
 import { getWebhook } from "../../utils/webhook";
 import { archiveMessage, completeMessage, getReactions } from "../../utils/archive";
+import { getMainChatIds } from "../../utils/mafia/context";
 
 export const RecoverCommand = {
     name: "recover",
@@ -47,9 +48,15 @@ export const RecoverCommand = {
         const messageId = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('id');
         if(messageId == null) throw new Error("Specify an id.");
 
-        const channel = interaction.instance.setup.primary.chat;
+        // Look in the server's main chat and every game's main chat.
+        let tracked: Awaited<ReturnType<typeof fetchMessage>> = undefined;
 
-        const tracked = await fetchMessage({ channelId: channel.id, id: messageId, partial: true });
+        for(const channelId of await getMainChatIds(interaction.instance)) {
+            tracked = await fetchMessage({ channelId, id: messageId, partial: true });
+
+            if(tracked && 'createdTimestamp' in tracked) break;
+        }
+
         if(!tracked || !('createdTimestamp' in tracked)) throw new Error("Message not found!");
 
         // if(!('fetchWebhooks' in channel) || channel.type != ChannelType.GuildText) return;

@@ -113,7 +113,7 @@ module.exports = {
 
         if(interaction.type == 'reaction') await interaction.reaction.remove();
 
-        if(interaction.type == 'text' || interaction.type == 'reaction' ? interaction.message.channelId != setup.primary.chat.id : interaction.channelId != setup.primary.chat.id) return;
+        if(interaction.type == 'text' || interaction.type == 'reaction' ? interaction.message.channelId != ctx.gameSetup.main.id : interaction.channelId != ctx.gameSetup.main.id) return;
 
         const ref = gameRef(interaction.instance, ctx.game.id).collection('notes').doc(user.id); 
         const sendTo = ((await ref.get()).data()?.sendTo ?? 'DM') as 'DM' | 'mafia';
@@ -127,7 +127,7 @@ module.exports = {
 
         const webhook = await getWebhook(sendTo == 'mafia' ? mafiaChannel : channel);
 
-        await archiveMessage({ webhook: webhook.client, message: await setup.primary.chat.messages.fetch(id), nameNote: user.nickname, url: true });
+        await archiveMessage({ webhook: webhook.client, message: await ctx.gameSetup.main.messages.fetch(id), nameNote: user.nickname, url: true });
 
         webhook.destroy();
 

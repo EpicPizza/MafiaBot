@@ -161,7 +161,7 @@ module.exports = {
 
             await command.message.reply({ embeds: [embed] });
         } else if(command.name == "reveal") {
-            if(command.message.channelId != setup.primary.chat.id) throw new Error("Must be in main chat!");
+            if(command.message.channelId != ctx.gameSetup.main.id) throw new Error("Must be in main chat!");
             if(global.locked == true) throw new Error("Game is locked!");
 
             const result = await reveal(command.user.id, ctx);

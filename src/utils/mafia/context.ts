@@ -1,4 +1,6 @@
+import { ChannelType, type TextChannel } from "discord.js";
 import type { Instance } from "../instance";
+import { firebaseAdmin } from "../firebase";
 import { getGameByID, getGameSetup, type GameSetup, type Signups } from "./games";
 import { defaultState, stateRef, type GameOptions, type GameState } from "./state";
 
@@ -73,6 +75,41 @@ export async function getRunningGame(instance: Instance, useCache: boolean = fal
     if(context == undefined) throw new Error("Game has not started.");
 
     return context;
+}
+
+const mainChats = new Map<string, { ids: Set<string>, timestamp: number }>();
+
+// Main chats tracked in the primary server: the server's main chat and every game's main chat (games keep theirs
+// after ending, so stars and edits there still count). Cached for TTL; refreshed when a game is created.
+export async function getMainChatIds(instance: Instance, useCache: boolean = true) {
+    const cached = mainChats.get(instance.id);
+
+    if(useCache && cached && Date.now() - cached.timestamp < TTL) return cached.ids;
+
+    const games = await firebaseAdmin.getFirestore().collection('instances').doc(instance.id).collection('games').get();
+
+    const ids = new Set([instance.setup.primary.chat.id, ...games.docs.map(doc => doc.data().channels?.main as string | undefined).filter(id => id != undefined)]);
+
+    mainChats.set(instance.id, { ids, timestamp: Date.now() });
+
+    return ids;
+}
+
+export async function isMainChat(instance: Instance, channelId: string) {
+    return (await getMainChatIds(instance)).has(channelId);
+}
+
+// The main chats as channels, skipping any that were deleted.
+export async function getMainChats(instance: Instance) {
+    const ids = await getMainChatIds(instance, false);
+
+    const channels = await Promise.all([...ids].map(id => instance.setup.primary.guild.channels.fetch(id).catch(() => null)));
+
+    return channels.filter(channel => channel != null && channel.type == ChannelType.GuildText) as TextChannel[];
+}
+
+export function clearMainChatCache(instance: Instance) {
+    mainChats.delete(instance.id);
 }
 
 // Keep the cached copy in step after this process writes state, so hot paths don't act on what it just changed.

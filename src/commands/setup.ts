@@ -335,10 +335,14 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
 
             if(typeof setup == 'string' || setup == undefined) return await interaction.editReply({ content: setup ? setup : "Something went wrong." });
 
-            if(running == undefined) {
-                await setup.primary.chat.permissionOverwrites.create(setup.primary.alive, {});
+            // The running game's main chat and alive role, or the server's when no game is running.
+            const chat = running?.gameSetup.main ?? setup.primary.chat;
+            const alive = running?.gameSetup.alive ?? setup.primary.alive;
 
-                await setup.primary.chat.permissionOverwrites.create(setup.primary.gang, {
+            if(running == undefined) {
+                await chat.permissionOverwrites.create(alive, {});
+
+                await chat.permissionOverwrites.create(setup.primary.gang, {
                     ViewChannel: true,
                     SendMessages: true,
                     AddReactions: true,
@@ -353,9 +357,9 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
                     SendMessagesInThreads: false
                 });
             } else if(running.state.locked == true) {
-                await setup.primary.chat.permissionOverwrites.create(setup.primary.alive, {});
+                await chat.permissionOverwrites.create(alive, {});
 
-                await setup.primary.chat.permissionOverwrites.create(setup.primary.gang, {
+                await chat.permissionOverwrites.create(setup.primary.gang, {
                     ViewChannel: true,
                     SendMessages: false,
                     AddReactions: true,
@@ -370,7 +374,7 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
                     SendMessagesInThreads: false
                 });
             } else {
-                await setup.primary.chat.permissionOverwrites.create(setup.primary.alive, {
+                await chat.permissionOverwrites.create(alive, {
                     SendMessages: true,
                     AddReactions: true, 
                     AttachFiles: true, 
@@ -382,7 +386,7 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
                     UseApplicationCommands: true,
                 });
             
-                await setup.primary.chat.permissionOverwrites.create(setup.primary.gang, {
+                await chat.permissionOverwrites.create(setup.primary.gang, {
                     ViewChannel: true,
                     SendMessages: false,
                     AddReactions: true,

@@ -14,6 +14,7 @@ import { addStatsAction, catchupChannel, setInitialized, TrackedMessage } from "
 import { fromZod } from "../utils/text";
 import { z } from "zod";
 import { removeReactions } from "../discord/helpers";
+import { getMainChats } from "../utils/mafia/context";
 
 dnt.plugin(meridiem);
 
@@ -58,9 +59,16 @@ module.exports = {
 
             setInitialized(true);
 
-            const messagesFetched = await catchupChannel(setup.primary.chat, async (length: number) => {
-                await message.edit("Fetching messages... (" + length + ")");
-            }, false);
+            // The server's main chat and every game's main chat.
+            const channels = await getMainChats(interaction.instance);
+
+            let messagesFetched = 0;
+
+            for(const channel of channels) {
+                messagesFetched += await catchupChannel(channel, async (length: number) => {
+                    await message.edit("Fetching messages in " + channel.name + "... (" + length + ")");
+                }, false) ?? 0;
+            }
 
             await message.edit("Total Fetched Messages: " + messagesFetched);
 

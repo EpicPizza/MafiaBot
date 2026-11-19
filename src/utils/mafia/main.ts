@@ -8,11 +8,11 @@ import { getExtensions } from "../extensions";
 import { firebaseAdmin } from "../firebase";
 import { clearFiles } from "../google/doc";
 import { type Setup } from "../setup";
-import { GameSetup, Signups, getGameByID, getGameByName, getGameSetup, refreshSignup } from "./games";
+import { GameSetup, Signups, getGameByID, getGameByName, getGameSetup, refreshSignup, setChatPermissions } from "./games";
 import { onjoin } from "./invite";
-import { User, getPlayerObjects, getUsersArray } from "./user";
+import { User, getPlayerObjects, getUser, getUsersArray } from "./user";
 import { Instance } from "../instance";
-import { createGameState, isAliveAnywhere, settingsRef, stateRef } from "./state";
+import { createGameState, isAliveAnywhere, isGameStarted, settingsRef, stateRef } from "./state";
 import { findRunningGame, getGameContext, getRunningGame, updateCachedContext, clearCachedContext, type GameContext } from "./context";
 import { pruneRoleQueue } from "./invite";
 
@@ -98,13 +98,14 @@ export async function unlockExtensions(ctx: GameContext, increment: boolean) {
 export async function unlockGame(ctx: GameContext, increment: boolean = false, ping: boolean = true) {
     const { instance, game, state: global } = ctx;
     const setup = instance.setup;
+    const { main, alive } = ctx.gameSetup;
 
     if(setup == undefined) throw new Error("Setup not complete.");
     if(typeof setup == 'string') throw new Error("An unexpected error occurred.");
-    if(!global.started) return await setup.primary.chat.send("Failed to unlock channel, game has not started.");
+    if(!global.started) return await main.send("Failed to unlock channel, game has not started.");
     if(!global.locked) throw new Error("Already unlocked.");
 
-    await setup.primary.chat.permissionOverwrites.create(setup.primary.alive.id, {
+    await main.permissionOverwrites.create(alive.id, {
         SendMessages: true,
         AddReactions: true, 
         AttachFiles: true, 
@@ -116,7 +117,7 @@ export async function unlockGame(ctx: GameContext, increment: boolean = false, p
         UseApplicationCommands: true,
     });
 
-    await setup.primary.chat.permissionOverwrites.create(setup.primary.gang.id, {
+    await main.permissionOverwrites.create(setup.primary.gang.id, {
         ViewChannel: true,
         SendMessages: false,
         AddReactions: true,
@@ -151,7 +152,7 @@ export async function unlockGame(ctx: GameContext, increment: boolean = false, p
         game: game.id,
     }, { merge: true });
 
-    const message = await setup.primary.chat.send((pings && ping ? "<@&" + setup.primary.alive.id + ">" : "") + " Game has unlocked!");
+    const message = await main.send((pings && ping ? "<@&" + alive.id + ">" : "") + " Game has unlocked!");
 
     if(increment == true) {
         await db.collection('instances').doc(instance.id).collection('games').doc(game.id).collection('days').doc(day.toString()).set({
@@ -185,15 +186,16 @@ export async function lockExtensions(ctx: GameContext) {
 export async function lockGame(ctx: GameContext) {
     const { instance, game, state: global } = ctx;
     const setup = instance.setup;
+    const { main, alive } = ctx.gameSetup;
 
     if(setup == undefined) throw new Error("Setup not complete.");
     if(typeof setup == 'string') throw new Error("An unexpected error occurred.");
     if(!global.started) throw new Error("Failed to unlock channel, game has not started.");
     if(global.locked) throw new Error("Already locked.");
 
-    await setup.primary.chat.permissionOverwrites.create(setup.primary.alive.id, {});
+    await main.permissionOverwrites.create(alive.id, {});
 
-    await setup.primary.chat.permissionOverwrites.create(setup.primary.gang.id, {
+    await main.permissionOverwrites.create(setup.primary.gang.id, {
         ViewChannel: true,
         SendMessages: false,
         AddReactions: true,
@@ -220,7 +222,7 @@ export async function lockGame(ctx: GameContext) {
     global.locked = true;
     updateCachedContext(ctx);
 
-    await setup.primary.chat.send("Game has locked!");
+    await main.send("Game has locked!");
 
     await lockExtensions(ctx);
 }
@@ -299,54 +301,8 @@ export async function finishSignups(game: Signups, instance: Instance) {
     await refreshSignup(game.name, instance);
 }
 
-export async function setupPermissions(setup: Setup, lock: boolean) {
-    const promises = [] as Promise<any>[];
-
-    if(lock) {
-        promises.push(setup.primary.chat.permissionOverwrites.create(setup.primary.alive.id, {}));
-
-        promises.push(setup.primary.chat.permissionOverwrites.create(setup.primary.gang, {
-            ViewChannel: true,
-            SendMessages: false,
-            AddReactions: true,
-            AttachFiles: false,
-            EmbedLinks: false,
-            //SendPolls: false,
-            SendVoiceMessages: false,
-            UseExternalEmojis: true,
-            UseApplicationCommands: false,
-            CreatePublicThreads: false,
-            CreatePrivateThreads: false, 
-            SendMessagesInThreads: false
-        }));
-    } else {
-        promises.push(setup.primary.chat.permissionOverwrites.create(setup.primary.alive, {}));
-
-        promises.push(setup.primary.chat.permissionOverwrites.create(setup.primary.gang, {
-            ViewChannel: true,
-            SendMessages: true,
-            AddReactions: true,
-            AttachFiles: true,
-            EmbedLinks: true,
-            //SendPolls: true,
-            SendVoiceMessages: true,
-            UseExternalEmojis: true,
-            UseApplicationCommands: true,
-            CreatePublicThreads: false,
-            CreatePrivateThreads: false, 
-            SendMessagesInThreads: false
-        }));
-    }
-
-    const results = await Promise.allSettled(promises);
-
-    const fails = results.filter(result => result.status == "rejected");
-
-    if(fails.length > 0) {
-        console.log(fails);
-
-        throw new Error(fails.reduce<string>((accum, current) => accum + (current as unknown as PromiseRejectedResult).reason + "\n", ""));
-    }
+export async function setupPermissions(setup: Setup, gameSetup: GameSetup, lock: boolean) {
+    await setChatPermissions(gameSetup.main, gameSetup.alive, setup.primary.gang, lock);
 }
 
 export async function setupDeadPlayer(player: Discord.GuildMember | undefined, setup: Setup) {
@@ -356,8 +312,8 @@ export async function setupDeadPlayer(player: Discord.GuildMember | undefined, s
     }
 }
 
-export async function setupMainPlayer(player: Discord.GuildMember, setup: Setup) {
-    await player.roles.add(setup.primary.alive);
+export async function setupMainPlayer(player: Discord.GuildMember, setup: Setup, gameSetup: GameSetup) {
+    await player.roles.add(gameSetup.alive);
     await player.roles.remove(setup.primary.mod);
 }
 
@@ -410,7 +366,7 @@ export async function setupPlayer(id: string, ctx: GameContext) {
 
     const { deadPlayer, userProfile, player, mafiaPlayer } = await getPlayerObjects(id, instance);
 
-    if(player) await setupMainPlayer(player, setup);
+    if(player) await setupMainPlayer(player, setup, gameSetup);
     await setupDeadPlayer(deadPlayer, setup)
     await setupMafiaPlayer(mafiaPlayer, setup, gameSetup);
     if(player) await setTag(userProfile, player);
@@ -536,7 +492,7 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
     promises.push(deleteInvites(setup));
     promises.push(clearMafiaAccess(setup, gameSetup));
     promises.push(finishSignups(game, instance));
-    promises.push(setupPermissions(setup, true));
+    promises.push(setupPermissions(setup, ctx.gameSetup, true));
     promises.push(startExtensions(ctx));
     promises.push(setup.secondary.dms.permissionOverwrites.edit(setup.secondary.spec.id, viewOverwrites()));
 
@@ -556,7 +512,7 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
             .setColor(Colors.Red)
             .setDescription(fails.reduce<string>((accum, current) => accum + (current as unknown as PromiseRejectedResult).reason + "\n", ""))
 
-        await setup.primary.chat.send((pings ? "<@&" + setup.primary.alive.id + "> " : "") + ":warning: Game has locked (mods, check errors).");
+        await ctx.gameSetup.main.send((pings ? "<@&" + ctx.gameSetup.alive.id + "> " : "") + ":warning: Game has locked (mods, check errors).");
 
         if(interaction.type != 'text') {
             return await interaction.editReply({ embeds: [embed] });
@@ -567,7 +523,7 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
         }
     }
 
-    const message = await setup.primary.chat.send((pings ? "<@&" + setup.primary.alive.id + "> " : "") + "Game has locked!");
+    const message = await ctx.gameSetup.main.send((pings ? "<@&" + ctx.gameSetup.alive.id + "> " : "") + "Game has locked!");
 
     await markGame(game.start ? undefined : message.createdTimestamp, game.id, instance, 'start');
 
@@ -688,21 +644,27 @@ export async function clearGame(ctx: GameContext) {
     } satisfies Partial<Signups>)
 }
 
-export async function archiveChannels(setup: Setup) {
+// Moves the given players' dm channels to the archive. DM channels are one per player across games, so a channel stays
+// open while its player is signed up for another started game (exceptGame is the game being ended/reverted).
+export async function archiveChannels(instance: Instance, ids: string[], exceptGame?: string) {
+    const setup = instance.setup;
+
+    const busy = await getStartedSignups(instance, exceptGame);
+
     const promises = [] as Promise<any>[];
 
-    await setup.secondary.guild.channels.fetch();
+    for(const id of ids) {
+        if(busy.has(id)) continue;
 
-    const channels: TextChannel[] = [];
+        promises.push((async () => {
+            const user = await getUser(id, instance);
+            if(user?.channel == null) return;
 
-    for(let i = 0; i < setup.secondary.dms.children.cache.size; i++) {
-        if(setup.secondary.dms.children.cache.at(i)) {
-            channels.push(setup.secondary.dms.children.cache.at(i) as TextChannel);
-        }
-    }
+            const channel = await setup.secondary.guild.channels.fetch(user.channel).catch(() => null);
+            if(channel == null || channel.type != ChannelType.GuildText || channel.parentId != setup.secondary.dms.id) return;
 
-    for(let i = 0; i < channels.length; i++) {
-        promises.push(channels[i].setParent(setup.secondary.archivedDms, { lockPermissions: true }));
+            await channel.setParent(setup.secondary.archivedDms, { lockPermissions: true });
+        })());
     }
 
     const results = await Promise.allSettled(promises);
@@ -714,6 +676,17 @@ export async function archiveChannels(setup: Setup) {
 
         throw new Error(fails.reduce<string>((accum, current) => accum + (current as unknown as PromiseRejectedResult).reason + "\n", ""));
     }
+}
+
+// Everyone signed up for a started game other than exceptGame.
+async function getStartedSignups(instance: Instance, exceptGame?: string) {
+    const db = firebaseAdmin.getFirestore();
+
+    const games = (await db.collection('instances').doc(instance.id).collection('games').where('state', '==', 'active').get()).docs.filter(doc => doc.id != exceptGame);
+
+    const started = await Promise.all(games.map(async doc => (await isGameStarted(instance, doc.id)) ? (doc.data().signups ?? []) as string[] : []));
+
+    return new Set(started.flat());
 }
 
 export async function setMafiaSpectator(mafiaPlayer: GuildMember | undefined, id: string, userProfile: User, ctx: GameContext, dm: boolean = true) {
@@ -760,7 +733,7 @@ export async function clearPlayer(id: string, ctx: GameContext) {
 
     const { deadPlayer, userProfile, player, mafiaPlayer } = await getPlayerObjects(id, instance);
 
-    if(player) promises.push(player.roles.remove(setup.primary.alive));
+    if(player) promises.push(player.roles.remove(ctx.gameSetup.alive));
 
     if(deadPlayer && !(await isAliveAnywhere(id, instance, ctx.game.id))) {
         promises.push(deadPlayer.roles.add(setup.secondary.spec));
@@ -818,13 +791,13 @@ export async function endGame(interaction: ChatInputCommandInteraction | TextCom
     const promises = [] as Promise<unknown>[];
 
     promises.push((async () => {
-        const message = await setup.primary.chat.send((pings ? "<@&" + setup.primary.alive.id + "> " : "") + "Game has ended!");
+        const message = await ctx.gameSetup.main.send((pings ? "<@&" + ctx.gameSetup.alive.id + "> " : "") + "Game has ended!");
 
         await markGame(message.createdTimestamp, game.id, instance, 'end');
     })())
     
-    promises.push(setupPermissions(setup, false));
-    promises.push(archiveChannels(setup));
+    promises.push(setupPermissions(setup, ctx.gameSetup, false));
+    promises.push(archiveChannels(instance, game.signups, game.id));
     promises.push(endExtensions(ctx));
     promises.push(clearFiles());
 

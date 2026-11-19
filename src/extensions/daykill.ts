@@ -179,9 +179,9 @@ module.exports = {
             await lockGame(ctx);
 
             if(daykill.lock == 'hammer' || (eod && settings.type == 'mod')) {
-                const content = "<@&" + setup.primary.alive.id + "> <@&" + setup.primary.mod.id + ">\n# " + killing.nickname + " has been killed!\n** **\nThe day has ended! Waiting on game mod to flip."
+                const content = "<@&" + ctx.gameSetup.alive.id + "> <@&" + setup.primary.mod.id + ">\n# " + killing.nickname + " has been killed!\n** **\nThe day has ended! Waiting on game mod to flip."
 
-                await setup.primary.chat.send({ content: content });
+                await ctx.gameSetup.main.send({ content: content });
             } else if(daykill.lock == "pause") {
                 const row = new ActionRowBuilder<ButtonBuilder>()
                     .addComponents([
@@ -195,9 +195,9 @@ module.exports = {
                             .setCustomId(JSON.stringify({ name: "daykill-cancel-reveal" }))
                     ]);
 
-                const content = "<@&" + setup.primary.alive.id + "> <@&" + setup.primary.mod.id + ">\n# " + killing.nickname + " has been killed!\n** **\n" ;
+                const content = "<@&" + ctx.gameSetup.alive.id + "> <@&" + setup.primary.mod.id + ">\n# " + killing.nickname + " has been killed!\n** **\n" ;
 
-                const message = await setup.primary.chat.send({ 
+                const message = await ctx.gameSetup.main.send({ 
                     content: content + "<a:loading:1256150236112621578> Alignment will be automatically revealed in 5 minutes.",
                     components: [row] 
                 });
@@ -227,7 +227,7 @@ module.exports = {
                 });
 
                 const final = await message.reply({
-                    content: "<@&" + setup.primary.alive.id + ">\n# " + killing.nickname + " was **" + (killingPlayer.alignment == null || killingPlayer.alignment == "default" ? "town" : killingPlayer.alignment)  + "**!"
+                    content: "<@&" + ctx.gameSetup.alive.id + ">\n# " + killing.nickname + " was **" + (killingPlayer.alignment == null || killingPlayer.alignment == "default" ? "town" : killingPlayer.alignment)  + "**!"
                 });
 
                 if(daykill.type == "mute") {
@@ -366,7 +366,7 @@ module.exports = {
             const type = customId.type ?? "mute";
 
             const message = await interaction.message.reply({
-                content: "<@&" + setup.primary.alive.id + ">\n# " + killing.nickname + " was **" + killingPlayer.alignment + "**!",
+                content: "<@&" + ctx.gameSetup.alive.id + ">\n# " + killing.nickname + " was **" + killingPlayer.alignment + "**!",
                 components: [],
             });
 

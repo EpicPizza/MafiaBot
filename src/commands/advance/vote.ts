@@ -102,7 +102,7 @@ export const VoteCommand = {
             return result;
         }) satisfies TransactionResult;
 
-        const message = await setup.primary.chat.send(result.reply.typed);
+        const message = await ctx.gameSetup.main.send(result.reply.typed);
 
         if(result.setMessage) await result.setMessage(message.id);
 

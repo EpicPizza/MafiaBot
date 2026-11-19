@@ -227,7 +227,7 @@ module.exports = {
             await Promise.all(players.map(player => player.deadPlayer?.roles.remove(playersRole)));
             await Promise.all(players.map(player => player.deadPlayer?.roles.add(setup.secondary.spec)));
 
-            await archiveChannels(setup);
+            await archiveChannels(instance, check.signups, check.id);
         } else if(command.name == "add") {
             const user = await getUserByName(command.program.processedArgs[0] as string, instance);
             if(user == undefined) throw new Error("Player not found!");

@@ -77,7 +77,7 @@ export const TriggerCommand = {
             }, 2000);
         });
 
-        await setup.primary.chat.send(user.nickname + " has been hammered!");
+        await ctx.gameSetup.main.send(user.nickname + " has been hammered!");
 
          if(interaction.type != 'text') {
             await interaction.editReply({ content: "Player hammered."});

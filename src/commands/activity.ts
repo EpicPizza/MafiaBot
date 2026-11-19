@@ -72,7 +72,7 @@ module.exports = {
         const authorIds = new Set(resolved.map(r => r.id));
 
         // Query tracked messages in the chat channel within the day's time window
-        const channelId = interaction.instance.setup.primary.chat.id;
+        const channelId = ctx.gameSetup.main.id;
         const stats = new Map<string, { messages: number, words: number }>();
 
         for(const r of resolved) {

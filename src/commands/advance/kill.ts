@@ -85,7 +85,7 @@ export async function killPlayer(name: string, ctx: GameContext) {
     if(!user) throw new Error("Player not found.");
 
     const main = await instance.setup.primary.guild.members.fetch(user.id).catch(() => undefined);
-    if(main != null) await main.roles.remove(instance.setup.primary.alive);
+    if(main != null) await main.roles.remove(ctx.gameSetup.alive);
     
     const mafia = await instance.setup.tertiary.guild.members.fetch(user.id).catch(() => undefined);
     if(mafia != null) await revokeMafiaAccess(mafia.id, instance.setup, gameSetup.mafia);

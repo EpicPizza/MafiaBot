@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, ChatInputCommandInteraction, Colors, EmbedBuilder, TextChannel } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, ChatInputCommandInteraction, Colors, EmbedBuilder, Role, TextChannel } from "discord.js";
 import { FieldValue, Query } from "firebase-admin/firestore";
 import { z } from "zod";
 import type { TextCommand } from '../../discord';
@@ -22,6 +22,11 @@ export interface Signups {
     channels: {
         spec: string,
         mafia: string,
+        main?: string, // the game's day chat; missing on games from before per-game main chats (they use setup.primary.chat)
+        mainCreated?: boolean, // true if the bot made the main chat (and so may lock it on archive)
+    }
+    roles?: {
+        alive: string, // the game's alive role; missing on older games (they use setup.primary.alive)
     }
     confirmations: string[],
     mods: string[],
@@ -328,10 +333,21 @@ export async function archiveGame(interaction: ChatInputCommandInteraction | Tex
     const mafia = await setup.tertiary.guild.channels.fetch(game.channels.mafia).catch(() => undefined);
     if (mafia != undefined && mafia.type == ChannelType.GuildText) await mafia.setParent(setup.tertiary.archive, { lockPermissions: true });
 
+    // A main chat the bot made is kept for its history but made read-only. One the mod supplied is left alone.
+    if (game.channels.main && game.channels.mainCreated) {
+        const main = await setup.primary.guild.channels.fetch(game.channels.main).catch(() => undefined);
+        if (main != undefined && main.type == ChannelType.GuildText) await setChatPermissions(main, setup.primary.alive, setup.primary.gang, true);
+    }
+
+    if (game.roles?.alive) {
+        const alive = await setup.primary.guild.roles.fetch(game.roles.alive).catch(() => undefined);
+        if (alive) await alive.delete("Game archived");
+    }
+
     await interaction.reply({ ephemeral: true, content: "Game archived." });
 }
 
-export async function createGame(interaction: ChatInputCommandInteraction | TextCommand, name: string, instance: Instance) {
+export async function createGame(interaction: ChatInputCommandInteraction | TextCommand, name: string, instance: Instance, existingChat?: string | null) {
     const setup = instance.setup;
 
     if (typeof setup == 'string') throw new Error("Setup Incomplete");
@@ -354,6 +370,9 @@ export async function createGame(interaction: ChatInputCommandInteraction | Text
 
     if (interaction.type != 'text') await interaction.deferReply({ ephemeral: true });
 
+    // Main chat and alive role first, so a bad existing channel fails before anything else is made.
+    const { main, mainCreated, alive } = await createGameChat(instance, name, existingChat);
+
     const spec = await setup.secondary.ongoing.children.create({
         type: ChannelType.GuildText,
         name: name.toLowerCase() + "-spectator",
@@ -366,6 +385,7 @@ export async function createGame(interaction: ChatInputCommandInteraction | Text
         position: 0,
     });
 
+
     await ref.add({
         signups: [],
         name: name,
@@ -375,6 +395,11 @@ export async function createGame(interaction: ChatInputCommandInteraction | Text
         channels: {
             spec: spec.id,
             mafia: mafia.id,
+            main: main.id,
+            mainCreated: mainCreated,
+        },
+        roles: {
+            alive: alive.id,
         },
         days: 0,
         alignments: [],
@@ -390,13 +415,78 @@ export async function createGame(interaction: ChatInputCommandInteraction | Text
         end: null,
     } satisfies Omit<Signups, "id">);
 
+    // Start tracking the new main chat right away. Imported lazily: context imports this module.
+    (await import("./context")).clearMainChatCache(instance);
+
     await register();
 
     if (interaction.type != 'text') {
-        await interaction.editReply({ content: name + " game created." })
+        await interaction.editReply({ content: name + " game created. Main chat: " + main.url })
     } else {
-        await interaction.reply({ content: name + " game created." })
+        await interaction.reply({ content: name + " game created. Main chat: " + main.url })
     }
+}
+
+// Creates a game's alive role and main chat (or adopts an existing primary channel), opened with pregame permissions.
+// Used by /mod create and by ?adv convert for games made before per-game main chats.
+export async function createGameChat(instance: Instance, name: string, existingChat?: string | null) {
+    const setup = instance.setup;
+
+    // An existing channel must be checked before anything is made.
+    let existing: TextChannel | undefined = undefined;
+
+    if (existingChat) {
+        const channel = await setup.primary.guild.channels.fetch(existingChat).catch(() => null);
+
+        if (channel == null || channel.type != ChannelType.GuildText) throw new Error("Main chat must be a text channel in the main server.");
+
+        existing = channel;
+    }
+
+    // Each game gets its own alive role (pings, send access in its main chat), styled like the server's alive role.
+    const alive = await setup.primary.guild.roles.create({
+        name: name + " Alive",
+        color: setup.primary.alive.color,
+        hoist: setup.primary.alive.hoist,
+        mentionable: true,
+        permissions: [],
+        position: setup.primary.alive.position,
+    });
+
+    // Otherwise a new channel next to the server's main chat with the same permissions (the server alive role swapped for this game's).
+    const main = existing ?? await setup.primary.guild.channels.create({
+        type: ChannelType.GuildText,
+        name: name.toLowerCase().replaceAll(" ", "-") + "-main",
+        parent: setup.primary.chat.parentId,
+        position: setup.primary.chat.position + 1,
+        permissionOverwrites: setup.primary.chat.permissionOverwrites.cache
+            .filter(overwrite => overwrite.id != setup.primary.alive.id)
+            .map(overwrite => ({ id: overwrite.id, type: overwrite.type, allow: overwrite.allow, deny: overwrite.deny })),
+    });
+
+    await setChatPermissions(main, alive, setup.primary.gang, false);
+
+    return { main, mainCreated: existing == undefined, alive };
+}
+
+// Main chat permissions for a game's alive role and the server's gang role. Locked: alive players can't talk and everyone
+// else can only watch. Unlocked: alive players can talk, and outside a game (alive role empty) the gang can chat freely.
+export async function setChatPermissions(main: TextChannel, alive: Role, gang: Role, lock: boolean) {
+    await main.permissionOverwrites.create(alive.id, {});
+
+    await main.permissionOverwrites.create(gang.id, {
+        ViewChannel: true,
+        SendMessages: !lock,
+        AddReactions: true,
+        AttachFiles: !lock,
+        EmbedLinks: !lock,
+        SendVoiceMessages: !lock,
+        UseExternalEmojis: true,
+        UseApplicationCommands: !lock,
+        CreatePublicThreads: false,
+        CreatePrivateThreads: false,
+        SendMessagesInThreads: false
+    });
 }
 
 export type GameSetup = Awaited<ReturnType<typeof getGameSetup>>
@@ -407,9 +497,13 @@ export async function getGameSetup(game: Signups, setup: Exclude<Awaited<ReturnT
     const spec = await setup.secondary.guild.channels.fetch(game.channels.spec).catch(() => undefined);
     const mafia = await setup.tertiary.guild.channels.fetch(game.channels.mafia).catch(() => undefined);
 
-    if (spec == undefined || mafia == undefined) throw new Error("Game Setup Incomplete");
+    // Older games have no main chat or alive role of their own and keep using the server's.
+    const main = game.channels.main ? await setup.primary.guild.channels.fetch(game.channels.main).catch(() => undefined) : setup.primary.chat;
+    const alive = game.roles?.alive ? await setup.primary.guild.roles.fetch(game.roles.alive).catch(() => undefined) : setup.primary.alive;
 
-    return { spec: spec as TextChannel, mafia: mafia as TextChannel };
+    if (spec == undefined || mafia == undefined || main == undefined || alive == undefined) throw new Error("Game Setup Incomplete");
+
+    return { spec: spec as TextChannel, mafia: mafia as TextChannel, main: main as TextChannel, alive: alive as Role };
 }
 
 function getRandom(min: number, max: number) {

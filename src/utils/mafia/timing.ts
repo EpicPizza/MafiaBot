@@ -102,7 +102,7 @@ export async function checkFutureLock(ctx: GameContext) {
                 
             const setup = instance.setup;
 
-            await setup.primary.chat.sendTyping();
+            await ctx.gameSetup.main.sendTyping();
 
             await new Promise((resolve) => {
                 setTimeout(() => {

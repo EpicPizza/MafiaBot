@@ -169,7 +169,7 @@ module.exports = {
         
         await wait(1000);        
 
-        const message = await instance.setup.primary.chat.send(".");
+        const message = await ctx.gameSetup.main.send(".");
 
         await wait(2000);
 

@@ -46,9 +46,9 @@ export const WipeCommand = {
        
         const setup  = interaction.instance.setup;
 
-        if(setup.primary.chat.id != (interaction.type == 'text' ? interaction.message.channelId : interaction.channelId )) throw new Error("Must be in main chat!");
-
         const ctx = await getRunningGame(interaction.instance);
+
+        if(ctx.gameSetup.main.id != (interaction.type == 'text' ? interaction.message.channelId : interaction.channelId )) throw new Error("Must be in main chat!");
 
         const day = interaction.type == 'text' ? interaction.program.processedArgs[0] as number : interaction.options.getNumber("day");
         if(day == null) throw new Error("Day not specified.");

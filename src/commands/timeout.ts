@@ -142,7 +142,7 @@ module.exports = {
             });
 
             let main = await interaction.instance.setup.primary.guild.members.fetch(user.id).catch(() => undefined);
-            if(main != null) await main.roles.remove(interaction.instance.setup.primary.alive);
+            if(main != null) await main.roles.remove(ctx.gameSetup.alive);
 
             let mafia = await interaction.instance.setup.tertiary.guild.members.fetch(user.id).catch(() => undefined);
             const hadMafiaAccess = gameSetup.mafia.permissionOverwrites.cache.has(user.id);
@@ -171,14 +171,14 @@ module.exports = {
                 .setDescription(`They have taken themselves out of the chat for the next 15 minutes, voting will be disabled for this duration. Please respect this time and give ${interaction.name} space. Please play with good sportmanship and be kind to you fellow players!\n${doSetFuture ? `\n-# Day will end at <t:${Math.round(newFutureTime / 1000)}:T> instead.` : ""}`)
                 .setColor(Colors.Red);
 
-            await interaction.instance.setup.primary.chat.send({ content: `<@&${interaction.instance.setup.primary.alive.id}>`, embeds: [embed] });
+            await ctx.gameSetup.main.send({ content: `<@&${ctx.gameSetup.alive.id}>`, embeds: [embed] });
             await interaction.instance.setup.secondary.logs.send(`<@&${interaction.instance.setup.secondary.mod.id}>, ${user.nickname} has triggered a 15 minute timeout.`);
             
             await new Promise(resolve => setTimeout(resolve, 15 /* mins */ * 60 /* secs per min */ * 1000 /* millseconds per second */));
             // IMPORTANT! DO NOT RESTART MAFIABOT WHILE SOMEONE IS IN TIMEOUT
 
             main = await interaction.instance.setup.primary.guild.members.fetch(user.id).catch(() => undefined);
-            if(main != null) await main.roles.add(interaction.instance.setup.primary.alive);
+            if(main != null) await main.roles.add(ctx.gameSetup.alive);
 
             mafia = await interaction.instance.setup.tertiary.guild.members.fetch(user.id).catch(() => undefined);
             if(mafia != null && hadMafiaAccess) await grantMafiaAccess(mafia.id, interaction.instance.setup, gameSetup.mafia);
