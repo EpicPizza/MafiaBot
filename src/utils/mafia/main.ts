@@ -781,9 +781,10 @@ export async function endExtensions(ctx: GameContext) {
     }
 }
 
-export async function endGame(interaction: ChatInputCommandInteraction | TextCommand, instance: Instance, gameName: string | null = null) {
+export async function endGame(interaction: ChatInputCommandInteraction | ButtonInteraction | TextCommand, instance: Instance, gameName: string | null = null) {
     if(interaction.type != 'text') {
-        await interaction.deferReply({ ephemeral: true });
+        // The /mod end confirm button has already updated its message; the result edits that message.
+        if(!interaction.deferred && !interaction.replied) await interaction.deferReply({ ephemeral: true });
     } else {
         await interaction.message.react("<a:loading:1256150236112621578>");
     }
@@ -838,7 +839,7 @@ export async function endGame(interaction: ChatInputCommandInteraction | TextCom
     }
 
     if(interaction.type != 'text') {
-        return await interaction.editReply({ content: "Game has ended!" });
+        return await interaction.editReply({ content: game.name + " has ended!", embeds: [] });
     } else {
         await removeReactions(interaction.message);
 
