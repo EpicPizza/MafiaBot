@@ -1,5 +1,5 @@
 import { EmbedBuilder } from "@discordjs/builders";
-import Discord, { ButtonInteraction, ChannelType, ChatInputCommandInteraction, Colors, GuildMember, OverwriteType, PermissionsBitField, TextChannel } from "discord.js";
+import Discord, { ButtonInteraction, CategoryChannel, ChannelType, ChatInputCommandInteraction, Colors, GuildMember, OverwriteType, PermissionsBitField, TextChannel } from "discord.js";
 import { CollectionReference, DocumentSnapshot, Firestore, Query } from "firebase-admin/firestore";
 import client from "../../discord/client";
 import { removeReactions } from "../../discord/helpers";
@@ -376,7 +376,7 @@ export async function setupPlayer(id: string, ctx: GameContext) {
 
     if(channel == null || channel.type != ChannelType.GuildText) {
         channel = await setup.secondary.guild.channels.create({ 
-            parent: setup.secondary.dms, 
+            parent: gameSetup.dms, 
             name: userProfile.nickname.toLowerCase()
         });
 
@@ -387,8 +387,8 @@ export async function setupPlayer(id: string, ctx: GameContext) {
         await channel.setName(userProfile.nickname.toLowerCase());
     }
 
-    if(channel.parentId != setup.secondary.dms.id) {
-        await channel.setParent(setup.secondary.dms.id);
+    if(channel.parentId != gameSetup.dms.id) {
+        await channel.setParent(gameSetup.dms.id);
     } else {
         await channel.permissionOverwrites.edit(setup.secondary.spec.id, viewOverwrites());
     }
@@ -465,6 +465,7 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
     const gameSetup = await getGameSetup(game, setup);
 
     await checkSignups(game.signups, setup);
+    await checkNotInStartedGame(game.signups, instance, game.id);
 
     await prepareGame(game, instance);
 
@@ -494,7 +495,7 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
     promises.push(finishSignups(game, instance));
     promises.push(setupPermissions(setup, ctx.gameSetup, true));
     promises.push(startExtensions(ctx));
-    promises.push(setup.secondary.dms.permissionOverwrites.edit(setup.secondary.spec.id, viewOverwrites()));
+    promises.push(ctx.gameSetup.dms.permissionOverwrites.edit(setup.secondary.spec.id, viewOverwrites()));
 
     for(let i = 0; i < game.signups.length; i++) {
         promises.push(setupPlayer(game.signups[i], ctx));
@@ -644,28 +645,24 @@ export async function clearGame(ctx: GameContext) {
     } satisfies Partial<Signups>)
 }
 
-// Moves the given players' dm channels to the archive. DM channels are one per player across games, so a channel stays
-// open while its player is signed up for another started game (exceptGame is the game being ended/reverted).
-export async function archiveChannels(instance: Instance, ids: string[], exceptGame?: string) {
+// Archives everything in a game's dm category: player dm channels plus extension channels (chats, threads). A dm channel
+// whose player is signed up for another started game stays put; that can only happen in the shared dms category used by
+// games made before per-game dm categories, since a player can't be in two started games.
+export async function archiveChannels(instance: Instance, dms: CategoryChannel, exceptGame?: string) {
     const setup = instance.setup;
 
+    await setup.secondary.guild.channels.fetch();
+
     const busy = await getStartedSignups(instance, exceptGame);
+    const busyChannels = new Set((await Promise.all([...busy].map(id => getUser(id, instance)))).map(user => user?.channel).filter(channel => channel != null));
 
     const promises = [] as Promise<any>[];
 
-    for(const id of ids) {
-        if(busy.has(id)) continue;
+    dms.children.cache.forEach(channel => {
+        if(busyChannels.has(channel.id)) return;
 
-        promises.push((async () => {
-            const user = await getUser(id, instance);
-            if(user?.channel == null) return;
-
-            const channel = await setup.secondary.guild.channels.fetch(user.channel).catch(() => null);
-            if(channel == null || channel.type != ChannelType.GuildText || channel.parentId != setup.secondary.dms.id) return;
-
-            await channel.setParent(setup.secondary.archivedDms, { lockPermissions: true });
-        })());
-    }
+        promises.push(channel.setParent(setup.secondary.archivedDms, { lockPermissions: true }));
+    });
 
     const results = await Promise.allSettled(promises);
 
@@ -678,8 +675,17 @@ export async function archiveChannels(instance: Instance, ids: string[], exceptG
     }
 }
 
+// A player can only be in one started game at a time (their single dm channel lives in that game's dm category).
+export async function checkNotInStartedGame(ids: string[], instance: Instance, exceptGame?: string) {
+    const busy = await getStartedSignups(instance, exceptGame);
+
+    const conflicts = ids.filter(id => busy.has(id));
+
+    if(conflicts.length > 0) throw new Error("Already playing in another game: " + conflicts.map(id => "<@" + id + ">").join(", ") + ". A player can only be in one started game at a time.");
+}
+
 // Everyone signed up for a started game other than exceptGame.
-async function getStartedSignups(instance: Instance, exceptGame?: string) {
+export async function getStartedSignups(instance: Instance, exceptGame?: string) {
     const db = firebaseAdmin.getFirestore();
 
     const games = (await db.collection('instances').doc(instance.id).collection('games').where('state', '==', 'active').get()).docs.filter(doc => doc.id != exceptGame);
@@ -797,7 +803,7 @@ export async function endGame(interaction: ChatInputCommandInteraction | TextCom
     })())
     
     promises.push(setupPermissions(setup, ctx.gameSetup, false));
-    promises.push(archiveChannels(instance, game.signups, game.id));
+    promises.push(archiveChannels(instance, ctx.gameSetup.dms, game.id));
     promises.push(endExtensions(ctx));
     promises.push(clearFiles());
 

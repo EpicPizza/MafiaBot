@@ -99,7 +99,7 @@ module.exports = {
         if(command.name == "set") {
             await checkMod(setup, command.instance.global, command.user.id, command.message.guildId ?? "");
 
-            if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
+            if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != ctx.gameSetup.dms.id) throw new Error("This command must be run in dead chat dms.");
 
             const user = await getUserByChannel(command.message.channel.id, command.instance);
             if(!user) throw new Error("This dm channel is not linked to a user.");
@@ -129,7 +129,7 @@ module.exports = {
         } else if(command.name == "clear") {
             await checkMod(setup, command.instance.global, command.user.id, command.message.guildId ?? "");
 
-            if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
+            if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != ctx.gameSetup.dms.id) throw new Error("This command must be run in dead chat dms.");
 
             const user = await getUserByChannel(command.message.channel.id, command.instance);
             if(!user) throw new Error("This dm channel is not linked to a user.");

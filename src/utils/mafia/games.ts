@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, ChatInputCommandInteraction, Colors, EmbedBuilder, Role, TextChannel } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, CategoryChannel, ChannelType, ChatInputCommandInteraction, Colors, EmbedBuilder, OverwriteType, Role, TextChannel } from "discord.js";
 import { FieldValue, Query } from "firebase-admin/firestore";
 import { z } from "zod";
 import type { TextCommand } from '../../discord';
@@ -24,6 +24,7 @@ export interface Signups {
         mafia: string,
         main?: string, // the game's day chat; missing on games from before per-game main chats (they use setup.primary.chat)
         mainCreated?: boolean, // true if the bot made the main chat (and so may lock it on archive)
+        dms?: string, // the game's dm category; missing on older games (they use setup.secondary.dms)
     }
     roles?: {
         alive: string, // the game's alive role; missing on older games (they use setup.primary.alive)
@@ -344,6 +345,16 @@ export async function archiveGame(interaction: ChatInputCommandInteraction | Tex
         if (alive) await alive.delete("Game archived");
     }
 
+    // The game's dm category: archive anything still in it, then remove the empty category.
+    if (game.channels.dms) {
+        const dms = await setup.secondary.guild.channels.fetch(game.channels.dms).catch(() => undefined);
+
+        if (dms != undefined && dms.type == ChannelType.GuildCategory) {
+            await Promise.allSettled(dms.children.cache.map(channel => channel.setParent(setup.secondary.archivedDms, { lockPermissions: true })));
+            await dms.delete("Game archived");
+        }
+    }
+
     await interaction.reply({ ephemeral: true, content: "Game archived." });
 }
 
@@ -372,6 +383,7 @@ export async function createGame(interaction: ChatInputCommandInteraction | Text
 
     // Main chat and alive role first, so a bad existing channel fails before anything else is made.
     const { main, mainCreated, alive } = await createGameChat(instance, name, existingChat);
+    const dms = await createGameDms(instance, name);
 
     const spec = await setup.secondary.ongoing.children.create({
         type: ChannelType.GuildText,
@@ -397,6 +409,7 @@ export async function createGame(interaction: ChatInputCommandInteraction | Text
             mafia: mafia.id,
             main: main.id,
             mainCreated: mainCreated,
+            dms: dms.id,
         },
         roles: {
             alive: alive.id,
@@ -469,6 +482,22 @@ export async function createGameChat(instance: Instance, name: string, existingC
     return { main, mainCreated: existing == undefined, alive };
 }
 
+// A game's dm category in the dead chat server, next to the server's dms category and with its permissions (spectator view,
+// @everyone hidden). Players' dm channels move in for the game and are archived out at the end. One per game also keeps
+// each category under Discord's 50 channel limit.
+export async function createGameDms(instance: Instance, name: string) {
+    const setup = instance.setup;
+
+    return await setup.secondary.guild.channels.create({
+        type: ChannelType.GuildCategory,
+        name: name + " DMs",
+        position: setup.secondary.dms.position,
+        permissionOverwrites: setup.secondary.dms.permissionOverwrites.cache
+            .filter(overwrite => overwrite.type == OverwriteType.Role)
+            .map(overwrite => ({ id: overwrite.id, type: overwrite.type, allow: overwrite.allow, deny: overwrite.deny })),
+    });
+}
+
 // Main chat permissions for a game's alive role and the server's gang role. Locked: alive players can't talk and everyone
 // else can only watch. Unlocked: alive players can talk, and outside a game (alive role empty) the gang can chat freely.
 export async function setChatPermissions(main: TextChannel, alive: Role, gang: Role, lock: boolean) {
@@ -500,10 +529,11 @@ export async function getGameSetup(game: Signups, setup: Exclude<Awaited<ReturnT
     // Older games have no main chat or alive role of their own and keep using the server's.
     const main = game.channels.main ? await setup.primary.guild.channels.fetch(game.channels.main).catch(() => undefined) : setup.primary.chat;
     const alive = game.roles?.alive ? await setup.primary.guild.roles.fetch(game.roles.alive).catch(() => undefined) : setup.primary.alive;
+    const dms = game.channels.dms ? await setup.secondary.guild.channels.fetch(game.channels.dms).catch(() => undefined) : setup.secondary.dms;
 
-    if (spec == undefined || mafia == undefined || main == undefined || alive == undefined) throw new Error("Game Setup Incomplete");
+    if (spec == undefined || mafia == undefined || main == undefined || alive == undefined || dms == undefined || dms.type != ChannelType.GuildCategory) throw new Error("Game Setup Incomplete");
 
-    return { spec: spec as TextChannel, mafia: mafia as TextChannel, main: main as TextChannel, alive: alive as Role };
+    return { spec: spec as TextChannel, mafia: mafia as TextChannel, main: main as TextChannel, alive: alive as Role, dms: dms as CategoryChannel };
 }
 
 function getRandom(min: number, max: number) {

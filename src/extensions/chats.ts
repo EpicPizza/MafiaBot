@@ -146,7 +146,7 @@ module.exports = {
 
         await checkMod(setup, command.instance.global, command.user.id, command.message.guildId ?? "");
         
-        if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
+        if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != ctx.gameSetup.dms.id) throw new Error("This command must be run in dead chat dms.");
 
         const db = firebaseAdmin.getFirestore();
 
@@ -165,7 +165,7 @@ module.exports = {
 
             const channel = await setup.secondary.guild.channels.create({ name: "creating" });
 
-            await channel.setParent(setup.secondary.dms.id);
+            await channel.setParent(ctx.gameSetup.dms.id);
 
             for(let i = 0; i < chats.length; i++) {
                 const member = await setup.secondary.guild.members.fetch(chats[i].id);

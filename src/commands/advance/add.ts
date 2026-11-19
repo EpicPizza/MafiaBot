@@ -7,7 +7,7 @@ import { fromZod } from '../../utils/text';
 import { removeReactions } from "../../discord/helpers";
 import { firebaseAdmin } from "../../utils/firebase";
 import { checkModPlayConflict, getGameByID, getGameSetup } from "../../utils/mafia/games";
-import { setupPlayer } from "../../utils/mafia/main";
+import { checkNotInStartedGame, setupPlayer } from "../../utils/mafia/main";
 import { getUserByName } from "../../utils/mafia/user";
 import { getSetup } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
@@ -55,6 +55,7 @@ export const AddCommand = {
         if(!user) throw new Error("Player not found.");
 
         await checkModPlayConflict(user.id, 'player', interaction.instance);
+        await checkNotInStartedGame([user.id], interaction.instance, game.id);
 
         await setupPlayer(user.id, ctx);
 

@@ -5,18 +5,18 @@ import { Event, type TextCommand } from '../../discord';
 import { removeReactions } from "../../discord/helpers";
 import { fromZod } from '../../utils/text';
 import { clearMainChatCache } from "../../utils/mafia/context";
-import { createGameChat, gameRef, getGameByName } from "../../utils/mafia/games";
+import { createGameChat, createGameDms, gameRef, getGameByName } from "../../utils/mafia/games";
 import { isGameStarted } from "../../utils/mafia/state";
 import { Subcommand } from "../../utils/subcommands";
 
-// Gives a game made before per-game main chats its own main chat and alive role, keeping its signups and everything else.
+// Gives a game made before per-game channels whatever it's missing (main chat + alive role, dm category), keeping its signups and everything else.
 export const ConvertCommand = {
     name: "convert",
     subcommand: true,
 
     slash: new SlashCommandSubcommandBuilder()
         .setName("convert")
-        .setDescription("Give an older game its own main chat and alive role.")
+        .setDescription("Give an older game its own main chat, alive role and dm category.")
         .addStringOption(option =>
             option
                 .setName("game")
@@ -34,7 +34,7 @@ export const ConvertCommand = {
     text: () => {
         return new Command()
             .name('convert')
-            .description('Give a game made before per-game main chats its own main chat and alive role. Keeps its signups. Not for games that have started.')
+            .description('Give a game made before per-game channels its own main chat, alive role and dm category. Keeps its signups. Not for games that have started.')
             .argument('<game>', 'name of game', fromZod(z.string().min(1).max(100)))
             .option('-c, --chat <channel>', 'existing channel to use as the main chat', fromZod(z.string().regex(/^(<#\d+>|\d+)$/, "Not a channel!")));
     },
@@ -53,20 +53,35 @@ export const ConvertCommand = {
 
         const game = await getGameByName(name, interaction.instance);
 
-        if(game.channels.main) throw new Error(game.name + " already has its own main chat.");
-        if(await isGameStarted(interaction.instance, game.id)) throw new Error(game.name + " has already started. Convert it before starting, or let it finish on the server main chat.");
+        if(game.channels.main && game.channels.dms) throw new Error(game.name + " already has its own main chat and dm category.");
+        if(game.channels.main && chat) throw new Error(game.name + " already has its own main chat.");
+        if(await isGameStarted(interaction.instance, game.id)) throw new Error(game.name + " has already started. Convert it before starting, or let it finish on the server's channels.");
 
-        const { main, mainCreated, alive } = await createGameChat(interaction.instance, game.name, chat);
+        const made = [] as string[];
 
-        await gameRef(interaction.instance, game.id).update({
-            'channels.main': main.id,
-            'channels.mainCreated': mainCreated,
-            roles: { alive: alive.id },
-        });
+        if(!game.channels.main) {
+            const { main, mainCreated, alive } = await createGameChat(interaction.instance, game.name, chat);
 
-        clearMainChatCache(interaction.instance);
+            await gameRef(interaction.instance, game.id).update({
+                'channels.main': main.id,
+                'channels.mainCreated': mainCreated,
+                roles: { alive: alive.id },
+            });
 
-        const reply = game.name + " converted. Main chat: " + main.url + ", alive role: <@&" + alive.id + ">.";
+            clearMainChatCache(interaction.instance);
+
+            made.push("main chat " + main.url, "alive role <@&" + alive.id + ">");
+        }
+
+        if(!game.channels.dms) {
+            const dms = await createGameDms(interaction.instance, game.name);
+
+            await gameRef(interaction.instance, game.id).update({ 'channels.dms': dms.id });
+
+            made.push("dm category **" + dms.name + "**");
+        }
+
+        const reply = game.name + " converted: " + made.join(", ") + ".";
 
         if(interaction.type != 'text') {
             await interaction.editReply({ content: reply });

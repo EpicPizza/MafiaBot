@@ -75,7 +75,7 @@ module.exports = {
         await deleteCollection(db, col, 20);
         
         const channel = await instance.setup.secondary.guild.channels.create({ name: "creating" });
-        await channel.setParent(instance.setup.secondary.dms.id);
+        await channel.setParent(ctx.gameSetup.dms.id);
         await channel.permissionOverwrites.create(channel.guild.roles.everyone, readOverwrites());
         await channel.setName("threads");
         await channel.setTopic(game.name + " Mafia");
