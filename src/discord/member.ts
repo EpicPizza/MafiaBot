@@ -5,6 +5,8 @@ import { editOverwrites } from "../utils/mafia/main";
 import { RoleQueue } from '../utils/mafia/invite';
 import { getAuthority } from '../utils/instance';
 import { findRunningGame } from '../utils/mafia/context';
+import { isAliveAnywhere } from "../utils/mafia/state";
+import { getGameByID } from "../utils/mafia/games";
 
 export async function guildMemberUpdateHandler(...[oldMember, newMember]: ClientEvents[Events.GuildMemberUpdate]) {
     try {
@@ -73,7 +75,8 @@ export async function guildMemberAddHanlder(...[member]: ClientEvents[Events.Gui
         const instance = await getAuthority(member.guild.id, false);
         if(instance == undefined) return;
 
-        const started = (await findRunningGame(instance)) != undefined;
+        const runningGame = await findRunningGame(instance);
+        const started = runningGame != undefined;
         const setup = instance.setup;
 
         const db = firebaseAdmin.getFirestore();
@@ -92,7 +95,18 @@ export async function guildMemberAddHanlder(...[member]: ClientEvents[Events.Gui
 
         const ref = db.collection('instances').doc(instance.id).collection('roles').where('id', '==', member.id).where('server', '==', name);
         const docs = (await ref.get()).docs
-        const roles = docs.map(doc => doc.data()) as RoleQueue[];
+        const queued = docs.map(doc => doc.data()) as RoleQueue[];
+
+        // Only apply entries queued for the game that's running (or, between games, for the last game/pregame).
+        // Untagged entries predate game tagging and entries for another game are stale, e.g. a spectator invite from a
+        // game the player died in long ago, which would otherwise make them a spectator in the game they're playing now.
+        const running = runningGame?.game.id ?? null;
+        const isCurrent = (queue: RoleQueue) => queue.game !== undefined && (running == null || queue.game == running);
+        const roles = queued.filter(isCurrent);
+        const stale = queued.length - roles.length;
+
+        // Never make someone a spectator while they're alive in a game.
+        const alive = roles.some(queue => queue.roles.add?.includes("spectator")) && await isAliveAnywhere(member.id, instance);
 
         for(let i = 0; i < roles.length; i++) {
             const queue: RoleQueue = roles[i];
@@ -100,7 +114,15 @@ export async function guildMemberAddHanlder(...[member]: ClientEvents[Events.Gui
 
             let message = `${name.substring(0, 1).toUpperCase() + name.substring(1)} Server\n\n`;
 
-            const addRoles = queue.roles.add?.map(role => guild.roles.cache.find(cachedRole => cachedRole.name == role)).filter(role => role != undefined) ?? [];
+            if(queue.game) {
+                const game = await getGameByID(queue.game, instance, true).catch(() => undefined);
+
+                message += "Game: " + (game?.name ?? queue.game) + "\n\n";
+            }
+
+            const addNames = alive ? queue.roles.add?.filter(role => role != "spectator") : queue.roles.add;
+
+            const addRoles = addNames?.map(role => guild.roles.cache.find(cachedRole => cachedRole.name == role)).filter(role => role != undefined) ?? [];
             const removeRoles = queue.roles.remove?.map(role => guild.roles.cache.find(cachedRole => cachedRole.name == role)).filter(role => role != undefined) ?? [];
 
             await Promise.allSettled(addRoles.map(role => member.roles.add(role)));
@@ -134,6 +156,17 @@ export async function guildMemberAddHanlder(...[member]: ClientEvents[Events.Gui
                     .setTitle('Invite Entry')
                     .setColor(Colors.Yellow)
                     .setDescription(message)
+            ]});
+        }
+
+        if(stale > 0 || alive) {
+            await setup.secondary.logs.send({ embeds: [
+                new EmbedBuilder()
+                    .setTitle('Invite Entry Skipped')
+                    .setColor(Colors.Orange)
+                    .setDescription(`${name.substring(0, 1).toUpperCase() + name.substring(1)} Server - <@${member.id}>\n\n`
+                        + (stale > 0 ? `Ignored ${stale} stale entr${stale == 1 ? "y" : "ies"} from another or an older game.\n` : "")
+                        + (alive ? "Did not add spectator role, they're alive in a game." : ""))
             ]});
         }
 
