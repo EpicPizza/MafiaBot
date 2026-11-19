@@ -23,20 +23,19 @@ export async function onjoin(queue: RoleQueue, instance: Instance) {
 
     const ref = db.collection('instances').doc(instance.id).collection('roles');
 
-    await ref.add({ ...queue, game: queue.game ?? instance.global.game ?? null } satisfies RoleQueue);
+    await ref.add({ ...queue, game: queue.game ?? null } satisfies RoleQueue);
 }
 
-// Drops queued joins left over from games that aren't running (keeps every running game's). Replaces the old start-of-game wipe of the whole
+// Drops queued joins that no longer apply: untagged ones from before tagging, game-less ones (mod/spectator invites,
+// cleared at each start as before), and ones for ended games. Keeps entries for every game that hasn't ended, running
+// or not yet started (e.g. upick pregame invites). Replaces the old start-of-game wipe of the whole
 // collection, which would also delete another running game's entries (and raced with the new game's own entries).
 export async function pruneRoleQueue(instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    // Imported lazily: context imports modules that import this one.
-    const { getRunningGames } = await import("./context");
-
-    const running = (await getRunningGames(instance)).map(game => game.game.id);
+    const active = new Set((await db.collection('instances').doc(instance.id).collection('games').where('state', '==', 'active').get()).docs.map(doc => doc.id));
 
     const docs = (await db.collection('instances').doc(instance.id).collection('roles').get()).docs;
 
-    await Promise.all(docs.filter(doc => doc.data().game == null || !running.includes(doc.data().game)).map(doc => doc.ref.delete()));
+    await Promise.all(docs.filter(doc => doc.data().game == null || !active.has(doc.data().game)).map(doc => doc.ref.delete()));
 }

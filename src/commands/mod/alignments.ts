@@ -152,7 +152,8 @@ export async function addMafiaPlayer(player: Player, ctx: GameContext): Promise<
             roles: {},
             permissions: {
                 channel: gameSetup.mafia.id,
-            }
+            },
+            game: ctx.game.id,
         }, instance);
 
         return false;

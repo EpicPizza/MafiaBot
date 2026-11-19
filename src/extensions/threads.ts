@@ -7,7 +7,7 @@ import { simpleJoin } from '../utils/text';
 import { fromZod } from '../utils/text';
 import { Extension, ExtensionInteraction } from "../utils/extensions";
 import { firebaseAdmin } from "../utils/firebase";
-import { getGameByID } from "../utils/mafia/games";
+import { getGameByID, gameRef } from "../utils/mafia/games";
 import { deleteCollection } from "../utils/mafia/main";
 import { getUserByName, User } from "../utils/mafia/user";
 import { checkMod } from "../utils/mod";
@@ -70,7 +70,7 @@ module.exports = {
          */
 
         const db = firebaseAdmin.getFirestore();
-        const col = db.collection('instances').doc(instance.id).collection('threads');
+        const col = gameRef(instance, ctx.game.id).collection('threads');
 
         await deleteCollection(db, col, 20);
         
@@ -115,7 +115,8 @@ module.exports = {
 
         const db = firebaseAdmin.getFirestore();
 
-        const col = db.collection('instances').doc(command.instance.id).collection('threads');
+        const ctx = await getCommandGame(command);
+        const col = gameRef(command.instance, ctx.game.id).collection('threads');
         
         const channelId = (await col.doc('main').get()).data()?.channel as string | undefined;
         if(channelId == undefined) throw new Error("Threads incomplete setup.");
@@ -223,7 +224,7 @@ module.exports = {
 
         const db = firebaseAdmin.getFirestore();
 
-        const col = db.collection('instances').doc(instance.id).collection('threads');
+        const col = gameRef(instance, ctx.game.id).collection('threads');
         
         const channelId = (await col.doc('main').get()).data()?.channel as string | undefined;
         if(channelId == undefined) throw new Error("Threads incomplete setup.");
@@ -265,7 +266,7 @@ module.exports = {
 
         const db = firebaseAdmin.getFirestore();
 
-        const col = db.collection('instances').doc(instance.id).collection('threads');
+        const col = gameRef(instance, ctx.game.id).collection('threads');
         
         const channelId = (await col.doc('main').get()).data()?.channel as string | undefined;
         if(channelId == undefined) throw new Error("Threads incomplete setup.");

@@ -7,7 +7,7 @@ import { killPlayer } from "../commands/advance/kill";
 import { removePlayer } from "../commands/mod/remove";
 import { Extension, ExtensionInteraction } from "../utils/extensions";
 import { firebaseAdmin } from "../utils/firebase";
-import { getGameByID, getGameSetup } from "../utils/mafia/games";
+import { getGameByID, getGameSetup, gameRef } from "../utils/mafia/games";
 import { lockGame, unlockGame } from "../utils/mafia/main";
 import { getFuture } from "../utils/mafia/timing";
 import { getUser, getUserByChannel, getUserByName } from "../utils/mafia/user";
@@ -152,7 +152,7 @@ module.exports = {
             if(player == undefined) throw new Error("You are not part of the game!");
             if(user.channel != command.message.channelId) throw new Error("Must be run in dead chat dm!");
 
-            const daykill = await getDaykill(command.user.id, command.instance);
+            const daykill = await getDaykill(command.user.id, command.instance, ctx.game.id);
             if(daykill == undefined) throw new Error("You don't have any day kills!");
 
             const killing = await getUserByName(command.program.processedArgs[0] as string, command.instance);
@@ -174,7 +174,7 @@ module.exports = {
 
             await command.message.react("✅");
 
-            await db.collection('instances').doc(command.instance.id).collection('daykill').doc(user.id).delete();
+            await gameRef(command.instance, ctx.game.id).collection('daykill').doc(user.id).delete();
 
             await lockGame(ctx);
 
@@ -254,7 +254,7 @@ module.exports = {
             const player = global.players.find(player => player.id == user.id);
             if(player == undefined) throw new Error("Player not part of game?");
 
-            await db.collection('instances').doc(command.instance.id).collection('daykill').doc(user.id).set({
+            await gameRef(command.instance, ctx.game.id).collection('daykill').doc(user.id).set({
                 type: type,
                 expire: expire,
                 lock: lock,
@@ -269,7 +269,7 @@ module.exports = {
             const gameSetup = ctx.gameSetup;
             if(gameSetup.spec.id != command.message.channelId) throw new Error("Must be run in spectator channel.");
 
-            const daykills = (await Promise.allSettled((await db.collection('instances').doc(command.instance.id).collection('daykill').get()).docs.map(async doc => {
+            const daykills = (await Promise.allSettled((await gameRef(command.instance, ctx.game.id).collection('daykill').get()).docs.map(async doc => {
                 const data = doc.data();
 
                 const user = await getUser(doc.id, command.instance);
@@ -410,10 +410,10 @@ module.exports = {
     onDump: async (statsBatch, messageBatch, reactionBatch) => {},
 } satisfies Extension;
 
-async function getDaykill(id: string, instance: Instance) {
+async function getDaykill(id: string, instance: Instance, gameId: string) {
     const db = firebaseAdmin.getFirestore();
 
-    const data = (await db.collection('instances').doc(instance.id).collection('daykill').doc(id).get()).data();
+    const data = (await gameRef(instance, gameId).collection('daykill').doc(id).get()).data();
     if(data == undefined) return undefined;
 
     return {

@@ -250,16 +250,15 @@ export async function checkSignups(signups: string[], setup: Setup) { //probably
     }
 }
 
-export async function deleteInvites(setup: Setup) {
-    const invites = Array.from(await setup.tertiary.guild.invites.fetch());
+// Deletes mafia server invites, except ones into another running game's mafia chat (those are someone's pending way in).
+export async function deleteInvites(instance: Instance, exceptGame?: string) {
+    const setup = instance.setup;
 
-    const promises = [] as Promise<any>[];
+    const keep = new Set((await getRunningGames(instance)).filter(game => game.game.id != exceptGame).map(game => game.gameSetup.mafia.id));
 
-    for(let i = 0; i < invites.length; i++) {
-        if(invites[i][1].deletable) {
-            promises.push(invites[i][1].delete());
-        }
-    }
+    const invites = Array.from((await setup.tertiary.guild.invites.fetch()).values());
+
+    const promises = invites.filter(invite => invite.deletable && !keep.has(invite.channelId ?? "")).map(invite => invite.delete());
 
     const results = await Promise.allSettled(promises);
 
@@ -284,9 +283,6 @@ export async function prepareGame(game: Signups, instance: Instance) {
     }
 
     await createGameState(instance, game.id, state);
-    await settingsRef(instance).update({ game: game.id });
-
-    instance.global = { ...instance.global, game: game.id };
 }
 
 export async function finishSignups(game: Signups, instance: Instance) {
@@ -451,10 +447,10 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
         await interaction.message.react("<a:loading:1256150236112621578>");
     }
 
-    // Still one game at a time until stage 5.
-    if((await getRunningGames(instance)).length > 0) throw new Error("A game is already running.");
-
     const game = await getGameByName(name, instance);
+
+    // Several games can run at once; only this one mustn't be running already.
+    if(game != null && await isGameStarted(instance, game.id)) throw new Error(game.name + " has already started.");
     const setup = instance.setup;
     const db = firebaseAdmin.getFirestore();
 
@@ -495,7 +491,7 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
     })());
 
     promises.push(pruneRoleQueue(instance));
-    promises.push(deleteInvites(setup));
+    promises.push(deleteInvites(instance, game.id));
     promises.push(clearMafiaAccess(setup, gameSetup));
     promises.push(finishSignups(game, instance));
     promises.push(setupPermissions(setup, ctx.gameSetup, true));
@@ -637,10 +633,6 @@ export async function clearGame(ctx: GameContext) {
     state.started = false;
     state.locked = false;
     clearCachedContext(instance, game.id);
-
-    if(instance.global.game == game.id) {
-        await settingsRef(instance).update({ game: null });
-    }
 
     const gameRef = db.collection('instances').doc(instance.id).collection('games').doc(game.id);
 

@@ -12,7 +12,7 @@ import { archiveChannels, deleteInvites, getStartedSignups, setupDeadPlayer, vie
 import { getPlayerObjects, getUserByName } from "../utils/mafia/user";
 import { checkMod } from "../utils/mod";
 import { Instance } from "../utils/instance";
-import { isGameStarted } from "../utils/mafia/state";
+import { isAliveAnywhere, isGameStarted } from "../utils/mafia/state";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -80,7 +80,8 @@ module.exports = {
         const ref = settingsRef(instance);
         const settings = (await ref.get()).data();
         const gameId = settings?.game as undefined | string;
-        if(gameId == undefined) return;
+        // Pregame is for one game; only that game's start ends it.
+        if(gameId == undefined || gameId != game.id) return;
         const check = await getGameByID(gameId, instance);
         if(check == undefined) throw new Error("Game not found.");
 
@@ -200,7 +201,7 @@ module.exports = {
             const ref = settingsRef(instance);
             if(((await ref.get()).data()?.game) as undefined | string != undefined) throw new Error("Already started pregame!");
 
-            await deleteInvites(setup);
+            await deleteInvites(instance, game.id);
 
             const playersRole = await fetchPlayersRole(instance);
 
@@ -286,7 +287,9 @@ async function cleanupLeftPlayer(id: string, instance: Instance, playersRole: Ro
 
     if(player.deadPlayer) {
         await player.deadPlayer.roles.remove(playersRole);
-        await player.deadPlayer.roles.add(setup.secondary.spec);
+
+        // Someone who left this pregame for a game that's now running stays out of spectator.
+        if(!(await isAliveAnywhere(id, instance))) await player.deadPlayer.roles.add(setup.secondary.spec);
     }
 
     const channel = await setup.secondary.guild.channels.fetch(player.userProfile.channel ?? "").catch(() => null);
@@ -454,7 +457,8 @@ async function pregameSetupPlayer(player: Awaited<ReturnType<typeof getPlayerObj
             message: {
                 channel: channel.id,
                 content: signupMessage
-            }
+            },
+            game: game.id,
         }, instance);
 
         const dm = await client.users.cache.get(player.userProfile.id)?.createDM();

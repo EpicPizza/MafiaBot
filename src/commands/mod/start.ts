@@ -12,7 +12,8 @@ import { Subinteraction } from "../../utils/subcommands";
 import { Global } from "../../utils/global";
 import { Instance } from "../../utils/instance";
 import { stateRef } from "../../utils/mafia/state";
-import { getCommandGame, getRunningGame, getRunningGames } from "../../utils/mafia/context";
+import { getCommandGame, getRunningGame } from "../../utils/mafia/context";
+import { isGameStarted } from "../../utils/mafia/state";
 
 export const StartCommand = {
     name: "start",
@@ -46,7 +47,7 @@ export const StartCommand = {
         
         if(game == null) throw new Error("")
 
-        if((await getRunningGames(interaction.instance)).length > 0) throw new Error("A game is already running.");
+        if(await isGameStarted(interaction.instance, game.id)) throw new Error(game.name + " has already started.");
 
         const db = firebaseAdmin.getFirestore();
 
@@ -119,7 +120,7 @@ export const WebsiteStartCommand = {
         
         if(game == null) throw new Error("")
 
-        if((await getRunningGames(interaction.instance)).length > 0) throw new Error("A game is already running.");
+        if(await isGameStarted(interaction.instance, game.id)) throw new Error(game.name + " has already started.");
 
         await startGame(interaction, game.name as string, interaction.instance);
 

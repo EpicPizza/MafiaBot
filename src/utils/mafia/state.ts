@@ -6,7 +6,8 @@ import type { Player } from "./main";
 
 // Per-game state, stored at instances/{instance}/games/{game}/state/{game|lock|grace}.
 // Per-game options (extensions, hammer) live on the game doc itself, since they're set before the game starts.
-// Instance-wide settings (running game pointer, admins) stay in instances/{instance}/settings/game.
+// Instance-wide settings (admins) stay in instances/{instance}/settings/game. Which games are running comes from each
+// game's state (see getRunningGames in context.ts).
 
 export interface GameState {
     started: boolean,
@@ -23,7 +24,8 @@ export interface GameOptions {
 
 export type InstanceSettings = Global;
 
-const legacyFields = ['bulletin', 'extensions', 'hammer'];
+// 'game' was the running-game pointer, replaced by each game's own state (getRunningGames) once several games could run.
+const legacyFields = ['bulletin', 'extensions', 'hammer', 'game'];
 
 export const defaultState: GameState = {
     started: false,
@@ -48,11 +50,9 @@ function stateCollection(instanceId: string, game: string, db?: Firestore) {
 }
 
 function activeGame(instance: Instance, game?: string | null) {
-    const id = game ?? instance.global.game;
+    if(game == null) throw new Error("No game given.");
 
-    if(id == null) throw new Error("No game is running.");
-
-    return id;
+    return game;
 }
 
 export function stateRef(instance: Instance, game?: string | null) {
@@ -102,7 +102,7 @@ export async function isAliveAnywhere(id: string, instance: Instance, except?: s
     });
 }
 
-// Reads instance settings (running game pointer, admins). Game data is loaded separately as a GameContext.
+// Reads instance settings (admins). Game data is loaded separately as a GameContext.
 export async function loadGlobal(instanceId: string, db: Firestore): Promise<Global | undefined> {
     const ref = settingsRef(instanceId, db);
     let settings = (await ref.get()).data();
@@ -117,7 +117,6 @@ export async function loadGlobal(instanceId: string, db: Firestore): Promise<Glo
     }
 
     const instance = {
-        game: settings.game ?? null,
         admin: settings.admin ?? [],
     } satisfies InstanceSettings;
 

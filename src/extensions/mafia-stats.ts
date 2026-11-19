@@ -5,7 +5,7 @@ import { Extension } from "../utils/extensions";
 import { flow } from "../utils/mafia/vote";
 import { Event, TextCommand } from "../discord";
 import { firebaseAdmin } from "../utils/firebase";
-import { getGameByID, getGameSetup } from "../utils/mafia/games";
+import { getGameByID, getGameSetup, gameRef } from "../utils/mafia/games";
 import { StatsAction, TrackedMessage } from "../utils/mafia/tracking";
 import { EmbedBuilder } from "@discordjs/builders";
 import { Colors } from "discord.js";
@@ -85,7 +85,7 @@ module.exports = {
         const instance = command.instance;
         const db = firebaseAdmin.getFirestore();
 
-        const doc = db.collection('instances').doc(instance.id).collection('mafia-stats').doc('tracking');
+        const doc = gameRef(instance, ctx.game.id).collection('mafia-stats').doc('tracking');
         const data = (await doc.get()).data();
 
         const timestamp = data?.timestamp as number | undefined ?? 0;

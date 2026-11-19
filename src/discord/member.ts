@@ -97,11 +97,10 @@ export async function guildMemberAddHanlder(...[member]: ClientEvents[Events.Gui
         const docs = (await ref.get()).docs
         const queued = docs.map(doc => doc.data()) as RoleQueue[];
 
-        // Only apply entries queued for a running game (or, between games, for the last game/pregame). Untagged entries
-        // predate game tagging and entries for other games are stale, e.g. a spectator invite from a game the player died
-        // in long ago, which would otherwise make them a spectator in the game they're playing now.
-        const running = runningGames.map(game => game.game.id);
-        const isCurrent = (queue: RoleQueue) => queue.game !== undefined && (running.length == 0 || (queue.game != null && running.includes(queue.game)));
+        // Untagged entries predate game tagging and are stale (e.g. a spectator invite from a game the player died in long
+        // ago). Tagged ones are current: entries for ended games are pruned when a game starts, and game-less ones (null) are
+        // mod/spectator invites.
+        const isCurrent = (queue: RoleQueue) => queue.game !== undefined;
         const roles = queued.filter(isCurrent);
         const stale = queued.length - roles.length;
 

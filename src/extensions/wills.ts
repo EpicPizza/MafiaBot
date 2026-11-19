@@ -9,6 +9,7 @@ import { getUser, getUserByChannel } from "../utils/mafia/user";
 import { checkMod } from "../utils/mod";
 import { getSetup } from "../utils/setup";
 import { getCommandGame } from "../utils/mafia/context";
+import { gameRef } from "../utils/mafia/games";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -58,7 +59,7 @@ module.exports = {
 
         const db = firebaseAdmin.getFirestore();
 
-        await deleteCollection(db, db.collection('instances').doc(instance.id).collection('wills'), 20);
+        await deleteCollection(db, gameRef(instance, ctx.game.id).collection('wills'), 20);
 
         return;
 
@@ -93,7 +94,7 @@ module.exports = {
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('instances').doc(command.instance.id).collection('wills').doc(user.id);
+            const ref = gameRef(command.instance, ctx.game.id).collection('wills').doc(user.id);
 
             if((await ref.get()).data()?.locked == true) throw new Error("You are not allowed to set a will.");
 
@@ -114,7 +115,7 @@ module.exports = {
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('instances').doc(command.instance.id).collection('wills').doc(player.id);
+            const ref = gameRef(command.instance, ctx.game.id).collection('wills').doc(player.id);
 
             await ref.update({
                 will: "",
@@ -133,7 +134,7 @@ module.exports = {
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('instances').doc(command.instance.id).collection('wills').doc(player.id);
+            const ref = gameRef(command.instance, ctx.game.id).collection('wills').doc(player.id);
 
             await ref.delete();
 
@@ -160,7 +161,7 @@ module.exports = {
 
         const db = firebaseAdmin.getFirestore();
 
-        const ref = db.collection('instances').doc(instance.id).collection('wills').doc(user.id);
+        const ref = gameRef(instance, ctx.game.id).collection('wills').doc(user.id);
 
         const data = (await ref.get()).data();
 

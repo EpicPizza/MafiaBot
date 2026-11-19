@@ -7,7 +7,7 @@ import { fromZod } from '../utils/text';
 import { Extension, ExtensionInteraction } from "../utils/extensions";
 import { firebaseAdmin } from "../utils/firebase";
 import { type Global } from '../utils/global';
-import { Signups, getGameByID, getGameSetup } from "../utils/mafia/games";
+import { Signups, getGameByID, getGameSetup, gameRef } from "../utils/mafia/games";
 import { deleteCollection } from "../utils/mafia/main";
 import { User, getUserByChannel, getUsersArray } from "../utils/mafia/user";
 import { CustomLog, TransactionResult, Vote, flow, getVotes, handleHammer } from "../utils/mafia/vote";
@@ -71,7 +71,7 @@ module.exports = {
 
         const db = firebaseAdmin.getFirestore();
 
-        await deleteCollection(db, db.collection('instances').doc(instance.id).collection('mayor'), 20);
+        await deleteCollection(db, gameRef(instance, ctx.game.id).collection('mayor'), 20);
 
         return;
 
@@ -105,7 +105,7 @@ module.exports = {
             if(!user) throw new Error("This dm channel is not linked to a user.");
 
             const db = firebaseAdmin.getFirestore();
-            const ref = db.collection('instances').doc(command.instance.id).collection('mayor').doc(user.id);
+            const ref = gameRef(command.instance, ctx.game.id).collection('mayor').doc(user.id);
 
             const previous = (await ref.get()).data() as MayorEntry | undefined;
             const newEntry = {
@@ -136,7 +136,7 @@ module.exports = {
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('instances').doc(command.instance.id).collection('mayor').doc(user.id);
+            const ref = gameRef(command.instance, ctx.game.id).collection('mayor').doc(user.id);
             const previous = (await ref.get()).data() as MayorEntry | undefined;
             await ref.delete();
 
@@ -150,7 +150,7 @@ module.exports = {
 
             if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != gameSetup.spec.guildId || command.message.channel.id != gameSetup.spec.id) throw new Error("This command must be run in dead chat.");
 
-            const mayors = await getMayors(command.instance, await getUsersArray(game.signups, command.instance));
+            const mayors = await getMayors(command.instance, game.id, await getUsersArray(game.signups, command.instance));
 
             let message = mayors.reduce((prev, mayor) => prev + (mayor.nickname ?? "<@" + mayor.id + ">") + " - " + capitalize(mayor.type) + " (Weight: " + mayor.weight + ") (Day: " + mayor.day + ")\n", "");
 
@@ -181,7 +181,7 @@ module.exports = {
 
             const votes = await getVotes(global.day, game, command.instance);
             const users = await getUsersArray(game.signups, command.instance);
-            const mayors = await getMayors(command.instance);
+            const mayors = await getMayors(command.instance, game.id);
 
             const board = getBoard(votes, users, mayors, global.day, true);
 
@@ -221,7 +221,7 @@ module.exports = {
         
         if(vote == undefined) return { reply };
 
-        const mayors = await getMayors(instance);
+        const mayors = await getMayors(instance, game.id);
 
         const board = getBoard(votes, users, mayors, ctx.state.day);
 
@@ -263,10 +263,10 @@ interface Mayor extends MayorEntry {
     nickname?: string,
 }
 
-async function getMayors(instance: Instance, users: User[] | undefined = undefined, transaction: Transaction | undefined = undefined) {
+async function getMayors(instance: Instance, gameId: string, users: User[] | undefined = undefined, transaction: Transaction | undefined = undefined) {
     const db = firebaseAdmin.getFirestore();
 
-    const docs = transaction ? (await transaction.get(db.collection('instances').doc(instance.id).collection('mayor'))).docs : (await db.collection('instances').doc(instance.id).collection('mayor').get()).docs;
+    const docs = transaction ? (await transaction.get(gameRef(instance, gameId).collection('mayor'))).docs : (await gameRef(instance, gameId).collection('mayor').get()).docs;
 
     const mayors = new Array<Mayor>();
 
@@ -370,7 +370,7 @@ async function updateVotes(day: number, game: Signups, message: string, id: stri
     await db.runTransaction(async t => {
         const votes = await getVotes(day, game, instance, t);
 
-        const mayors = await getMayors(instance, users, t);
+        const mayors = await getMayors(instance, game.id, users, t);
 
         const board = getBoard(votes, users, mayors, day);
 
@@ -394,7 +394,7 @@ async function reveal(id: string, ctx: GameContext) {
     const { instance, game, state: global } = ctx;
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(instance.id).collection('mayor').doc(id);
+    const ref = gameRef(instance, game.id).collection('mayor').doc(id);
 
     const users = await getUsersArray(game.signups, instance);
 
@@ -404,7 +404,7 @@ async function reveal(id: string, ctx: GameContext) {
         const data = (await t.get(ref)).data();
         if(!data || !(data.type == 'secret' || data.type == 'classic') || data.reveal == true || data.day != global.day) return; //check they are a mayor
 
-        const mayors = await getMayors(instance, users, t);
+        const mayors = await getMayors(instance, game.id, users, t);
 
         t.update(ref, {
             reveal: true,
