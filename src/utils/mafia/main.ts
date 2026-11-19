@@ -865,18 +865,22 @@ export async function editPlayer(options: { id: string, alignment: 'mafia' | nul
 }
 
 
+// Deletes the first page repeatedly until the collection is empty. Paging with an offset while deleting skipped
+// documents, since every deleted page shifts the rest up and the next offset jumps past them.
 export async function deleteCollection(db: Firestore, collection: CollectionReference, batchSize: number) {
-    const count = (await collection.count().get()).data().count;
+    const query = collection.orderBy('__name__').limit(batchSize);
 
-    for(let i = 0; i < Math.ceil(count / 20); i++) {
-        const query = collection.orderBy('__name__').limit(batchSize).offset(i * 20);
+    while(true) {
+        const deleted = await deleteQueryBatch(db, query, batchSize);
 
-        await deleteQueryBatch(db, query, batchSize);
+        if(deleted < batchSize) return;
     }
 }
 
 async function deleteQueryBatch(db: Firestore, query: Query, batchSize: number) {
     const docs = (await query.get()).docs;
+
+    if(docs.length == 0) return 0;
 
     let toDelete = [] as DocumentSnapshot[];
 
@@ -900,7 +904,9 @@ async function deleteQueryBatch(db: Firestore, query: Query, batchSize: number) 
         }
     }
 
-    await deleteDocs(db, toDelete);
+    if(toDelete.length > 0) await deleteDocs(db, toDelete);
+
+    return docs.length;
 }
 
 async function deleteDocs(db: Firestore, docs: DocumentSnapshot[]) {
