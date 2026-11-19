@@ -3,6 +3,7 @@ import { ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandSubcomma
 import { Event, type TextCommand } from '../../discord';
 import { firebaseAdmin } from "../../utils/firebase";
 import { Subcommand } from "../../utils/subcommands";
+import { getRunningGames } from "../../utils/mafia/context";
 
 export const InfoCommand = {
     name: "info",
@@ -24,13 +25,13 @@ export const InfoCommand = {
 
         const docs = (await db.collection('instances').doc(interaction.instance.id).collection('games').get()).docs;
 
-        const running = interaction.instance.global.game;
+        const running = new Set((await getRunningGames(interaction.instance)).map(game => game.game.id));
 
         const games = docs
             .map(doc => ({ id: doc.id, name: (doc.data().name ?? "Unnamed") as string, state: (doc.data().state ?? "unknown") as string }))
             .sort((a, b) => a.name.localeCompare(b.name));
 
-        const format = (game: typeof games[number]) => "**" + game.name + "** - `" + game.id + "`" + (game.id == running ? " · running" : "") + (game.state != 'active' ? " · " + game.state : "");
+        const format = (game: typeof games[number]) => "**" + game.name + "** - `" + game.id + "`" + (running.has(game.id) ? " · running" : "") + (game.state != 'active' ? " · " + game.state : "");
 
         const active = games.filter(game => game.state == 'active').map(format);
         const inactive = games.filter(game => game.state != 'active').map(format);

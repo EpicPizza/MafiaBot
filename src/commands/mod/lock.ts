@@ -9,7 +9,7 @@ import { lockGame, unlockGame } from "../../utils/mafia/main";
 import { getFuture, getGrace, setFuture, setGrace } from "../../utils/mafia/timing";
 import { Subcommand, Subinteraction } from "../../utils/subcommands";
 import { stateRef } from "../../utils/mafia/state";
-import { getRunningGame } from "../../utils/mafia/context";
+import { getCommandGame } from "../../utils/mafia/context";
 
 export const LockingSelect = {
     type: "select",
@@ -56,7 +56,7 @@ export const LockCommand = {
     execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
         interaction.inInstance();
 
-        const ctx = await getRunningGame(interaction.instance);
+        const ctx = await getCommandGame(interaction);
         const global = ctx.state;
         if(global.locked) throw new Error("Game is already locked.");
 
@@ -90,7 +90,7 @@ export const UnlockCommand = {
     execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
         interaction.inInstance();
 
-        const ctx = await getRunningGame(interaction.instance);
+        const ctx = await getCommandGame(interaction);
         const global = ctx.state;
         if(global.day == 0) throw new Error("Setup alignments first.");
         if(!global.locked) throw new Error("Game is already unlocked.");
@@ -129,7 +129,7 @@ export const GraceCommand = {
     execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
         interaction.inInstance();
 
-        const ctx = await getRunningGame(interaction.instance);
+        const ctx = await getCommandGame(interaction);
         const global = ctx.state;
         
         const db = firebaseAdmin.getFirestore();
@@ -260,7 +260,7 @@ export const Minute = {
 async function handleLocking(interaction: Event<ChatInputCommandInteraction>, type: boolean) {
     interaction.inInstance();
 
-    const ctx = await getRunningGame(interaction.instance);
+    const ctx = await getCommandGame(interaction);
 
     const timing = await getFuture(ctx);
 
@@ -390,7 +390,7 @@ async function handleGraceButton(interaction: Event<ButtonInteraction>) {
     interaction.inInstance();
 
     const setup = interaction.instance.setup;
-    const ctx = await getRunningGame(interaction.instance);
+    const ctx = await getCommandGame(interaction);
     const global = ctx.state;
     const db = firebaseAdmin.getFirestore();
 
@@ -450,7 +450,7 @@ async function handleGraceButton(interaction: Event<ButtonInteraction>) {
 async function handleUnlockButton(interaction: Event<ButtonInteraction>) {
     interaction.inInstance();
 
-    const ctx = await getRunningGame(interaction.instance);
+    const ctx = await getCommandGame(interaction);
 
     const setup = interaction.instance.setup;
     const db = firebaseAdmin.getFirestore();
@@ -487,7 +487,7 @@ async function handleUnlockButton(interaction: Event<ButtonInteraction>) {
 async function handleLockingGrace(interaction: Event<StringSelectMenuInteraction>) {
     interaction.inInstance();
 
-    const ctx = await getRunningGame(interaction.instance);
+    const ctx = await getCommandGame(interaction);
 
     const setup = interaction.instance.setup;
     const db = firebaseAdmin.getFirestore();

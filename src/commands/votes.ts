@@ -10,7 +10,7 @@ import { getBoard, retrieveVotes } from "../utils/mafia/fakevotes";
 import { getGameByID, getGameByName } from "../utils/mafia/games";
 import { Log } from "../utils/mafia/vote";
 import { getSetup } from "../utils/setup";
-import { findRunningGame } from "../utils/mafia/context";
+import { channelOf, findRunningGame } from "../utils/mafia/context";
 
 module.exports = {
     data: [
@@ -55,7 +55,7 @@ async function handleVoteList(interaction: Event<ChatInputCommandInteraction | T
 
     let gameName = interaction.type == 'text' ? interaction.program.getOptionValue('game') as string | undefined ?? null : interaction.options.getString("game");
     
-    const running = await findRunningGame(interaction.instance);
+    const running = await findRunningGame(interaction.instance, channelOf(interaction));
 
     const game = gameName != null ? await getGameByName(gameName ?? "---", interaction.instance, true).catch(() => null) : running?.game ?? null;
 

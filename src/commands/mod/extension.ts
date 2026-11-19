@@ -87,7 +87,7 @@ export const ExtensionCommand = {
         if(command == null) throw new Error("Extension command not specified.");
         if(command != 'list' && extension == null) throw new Error("Extension name not specified.");
 
-        const game = await resolveGame(interaction.type == 'text' ? interaction.program.getOptionValue('game') as string | undefined : interaction.options.getString("game"), interaction.instance);
+        const game = await resolveGame(interaction.type == 'text' ? interaction.program.getOptionValue('game') as string | undefined : interaction.options.getString("game"), interaction.instance, interaction);
         const gameExtensions = game.extensions ?? [];
         const running = await isGameStarted(interaction.instance, game.id);
 

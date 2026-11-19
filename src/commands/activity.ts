@@ -8,7 +8,7 @@ import { firebaseAdmin } from "../utils/firebase";
 import { getGameByID } from "../utils/mafia/games";
 import { getUserByName } from "../utils/mafia/user";
 import { TrackedMessage } from "../utils/mafia/tracking";
-import { getRunningGame } from "../utils/mafia/context";
+import { getCommandGame } from "../utils/mafia/context";
 
 module.exports = {
     data: [
@@ -27,7 +27,7 @@ module.exports = {
     execute: async (interaction: Event<TextCommand>) => {
         interaction.inInstance();
 
-        const ctx = await getRunningGame(interaction.instance);
+        const ctx = await getCommandGame(interaction);
         const game = ctx.game;
 
         const day = ctx.state.day;

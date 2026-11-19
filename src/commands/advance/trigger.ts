@@ -12,7 +12,7 @@ import { getUser, User } from "../../utils/mafia/user";
 import { getSetup, Setup, } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
 import { Instance } from "../../utils/instance";
-import { getRunningGame, type GameContext } from "../../utils/mafia/context";
+import { getCommandGame, type GameContext } from "../../utils/mafia/context";
 
 export const TriggerCommand = {
     name: "trigger",
@@ -43,7 +43,7 @@ export const TriggerCommand = {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
        
-        const ctx = await getRunningGame(interaction.instance);
+        const ctx = await getCommandGame(interaction);
        
         const global = ctx.state;
         const setup  = interaction.instance.setup;

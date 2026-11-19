@@ -10,7 +10,7 @@ import { getGameByID, getGameSetup } from "../../utils/mafia/games";
 import { getUserByName, getUsersArray } from "../../utils/mafia/user";
 import { defaultVote, handleHammer, TransactionResult } from "../../utils/mafia/vote";
 import { Subcommand } from "../../utils/subcommands";
-import { getRunningGame, type GameContext } from "../../utils/mafia/context";
+import { getCommandGame, type GameContext } from "../../utils/mafia/context";
 
 export const VoteCommand = {
     name: "vote",
@@ -58,7 +58,7 @@ export const VoteCommand = {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
        
-        const ctx = await getRunningGame(interaction.instance);
+        const ctx = await getCommandGame(interaction);
        
         const global = ctx.state;
         const setup  = interaction.instance.setup;

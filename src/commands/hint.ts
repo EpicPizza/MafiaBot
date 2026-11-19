@@ -5,7 +5,7 @@ import { Data, Event } from '../discord';
 import { TextCommand } from '../discord';
 import { firebaseAdmin } from "../utils/firebase";
 import { getUser, User } from "../utils/mafia/user";
-import { findRunningGame } from "../utils/mafia/context";
+import { findCommandGame } from "../utils/mafia/context";
 
 module.exports = {
     data: [
@@ -34,7 +34,7 @@ module.exports = {
 
         let user = null as null | User;
 
-        const running = await findRunningGame(interaction.instance);
+        const running = await findCommandGame(interaction);
         const global = running?.state;
 
         if(global) {

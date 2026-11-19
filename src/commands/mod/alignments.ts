@@ -12,7 +12,7 @@ import { Setup, getSetup } from "../../utils/setup";
 import { Subinteraction } from "../../utils/subcommands";
 import { Instance } from "../../utils/instance";
 import { stateRef } from "../../utils/mafia/state";
-import { getRunningGame, type GameContext } from "../../utils/mafia/context";
+import { getCommandGame, type GameContext } from "../../utils/mafia/context";
 import type { Player } from "../../utils/mafia/main";
 
 export const ShowAlignments = {
@@ -31,7 +31,7 @@ export const ShowAlignments = {
     execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
         interaction.inInstance();
 
-        const ctx = await getRunningGame(interaction.instance);
+        const ctx = await getCommandGame(interaction);
 
         const global = ctx.state;
         const game = ctx.game;
@@ -91,7 +91,7 @@ export const ConfirmAlignmentsButton = {
 
         await interaction.update({ components: components });
 
-        const ctx = await getRunningGame(interaction.instance);
+        const ctx = await getCommandGame(interaction);
 
         const global = ctx.state;
         const setup = interaction.instance.setup;

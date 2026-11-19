@@ -7,7 +7,7 @@ import { removeReactions } from "../../discord/helpers";
 import { wipe } from "../../utils/mafia/vote";
 import { Subcommand } from "../../utils/subcommands";
 import { getGameByID } from "../../utils/mafia/games";
-import { getRunningGame } from "../../utils/mafia/context";
+import { getCommandGame } from "../../utils/mafia/context";
 
 export const WipeCommand = {
     name: "wipe",
@@ -46,7 +46,7 @@ export const WipeCommand = {
        
         const setup  = interaction.instance.setup;
 
-        const ctx = await getRunningGame(interaction.instance);
+        const ctx = await getCommandGame(interaction);
 
         if(ctx.gameSetup.main.id != (interaction.type == 'text' ? interaction.message.channelId : interaction.channelId )) throw new Error("Must be in main chat!");
 

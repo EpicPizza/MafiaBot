@@ -12,7 +12,7 @@ import { deleteCollection } from "../utils/mafia/main";
 import { getUserByName, User } from "../utils/mafia/user";
 import { checkMod } from "../utils/mod";
 import { getSetup } from "../utils/setup";
-import { getRunningGame } from "../utils/mafia/context";
+import { getCommandGame } from "../utils/mafia/context";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -123,7 +123,7 @@ module.exports = {
         if(channel == null || channel.type != ChannelType.GuildText) throw new Error("Threads channel not found!");
 
         if(command.name == "create") {
-            const game = (await getRunningGame(command.instance)).game;
+            const game = (await getCommandGame(command)).game;
 
             const chats = [] as User[];
 

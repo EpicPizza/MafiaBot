@@ -10,7 +10,7 @@ import { deleteCollection } from "../../utils/mafia/main";
 import { getSetup } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
 import { stateRef } from "../../utils/mafia/state";
-import { getRunningGame } from "../../utils/mafia/context";
+import { getCommandGame } from "../../utils/mafia/context";
 
 export const ClearCommand = {
     name: "clear",
@@ -41,7 +41,7 @@ export const ClearCommand = {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
        
-        const ctx = await getRunningGame(interaction.instance);
+        const ctx = await getCommandGame(interaction);
         const game = ctx.game;
         if(game == undefined) throw new Error("Game not found?");
 
@@ -104,7 +104,7 @@ export const DayCommand = {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
        
-        const ctx = await getRunningGame(interaction.instance);
+        const ctx = await getCommandGame(interaction);
         const { game, state: global } = ctx;
 
         const players = interaction.type == 'text' ? interaction.program.getOptionValue('players') === true : interaction.options.getBoolean('players') ?? false;

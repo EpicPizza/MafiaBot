@@ -16,7 +16,7 @@ import { Setup, getSetup } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
 import { Instance } from "../../utils/instance";
 import { stateRef } from "../../utils/mafia/state";
-import { getRunningGame, type GameContext } from "../../utils/mafia/context";
+import { getCommandGame, type GameContext } from "../../utils/mafia/context";
 
 export const RemoveCommand = {
     name: "remove",
@@ -57,7 +57,7 @@ export const RemoveCommand = {
         const player = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');
         if(player == null) throw new Error("Choose a player.");
 
-        await removePlayer(player, await getRunningGame(interaction.instance));
+        await removePlayer(player, await getCommandGame(interaction));
 
         if(interaction.type != 'text') {
             await interaction.editReply({ content: "Player removed."});

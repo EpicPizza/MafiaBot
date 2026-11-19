@@ -14,7 +14,7 @@ import { CustomLog, TransactionResult, Vote, flow, getVotes, handleHammer } from
 import { checkMod } from "../utils/mod";
 import { getSetup } from "../utils/setup";
 import { Instance } from "../utils/instance";
-import { getRunningGame, type GameContext, type RunningState } from "../utils/mafia/context";
+import { getCommandGame, type GameContext, type RunningState } from "../utils/mafia/context";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -91,7 +91,7 @@ module.exports = {
         command.inInstance();
 
         const setup = command.instance.setup;
-        const ctx = await getRunningGame(command.instance);
+        const ctx = await getCommandGame(command);
         const { game, state: global } = ctx;
 
         const member = await setup.primary.guild.members.fetch(command.user.id);

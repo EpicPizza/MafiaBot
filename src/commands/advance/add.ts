@@ -12,7 +12,7 @@ import { getUserByName } from "../../utils/mafia/user";
 import { getSetup } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
 import { stateRef } from "../../utils/mafia/state";
-import { getRunningGame } from "../../utils/mafia/context";
+import { getCommandGame } from "../../utils/mafia/context";
 
 export const AddCommand = {
     name: "add",
@@ -43,7 +43,7 @@ export const AddCommand = {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
        
-        const ctx = await getRunningGame(interaction.instance);
+        const ctx = await getCommandGame(interaction);
         const game = ctx.game;
 
         const player = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');

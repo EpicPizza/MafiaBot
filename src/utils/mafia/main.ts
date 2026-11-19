@@ -13,7 +13,7 @@ import { onjoin } from "./invite";
 import { User, getPlayerObjects, getUser, getUsersArray } from "./user";
 import { Instance } from "../instance";
 import { createGameState, isAliveAnywhere, isGameStarted, settingsRef, stateRef } from "./state";
-import { findRunningGame, getGameContext, getRunningGame, updateCachedContext, clearCachedContext, type GameContext } from "./context";
+import { channelOf, clearRunningCache, getGameContext, getRunningGame, getRunningGames, labelReplies, updateCachedContext, clearCachedContext, type GameContext } from "./context";
 import { pruneRoleQueue } from "./invite";
 
 const pings = true;
@@ -451,7 +451,8 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
         await interaction.message.react("<a:loading:1256150236112621578>");
     }
 
-    if(await findRunningGame(instance)) throw new Error("Game has already started.");
+    // Still one game at a time until stage 5.
+    if((await getRunningGames(instance)).length > 0) throw new Error("A game is already running.");
 
     const game = await getGameByName(name, instance);
     const setup = instance.setup;
@@ -469,7 +470,11 @@ export async function startGame(interaction: ChatInputCommandInteraction | TextC
 
     await prepareGame(game, instance);
 
+    clearRunningCache(instance);
+
     const ctx = await getGameContext(instance, game.id);
+
+    labelReplies(interaction, game.name);
 
     //at this point, things have been checked and accounted for and we can do multiple things at once now!
 
@@ -776,15 +781,17 @@ export async function endExtensions(ctx: GameContext) {
     }
 }
 
-export async function endGame(interaction: ChatInputCommandInteraction | TextCommand, instance: Instance) {
+export async function endGame(interaction: ChatInputCommandInteraction | TextCommand, instance: Instance, gameName: string | null = null) {
     if(interaction.type != 'text') {
         await interaction.deferReply({ ephemeral: true });
     } else {
         await interaction.message.react("<a:loading:1256150236112621578>");
     }
 
-    const ctx = await getRunningGame(instance);
+    const ctx = await getRunningGame(instance, channelOf(interaction), false, gameName);
     const { game } = ctx;
+
+    labelReplies(interaction, game.name);
     const setup = instance.setup;
     
     if(setup == undefined) throw new Error("Setup not complete.");

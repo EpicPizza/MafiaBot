@@ -8,7 +8,7 @@ import { simpleJoin } from '../utils/text';
 import { fromZod } from '../utils/text';
 import { getUserByName, getUsersArray, User } from "../utils/mafia/user";
 import { Instance } from "../utils/instance";
-import { getRunningGame } from "../utils/mafia/context";
+import { getCommandGame } from "../utils/mafia/context";
 
 module.exports = {
     data: [
@@ -97,7 +97,7 @@ module.exports = {
                         return user.nickname + " - " + getRandom(min, max)
                     }).reduce((prev, curr) => prev + "\n" + curr, ""));
                 } else {
-                    const global = (await getRunningGame(interaction.instance)).state;
+                    const global = (await getCommandGame(interaction)).state;
 
                     const users = await getUsersArray(global.players.map(player => player.id), interaction.instance);
 
@@ -119,7 +119,7 @@ module.exports = {
 
                     embed.setDescription(selected.map(user => user.nickname).join('\n'));
                 } else if(list == undefined) {
-                    const global = (await getRunningGame(interaction.instance)).state;
+                    const global = (await getCommandGame(interaction)).state;
 
                     const users = await getUsersArray(global.players.map(player => player.id), interaction.instance);
 

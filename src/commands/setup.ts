@@ -7,7 +7,7 @@ import { refreshSignup } from "../utils/mafia/games";
 import { onjoin } from "../utils/mafia/invite";
 import { checkSetup, getSetup } from "../utils/setup";
 import { getInstance } from "../utils/instance";
-import { findRunningGame } from "../utils/mafia/context";
+import { findCommandGame } from "../utils/mafia/context";
 
 module.exports = {
     data: [
@@ -331,7 +331,7 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
             await interaction.deferReply({ ephemeral: true });
 
             const setup = interaction.instance.setup;
-            const running = await findRunningGame(interaction.instance);
+            const running = await findCommandGame(interaction);
 
             if(typeof setup == 'string' || setup == undefined) return await interaction.editReply({ content: setup ? setup : "Something went wrong." });
 

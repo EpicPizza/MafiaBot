@@ -9,7 +9,7 @@ import { getGameByID, getGameSetup } from "../utils/mafia/games";
 import { StatsAction, TrackedMessage } from "../utils/mafia/tracking";
 import { EmbedBuilder } from "@discordjs/builders";
 import { Colors } from "discord.js";
-import { findRunningGame } from "../utils/mafia/context";
+import { channelOf, findRunningGame } from "../utils/mafia/context";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -79,7 +79,7 @@ module.exports = {
         command.inInstance();
 
         if(command.name != "stats" || command.message.guildId != command.instance.setup.tertiary.guild.id) return;
-        const ctx = await findRunningGame(command.instance);
+        const ctx = await findRunningGame(command.instance, channelOf(command));
         if(ctx == undefined) return;
 
         const instance = command.instance;

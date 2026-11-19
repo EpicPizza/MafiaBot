@@ -607,12 +607,19 @@ export async function getGameByID(id: string, instance: Instance, allowCompleted
     return { ...doc.data(), id: doc.id } as Signups;
 }
 
-// The game a mod command acts on: the named game, else the running game.
-export async function resolveGame(name: string | null | undefined, instance: Instance) {
-    if (name) return await getGameByName(name, instance);
-    if (instance.global.game) return await getGameByID(instance.global.game, instance);
+// The game a config command (extensions, hammer) acts on: the named game, else the running game that owns the channel
+// (or the only running game). With an event, its replies are labelled with the game.
+export async function resolveGame(name: string | null | undefined, instance: Instance, event?: any) {
+    // Imported lazily: context imports this module.
+    const { channelOf, findRunningGame, labelReplies } = await import("./context");
 
-    throw new Error("No game is running. Specify a game.");
+    const game = name ? await getGameByName(name, instance) : (await findRunningGame(instance, channelOf(event)))?.game;
+
+    if (game == undefined) throw new Error("No game picked. Specify a game, or run this in a running game's channels.");
+
+    if (event) labelReplies(event, game.name);
+
+    return game;
 }
 
 export function gameRef(instance: Instance, id: string) {

@@ -14,7 +14,7 @@ import { Subcommand } from "../../utils/subcommands";
 import { Instance } from "../../utils/instance";
 import { revokeMafiaAccess } from "../../utils/mafia/main";
 import { stateRef } from "../../utils/mafia/state";
-import { getRunningGame, type GameContext } from "../../utils/mafia/context";
+import { getCommandGame, type GameContext } from "../../utils/mafia/context";
 
 export const KillCommand = {
     name: "kill",
@@ -48,7 +48,7 @@ export const KillCommand = {
         const playerInput = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');
         if(playerInput == null) throw new Error("Choose a player.");
 
-        await killPlayer(playerInput, await getRunningGame(interaction.instance));
+        await killPlayer(playerInput, await getCommandGame(interaction));
         
         if(interaction.type != 'text') {
             await interaction.editReply({ content: "Player killed."});

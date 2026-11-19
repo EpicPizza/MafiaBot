@@ -11,7 +11,7 @@ import { getGameByID } from "../utils/mafia/games";
 import { deleteCollection } from "../utils/mafia/main";
 import { getUserByName, User } from "../utils/mafia/user";
 import { checkMod } from "../utils/mod";
-import { getRunningGame } from "../utils/mafia/context";
+import { getCommandGame } from "../utils/mafia/context";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -139,7 +139,7 @@ module.exports = {
         command.inInstance();
 
         const setup = command.instance.setup;
-        const ctx = await getRunningGame(command.instance);
+        const ctx = await getCommandGame(command);
         const global = ctx.state;
 
         const member = await setup.primary.guild.members.fetch(command.user.id);

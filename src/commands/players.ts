@@ -10,7 +10,7 @@ import { getStats } from "../utils/mafia/stats";
 import { getUsersArray, User } from "../utils/mafia/user";
 import { Setup } from "../utils/setup";
 import { Instance } from "../utils/instance";
-import { findRunningGame } from "../utils/mafia/context";
+import { channelOf, findRunningGame } from "../utils/mafia/context";
 
 const Format = z.union([ z.literal('complete'), z.literal('gxe'), z.literal('wr'), z.literal('alphabetical'), z.literal('pronouns') ]);
 
@@ -110,7 +110,7 @@ module.exports = {
 async function handlePlayerList(interaction: Event<ChatInputCommandInteraction | TextCommand | ButtonInteraction>) {
     interaction.inInstance();
 
-    const running = await findRunningGame(interaction.instance);
+    const running = await findRunningGame(interaction.instance, channelOf(interaction));
 
     const format = 'customId' in interaction ? JSON.parse(interaction.customId).format as ReturnType<typeof checkType> 
         : interaction.type == 'text' ? checkType(interaction.program.getOptionValue('format'))

@@ -86,9 +86,10 @@ export function getEnabledExtensions(ctx: GameContext) {
     return getExtensions(ctx.state.extensions);
 }
 
-// Enabled in the running game, or, with no game running, in any active game (for pregame commands like upick).
-async function isExtensionInUse(name: string, instance: Instance) {
-    const running = await findRunningGame(instance, true);
+// Enabled in the game this channel belongs to (or the only running game), otherwise in any active game (pregame
+// commands like upick, or several games running and the channel picks none).
+async function isExtensionInUse(name: string, instance: Instance, channelId: string | null) {
+    const running = await findRunningGame(instance, channelId, true);
 
     if(running) return running.state.extensions.includes(name);
 
@@ -130,7 +131,7 @@ export function getExtensionTextCommands() {
 
                 const global = interaction.inInstance();
 
-                if(!(await isExtensionInUse(extension.name, interaction.instance))) throw new Error("Extension not enabled!");
+                if(!(await isExtensionInUse(extension.name, interaction.instance, interaction.message.channelId))) throw new Error("Extension not enabled!");
 
                 const name = interaction.program.args[0] as string;
 

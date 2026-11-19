@@ -4,7 +4,7 @@ import { firebaseAdmin } from '../utils/firebase';
 import { editOverwrites } from "../utils/mafia/main";
 import { RoleQueue } from '../utils/mafia/invite';
 import { getAuthority } from '../utils/instance';
-import { findRunningGame } from '../utils/mafia/context';
+import { getRunningGames } from '../utils/mafia/context';
 import { isAliveAnywhere } from "../utils/mafia/state";
 import { getGameByID } from "../utils/mafia/games";
 
@@ -75,8 +75,8 @@ export async function guildMemberAddHanlder(...[member]: ClientEvents[Events.Gui
         const instance = await getAuthority(member.guild.id, false);
         if(instance == undefined) return;
 
-        const runningGame = await findRunningGame(instance);
-        const started = runningGame != undefined;
+        const runningGames = await getRunningGames(instance);
+        const started = runningGames.length > 0;
         const setup = instance.setup;
 
         const db = firebaseAdmin.getFirestore();
@@ -97,11 +97,11 @@ export async function guildMemberAddHanlder(...[member]: ClientEvents[Events.Gui
         const docs = (await ref.get()).docs
         const queued = docs.map(doc => doc.data()) as RoleQueue[];
 
-        // Only apply entries queued for the game that's running (or, between games, for the last game/pregame).
-        // Untagged entries predate game tagging and entries for another game are stale, e.g. a spectator invite from a
-        // game the player died in long ago, which would otherwise make them a spectator in the game they're playing now.
-        const running = runningGame?.game.id ?? null;
-        const isCurrent = (queue: RoleQueue) => queue.game !== undefined && (running == null || queue.game == running);
+        // Only apply entries queued for a running game (or, between games, for the last game/pregame). Untagged entries
+        // predate game tagging and entries for other games are stale, e.g. a spectator invite from a game the player died
+        // in long ago, which would otherwise make them a spectator in the game they're playing now.
+        const running = runningGames.map(game => game.game.id);
+        const isCurrent = (queue: RoleQueue) => queue.game !== undefined && (running.length == 0 || (queue.game != null && running.includes(queue.game)));
         const roles = queued.filter(isCurrent);
         const stale = queued.length - roles.length;
 

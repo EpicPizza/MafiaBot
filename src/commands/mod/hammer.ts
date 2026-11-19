@@ -44,7 +44,7 @@ export const HammerCommand = {
 
         const db = firebaseAdmin.getFirestore();
 
-        const game = await resolveGame(interaction.type == 'text' ? interaction.program.getOptionValue('game') as string | undefined : interaction.options.getString('game'), interaction.instance);
+        const game = await resolveGame(interaction.type == 'text' ? interaction.program.getOptionValue('game') as string | undefined : interaction.options.getString('game'), interaction.instance, interaction);
 
         const ref = gameRef(interaction.instance, game.id);
 

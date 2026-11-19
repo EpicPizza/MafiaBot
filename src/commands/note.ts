@@ -10,7 +10,7 @@ import { getUser } from "../utils/mafia/user";
 import { getSetup } from "../utils/setup";
 import { purgeMessage } from "../utils/mafia/tracking";
 import { getWebhook } from "../utils/webhook";
-import { findRunningGame } from "../utils/mafia/context";
+import { findCommandGame } from "../utils/mafia/context";
 
 module.exports = {
     data: [
@@ -62,7 +62,7 @@ module.exports = {
         if(interaction.type == 'reaction' && interaction.message.guild?.id != setup.primary.guild.id) return;
         if(interaction.type != "text" && interaction.type != 'reaction') await interaction.deferReply({ ephemeral: true });
 
-        const ctx = await findRunningGame(interaction.instance);
+        const ctx = await findCommandGame(interaction);
         const global = ctx?.state;
 
         const user = await getUser(interaction.user.id, interaction.instance);

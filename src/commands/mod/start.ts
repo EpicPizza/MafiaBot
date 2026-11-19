@@ -12,7 +12,7 @@ import { Subinteraction } from "../../utils/subcommands";
 import { Global } from "../../utils/global";
 import { Instance } from "../../utils/instance";
 import { stateRef } from "../../utils/mafia/state";
-import { findRunningGame, getRunningGame } from "../../utils/mafia/context";
+import { getCommandGame, getRunningGame, getRunningGames } from "../../utils/mafia/context";
 
 export const StartCommand = {
     name: "start",
@@ -46,7 +46,7 @@ export const StartCommand = {
         
         if(game == null) throw new Error("")
 
-        if(await findRunningGame(interaction.instance)) throw new Error("Game has already started.");
+        if((await getRunningGames(interaction.instance)).length > 0) throw new Error("A game is already running.");
 
         const db = firebaseAdmin.getFirestore();
 
@@ -119,11 +119,11 @@ export const WebsiteStartCommand = {
         
         if(game == null) throw new Error("")
 
-        if(await findRunningGame(interaction.instance)) throw new Error("Game has already started.");
+        if((await getRunningGames(interaction.instance)).length > 0) throw new Error("A game is already running.");
 
         await startGame(interaction, game.name as string, interaction.instance);
 
-        await setAlignments(interaction.instance);
+        await setAlignments(interaction.instance, game.name);
     }
 }
 
@@ -147,7 +147,7 @@ export const StartButton = {
 
         await startGame(interaction, id.game as string, interaction.instance);
 
-        await setAlignments(interaction.instance);
+        await setAlignments(interaction.instance, id.game);
     }
 } satisfies Subinteraction;
 
@@ -190,7 +190,7 @@ export const DefaultAlignment = {
 
         await getUsers(selected, interaction.instance);
 
-        const ctx = await getRunningGame(interaction.instance);
+        const ctx = await getCommandGame(interaction);
         const ref = stateRef(interaction.instance, ctx.game.id);
 
         await db.runTransaction(async t => {
@@ -233,7 +233,7 @@ export const MafiaAlignment = {
 
         await getUsers(selected, interaction.instance);
 
-        const ctx = await getRunningGame(interaction.instance);
+        const ctx = await getCommandGame(interaction);
         const ref = stateRef(interaction.instance, ctx.game.id);
 
         await db.runTransaction(async t => {
@@ -276,7 +276,7 @@ export const NeutralAlignment = {
 
         await getUsers(selected, interaction.instance);
 
-        const ctx = await getRunningGame(interaction.instance);
+        const ctx = await getCommandGame(interaction);
         const ref = stateRef(interaction.instance, ctx.game.id);
 
         await db.runTransaction(async t => {
@@ -349,7 +349,7 @@ export const CustomModal = {
 
         const id = JSON.parse(interaction.customId);
 
-        const runningGame = await getRunningGame(interaction.instance);
+        const runningGame = await getCommandGame(interaction);
         const { game, gameSetup } = runningGame;
         if(game.signups.length == 0) throw new Error("Game must have more than one player.");
 
@@ -363,7 +363,7 @@ export const CustomModal = {
 
         await getUsers(selected, interaction.instance);
 
-        const ctx = await getRunningGame(interaction.instance);
+        const ctx = await getCommandGame(interaction);
         const ref = stateRef(interaction.instance, ctx.game.id);
 
         await db.runTransaction(async t => {
@@ -484,13 +484,13 @@ function getSelected(interaction: Event<ButtonInteraction> | Message) {
     return selected;
 }
 
-export async function setAlignments(instance: Instance) {
+export async function setAlignments(instance: Instance, gameName: string) {
     const embed = new EmbedBuilder()
         .setTitle("Set Alignments")
         .setColor(Colors.Orange)
         .setDescription('Everyone starts at default alignment. Select players to change their alignment. Mafia alignment adds them to mafia server. Custom alignment behave the same default alignment, some extensions may treat this alignment differently.\n\nOnce done setting alignments, click the finish button.')
 
-    const { game, gameSetup } = await getRunningGame(instance);
+    const { game, gameSetup } = await getRunningGame(instance, null, false, gameName);
 
     if(game.signups.length == 0) throw new Error("Game must have more than one player.");
 

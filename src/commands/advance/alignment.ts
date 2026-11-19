@@ -14,7 +14,7 @@ import { Subcommand } from "../../utils/subcommands";
 import { setAlignments } from "../mod/start";
 import { Instance } from "../../utils/instance";
 import { stateRef } from "../../utils/mafia/state";
-import { getRunningGame, type GameContext } from "../../utils/mafia/context";
+import { getCommandGame, type GameContext } from "../../utils/mafia/context";
 
 export const AlignmentCommand = {
     name: "alignment",
@@ -51,7 +51,7 @@ export const AlignmentCommand = {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
        
-        const ctx = await getRunningGame(interaction.instance);
+        const ctx = await getCommandGame(interaction);
        
         const global = ctx.state;
         const setup  = interaction.instance.setup;
@@ -127,7 +127,7 @@ export const InitialCommand = {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
        
-        await setAlignments(interaction.instance);
+        await setAlignments(interaction.instance, (await getCommandGame(interaction)).game.name);
 
         if(interaction.type != 'text') {
             await interaction.editReply({ content: "Message sent."});

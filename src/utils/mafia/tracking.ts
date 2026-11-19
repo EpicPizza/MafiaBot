@@ -4,8 +4,8 @@ import { firebaseAdmin } from "../firebase";
 import { getAuthority, getCachedInstances, Instance } from "../instance";
 import { getReactions, handleMentions, Reaction } from "../archive";
 import { getSetup } from "../setup";
-import { getEnabledExtensions } from "../extensions";
-import { findRunningGame, getMainChats, isMainChat } from "./context";
+import { getExtensions } from "../extensions";
+import { findGameForChannel, getMainChats, getRunningGames, isMainChat } from "./context";
 
 export type MessageAction = {
     type: 'delete',
@@ -193,10 +193,11 @@ export async function dumpTracking() {
     const instances = await getCachedInstances();
     
     await Promise.all(instances.map(async instance => {
-        const ctx = await findRunningGame(instance, true);
-        if(ctx == undefined) return;
+        // Extensions enabled in any running game, each once.
+        const games = await getRunningGames(instance, true);
+        if(games.length == 0) return;
 
-        const extensions = getEnabledExtensions(ctx);
+        const extensions = getExtensions([...new Set(games.flatMap(game => game.state.extensions))]);
         
         await Promise.all(extensions.map(extension => extension.onDump(compressedStats, messageBatch, reactionBatch)));
     }));
@@ -316,8 +317,9 @@ export async function createMessage(message: Message, checks: boolean = true) {
         const instance = await getAuthority(message.guildId);
         if(!instance || (instance.setup.primary.guild.id == message.guildId && !(await isMainChat(instance, message.channelId)))) return; //don't need to track every message in the main server
         
-        const running = await findRunningGame(instance, true);
-        const ctx = running?.gameSetup.main.id == message.channelId ? running : undefined;
+        // Stats only count in a running game's own main chat.
+        const owner = await findGameForChannel(instance, message.channelId, true);
+        const ctx = owner?.gameSetup.main.id == message.channelId ? owner : undefined;
 
         if(ctx) {
             statsBuffer.push({
@@ -449,7 +451,7 @@ export async function catchupChannel(channel: TextChannel, callback: Function, s
     const instance = await getAuthority(channel.guildId);
     if(!instance || (instance.setup.primary.guild.id == channel.guildId && !(await isMainChat(instance, channel.id)))) return; //don't need to track every message in the main server
 
-    const ctx = statsTracking ? await findRunningGame(instance, true) : undefined;
+    const ctx = statsTracking ? await findGameForChannel(instance, channel.id, true) : undefined;
 
     const db = firebaseAdmin.getFirestore();
     const ref = db.collection('channels').doc(channel.id).collection('messages');

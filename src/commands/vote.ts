@@ -11,7 +11,7 @@ import { getGameByID } from "../utils/mafia/games";
 import { getAllNicknames, getUserByName, getUsersArray } from "../utils/mafia/user";
 import { TransactionResult, defaultVote, handleHammer } from "../utils/mafia/vote";
 import { getSetup } from "../utils/setup";
-import { getRunningGame, type GameContext } from "../utils/mafia/context";
+import { getCommandGame, type GameContext } from "../utils/mafia/context";
 
 module.exports = {
     data: [
@@ -67,7 +67,7 @@ module.exports = {
     execute: async (interaction: Event<ChatInputCommandInteraction | ContextMenuCommandInteraction | TextCommand | AutocompleteInteraction>) => {
         interaction.inInstance();
 
-        const ctx = await getRunningGame(interaction.instance);
+        const ctx = await getCommandGame(interaction);
 
         const global = ctx.state;
         

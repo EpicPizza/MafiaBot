@@ -12,7 +12,7 @@ import { firebaseAdmin } from "../utils/firebase";
 import { getUser } from "../utils/mafia/user";
 import { FieldValue } from "firebase-admin/firestore";
 import { stateRef } from "../utils/mafia/state";
-import { getRunningGame, type GameContext } from "../utils/mafia/context";
+import { getCommandGame, type GameContext } from "../utils/mafia/context";
 
 module.exports = {
     data: [
@@ -51,7 +51,7 @@ module.exports = {
     execute: async (interaction: Event<ChatInputCommandInteraction | TextCommand | ButtonInteraction>) => {
         interaction.inInstance();
 
-        const ctx = await getRunningGame(interaction.instance);
+        const ctx = await getCommandGame(interaction);
 
         const global = ctx.state;
         

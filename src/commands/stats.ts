@@ -8,7 +8,7 @@ import { firebaseAdmin } from "../utils/firebase";
 import { getGameByID, getGameByName } from "../utils/mafia/games";
 import { getAllUsers, getUsers, getUsersArray } from "../utils/mafia/user";
 import { fetchStats } from "../utils/mafia/tracking";
-import { findRunningGame } from "../utils/mafia/context";
+import { channelOf, findRunningGame } from "../utils/mafia/context";
 
 module.exports = {
     data: [
@@ -63,7 +63,7 @@ async function handleStatsList(interaction: Event<ChatInputCommandInteraction | 
 
     console.log(gameName);
 
-    const running = await findRunningGame(interaction.instance);
+    const running = await findRunningGame(interaction.instance, channelOf(interaction));
 
     if(running == undefined && gameName == null) throw new Error("Game has not started, specify a game (and day) to view stats from that game!");
 
