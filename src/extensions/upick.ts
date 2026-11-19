@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { ChannelType, Role } from "discord.js";
+import { CategoryChannel, ChannelType, Role } from "discord.js";
 import { FieldValue } from "firebase-admin/firestore";
 import { Event, type TextCommand } from '../discord';
 import client from "../discord/client";
@@ -8,10 +8,11 @@ import { Extension, ExtensionInteraction } from "../utils/extensions";
 import { firebaseAdmin } from "../utils/firebase";
 import { GameSetup, getGameByID, Signups, getGameByName, getGameSetup } from "../utils/mafia/games";
 import { onjoin } from "../utils/mafia/invite";
-import { archiveChannels, deleteInvites, setupDeadPlayer, viewOverwrites } from "../utils/mafia/main";
+import { archiveChannels, deleteInvites, getStartedSignups, setupDeadPlayer, viewOverwrites } from "../utils/mafia/main";
 import { getPlayerObjects, getUserByName } from "../utils/mafia/user";
 import { checkMod } from "../utils/mod";
 import { Instance } from "../utils/instance";
+import { isAliveAnywhere, isGameStarted } from "../utils/mafia/state";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -67,7 +68,9 @@ module.exports = {
         },
     ],
     interactions: [],
-    onStart: async (instance, game) => {
+    onStart: async (ctx) => {
+        const { instance, game } = ctx;
+
         /**
          * Runs during game start processes.
          */
@@ -77,13 +80,16 @@ module.exports = {
         const ref = settingsRef(instance);
         const settings = (await ref.get()).data();
         const gameId = settings?.game as undefined | string;
-        if(gameId == undefined) return;
+        // Pregame is for one game; only that game's start ends it.
+        if(gameId == undefined || gameId != game.id) return;
         const check = await getGameByID(gameId, instance);
         if(check == undefined) throw new Error("Game not found.");
 
         await ref.delete();
 
-        const { playersRole } = await clearPregamePermissions(instance);
+        const checkSetup = await getGameSetup(check, instance.setup);
+
+        const { playersRole } = await clearPregamePermissions(instance, checkSetup.dms);
 
         const players = await Promise.all(check.signups.map(signup => getPlayerObjects(signup, instance)));
 
@@ -92,7 +98,7 @@ module.exports = {
         // Players who left during pregame: archive their dm channel and turn them back into spectators.
         const left = ((settings?.left ?? []) as string[]).filter(id => !check.signups.includes(id));
 
-        await Promise.all(left.map(id => cleanupLeftPlayer(id, instance, playersRole)));
+        await Promise.all(left.map(id => cleanupLeftPlayer(id, instance, playersRole, checkSetup.dms)));
 
         // Each pregame dm has its own spectator overwrite hiding it, so give spectators view access channel by channel.
         await Promise.all(players.map(async player => {
@@ -117,7 +123,7 @@ module.exports = {
          * If pregame is running for this game, set up their dm channel right away.
          */
 
-        if(instance.global.started) return;
+        if(await isGameStarted(instance, game.id)) return;
 
         const gameId = (await settingsRef(instance).get()).data()?.game as undefined | string;
         if(gameId == undefined || gameId != game.id) return;
@@ -138,7 +144,7 @@ module.exports = {
          * If pregame is running for this game, let them know their dm channel stays open.
          */
 
-        if(instance.global.started) return;
+        if(await isGameStarted(instance, game.id)) return;
 
         const gameId = (await settingsRef(instance).get()).data()?.game as undefined | string;
         if(gameId == undefined || gameId != game.id) return;
@@ -152,8 +158,8 @@ module.exports = {
 
         await channel.send("<@" + id + "> You've left the game, but this channel will remain open in case you re-join the game.");
     },
-    onLock: async (instance, game) => {},
-    onUnlock: async (instance, game, incremented) => {},
+    onLock: async (ctx) => {},
+    onUnlock: async (ctx, incremented) => {},
     onCommand: async (command: Event<TextCommand>) => {
         /**
          * Text commands only for the forseeable future.
@@ -174,10 +180,14 @@ module.exports = {
         await checkMod(setup, global, command.user.id, command.message.guildId ?? "---");
         
         if(command.name == "respec") {
+            const gameId = (await settingsRef(instance).get()).data()?.game as undefined | string;
+            if(gameId == undefined) throw new Error("Pregame has not started!");
+            const pregameSetup = await getGameSetup(await getGameByID(gameId, instance), setup);
+
             await fetchCategories(instance);
             const playersRole = await fetchPlayersRole(instance);
 
-            await applyPregamePermissions(instance, playersRole);
+            await applyPregamePermissions(instance, playersRole, pregameSetup.dms);
         } else if(command.name == "setup") {
             await fetchCategories(instance);
             await fetchPlayersRole(instance);
@@ -186,16 +196,16 @@ module.exports = {
             if(game == undefined) throw new Error("Game not found.");
             const gameSetup = await getGameSetup(game, setup);
 
-            if(global.started) throw new Error("Game has already started.");
+            if(await isGameStarted(instance, game.id)) throw new Error("Game has already started.");
 
             const ref = settingsRef(instance);
             if(((await ref.get()).data()?.game) as undefined | string != undefined) throw new Error("Already started pregame!");
 
-            await deleteInvites(setup);
+            await deleteInvites(instance, game.id);
 
             const playersRole = await fetchPlayersRole(instance);
 
-            await applyPregamePermissions(instance, playersRole);
+            await applyPregamePermissions(instance, playersRole, gameSetup.dms);
 
             // Mark pregame as started before setting up current signups, so anyone signing up mid-setup is handled by onSignup.
             await ref.set({ game: game.id, left: [] });
@@ -214,17 +224,19 @@ module.exports = {
 
             await ref.delete();
 
-            const { playersRole } = await clearPregamePermissions(instance);
+            const revertSetup = await getGameSetup(check, setup);
+
+            const { playersRole } = await clearPregamePermissions(instance, revertSetup.dms);
 
             // Put spectator access back to how a game leaves it.
-            await setup.secondary.dms.permissionOverwrites.edit(setup.secondary.spec.id, viewOverwrites());
+            await revertSetup.dms.permissionOverwrites.edit(setup.secondary.spec.id, viewOverwrites());
 
             const players = await Promise.all(check.signups.map(signup => getPlayerObjects(signup, instance)));
 
             await Promise.all(players.map(player => player.deadPlayer?.roles.remove(playersRole)));
             await Promise.all(players.map(player => player.deadPlayer?.roles.add(setup.secondary.spec)));
 
-            await archiveChannels(setup);
+            await archiveChannels(instance, revertSetup.dms, check.id);
         } else if(command.name == "add") {
             const user = await getUserByName(command.program.processedArgs[0] as string, instance);
             if(user == undefined) throw new Error("Player not found!");
@@ -258,27 +270,31 @@ module.exports = {
     },
     onInteraction: async (extensionInteraction: ExtensionInteraction) => {},
     onMessage: async (message) => {},
-    onEnd: async (instance, game) => {},
-    onVote: async (instance, game, voter, voting, type, users, transaction) => {},
-    onVotes: async (instance, game, board ) => { return ""; },
-    onHammer: async (instance, game, hammered) => {},
-    onRemove: async (instance, game, removed) => {},
+    onEnd: async (ctx) => {},
+    onVote: async (ctx, voter, voting, type, users, transaction) => {},
+    onVotes: async (ctx, board ) => {
+        const { instance, game } = ctx;
+ return ""; },
+    onHammer: async (ctx, hammered) => {},
+    onRemove: async (ctx, removed) => {},
     onDump: async (statsBatch, messageBatch, reactionBatch) => {},
 } satisfies Extension;
 
-async function cleanupLeftPlayer(id: string, instance: Instance, playersRole: Role) {
+async function cleanupLeftPlayer(id: string, instance: Instance, playersRole: Role, dms: CategoryChannel) {
     const setup = instance.setup;
 
     const player = await getPlayerObjects(id, instance);
 
     if(player.deadPlayer) {
         await player.deadPlayer.roles.remove(playersRole);
-        await player.deadPlayer.roles.add(setup.secondary.spec);
+
+        // Someone who left this pregame for a game that's now running stays out of spectator.
+        if(!(await isAliveAnywhere(id, instance))) await player.deadPlayer.roles.add(setup.secondary.spec);
     }
 
     const channel = await setup.secondary.guild.channels.fetch(player.userProfile.channel ?? "").catch(() => null);
 
-    if(channel != null && channel.type == ChannelType.GuildText && channel.parentId == setup.secondary.dms.id) {
+    if(channel != null && channel.type == ChannelType.GuildText && channel.parentId == dms.id) {
         await channel.setParent(setup.secondary.archivedDms, { lockPermissions: true });
     }
 }
@@ -305,7 +321,7 @@ async function fetchPlayersRole(instance: Instance) {
     return playersRole;
 }
 
-async function applyPregamePermissions(instance: Instance, playersRole: Role) {
+async function applyPregamePermissions(instance: Instance, playersRole: Role, dms: CategoryChannel) {
     const categories = await fetchCategories(instance);
 
     await Promise.all(categories.map(category => {
@@ -316,7 +332,6 @@ async function applyPregamePermissions(instance: Instance, playersRole: Role) {
         }
     }));
 
-    const dms = instance.setup.secondary.dms;
 
     if(dms.permissionOverwrites.cache.get(playersRole.id)) {
         await dms.permissionOverwrites.edit(playersRole.id, blockOverwrites());
@@ -328,7 +343,7 @@ async function applyPregamePermissions(instance: Instance, playersRole: Role) {
     await dms.permissionOverwrites.edit(instance.setup.secondary.spec.id, { ViewChannel: false });
 }
 
-async function clearPregamePermissions(instance: Instance) {
+async function clearPregamePermissions(instance: Instance, dms: CategoryChannel) {
     const categories = await fetchCategories(instance);
     const playersRole = await fetchPlayersRole(instance);
 
@@ -338,7 +353,6 @@ async function clearPregamePermissions(instance: Instance) {
         }
     }));
 
-    const dms = instance.setup.secondary.dms;
 
     if(dms.permissionOverwrites.cache.get(playersRole.id)) {
         await dms.permissionOverwrites.delete(playersRole.id);
@@ -401,6 +415,10 @@ async function pregameSetupPlayer(player: Awaited<ReturnType<typeof getPlayerObj
 
     const signupMessage = "<@" + player.userProfile.id + "> You've signed up for " + game.name + ", please submit your role here!";
 
+    // Someone still in a started game keeps their dm channel in that game's category. They'll be set up at this game's
+    // start, which can't happen until they're out of the other game.
+    if((await getStartedSignups(instance, game.id)).has(player.userProfile.id)) return;
+
     await setupDeadPlayer(player.deadPlayer, setup);
 
     let channel = await setup.secondary.guild.channels.fetch(player.userProfile.channel ?? "").catch(() => null);
@@ -408,7 +426,7 @@ async function pregameSetupPlayer(player: Awaited<ReturnType<typeof getPlayerObj
 
     if(channel == null || channel.type != ChannelType.GuildText) {
         channel = await setup.secondary.guild.channels.create({ 
-            parent: setup.secondary.dms, 
+            parent: gameSetup.dms, 
             name: player.userProfile.nickname.toLowerCase()
         });
 
@@ -417,8 +435,8 @@ async function pregameSetupPlayer(player: Awaited<ReturnType<typeof getPlayerObj
         });
     }
 
-    if(channel.parentId != setup.secondary.dms.id) {
-        await channel.setParent(setup.secondary.dms.id);
+    if(channel.parentId != gameSetup.dms.id) {
+        await channel.setParent(gameSetup.dms.id);
     }
 
     // In case the channel has its own spectator overwrite from a previous game. Game start gives view back.
@@ -439,7 +457,8 @@ async function pregameSetupPlayer(player: Awaited<ReturnType<typeof getPlayerObj
             message: {
                 channel: channel.id,
                 content: signupMessage
-            }
+            },
+            game: game.id,
         }, instance);
 
         const dm = await client.users.cache.get(player.userProfile.id)?.createDM();

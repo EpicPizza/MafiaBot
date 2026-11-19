@@ -2,7 +2,7 @@ import { ApplicationEmoji } from 'discord.js';
 import { Transaction } from "firebase-admin/firestore";
 import { getEnabledExtensions } from "../extensions";
 import { firebaseAdmin } from "../firebase";
-import { type Global } from '../global';
+import type { GameContext, RunningState } from './context';
 import { Setup } from "../setup";
 import { Signups } from "./games";
 import { lockGame } from "./main";
@@ -191,7 +191,7 @@ export const flow = {
             });
         }
     },
-    determineHammer: (vote: Vote, votes: Vote[], users: User[], global: Global) => {
+    determineHammer: (vote: Vote, votes: Vote[], users: User[], global: RunningState) => {
         let votesForHammer = votes.filter(v => v.for == vote.for);
         const hammerThreshold = parseInt(process.env.HAMMER_THRESHOLD_PLAYERS ?? '-1');
         let half = hammerThreshold === -1 ? Math.floor(global.players.length / 2) : Math.floor(hammerThreshold / 2);
@@ -212,26 +212,29 @@ export const flow = {
     }
 }
 
-export async function defaultVote(instance: Instance, game: Signups, voter: User, voting: User | undefined, type: 'vote' | 'unvote', users: User[], transaction: Transaction): Promise<TransactionResult> {
-    const { reply, vote, votes } = await flow.placeVote(transaction, voter, voting, type, users, instance.global.day, game, instance); // doesn't save vote yet since board needs to be created
+export async function defaultVote(ctx: GameContext, voter: User, voting: User | undefined, type: 'vote' | 'unvote', users: User[], transaction: Transaction): Promise<TransactionResult> {
+    const { instance, game } = ctx;
+    const { reply, vote, votes } = await flow.placeVote(transaction, voter, voting, type, users, ctx.state.day, game, instance); // doesn't save vote yet since board needs to be created
     
     if(vote == undefined) return { reply };
 
     const board = flow.board(votes, users);
 
-    const setMessage = flow.finish(transaction, vote, board, instance.global.day, game, instance); // locks in vote
+    const setMessage = flow.finish(transaction, vote, board, ctx.state.day, game, instance); // locks in vote
 
     return {
         reply,
-        hammer: flow.determineHammer(vote, votes, users, instance.global),
+        hammer: flow.determineHammer(vote, votes, users, ctx.state),
         setMessage,
     }
 }
 
-export async function handleHammer(hammer: TransactionResult["hammer"], game: Signups, instance: Instance) {
+export async function handleHammer(hammer: TransactionResult["hammer"], ctx: GameContext) {
+    const instance = ctx.instance;
+
     if(hammer?.hammered) {
-        await lockGame(instance);
-        await hammerExtensions(instance, game, hammer.id);
+        await lockGame(ctx);
+        await hammerExtensions(ctx, hammer.id);
 
         await new Promise(resolve => {
             setTimeout(() => {
@@ -239,16 +242,16 @@ export async function handleHammer(hammer: TransactionResult["hammer"], game: Si
             }, 2000);
         });
 
-        await instance.setup.primary.chat.send(hammer.message);
+        await ctx.gameSetup.main.send(hammer.message);
     }
 }
 
-async function hammerExtensions(instance: Instance, game: Signups, hammered: string) {
-    const extensions = await getEnabledExtensions(instance.global);
+async function hammerExtensions(ctx: GameContext, hammered: string) {
+    const extensions = getEnabledExtensions(ctx);
 
     const promises = [] as Promise<any>[];
 
-    extensions.forEach(extension => { promises.push(extension.onHammer(instance, game, hammered)) });
+    extensions.forEach(extension => { promises.push(extension.onHammer(ctx, hammered)) });
 
     const results = await Promise.allSettled(promises);
 
@@ -266,7 +269,8 @@ function getNickname(id: string, users: User[]) {
     return users.find(user => user.id == id)?.nickname ?? "<@" + id + ">";
 }
 
-export async function wipe(global: Global, message: string, game: Signups, instance: Instance) {
+export async function wipe(ctx: GameContext, message: string) {
+    const { instance, game, state: global } = ctx;
     const db = firebaseAdmin.getFirestore();
 
     return await db.runTransaction(async (t) => {

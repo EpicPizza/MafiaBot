@@ -5,12 +5,14 @@ import { getFuture, getGrace, setFuture, setGrace } from "../utils/mafia/timing"
 import { removeReactions } from "../discord/helpers";
 import { killPlayer } from "./advance/kill";
 import { z } from "zod";
-import { setupPlayer } from "../utils/mafia/main";
+import { grantMafiaAccess, revokeMafiaAccess, setupPlayer } from "../utils/mafia/main";
 import { getGameByID, getGameSetup } from "../utils/mafia/games";
 import { firebase } from "googleapis/build/src/apis/firebase";
 import { firebaseAdmin } from "../utils/firebase";
 import { getUser } from "../utils/mafia/user";
 import { FieldValue } from "firebase-admin/firestore";
+import { stateRef } from "../utils/mafia/state";
+import { getCommandGame, type GameContext } from "../utils/mafia/context";
 
 module.exports = {
     data: [
@@ -49,8 +51,9 @@ module.exports = {
     execute: async (interaction: Event<ChatInputCommandInteraction | TextCommand | ButtonInteraction>) => {
         interaction.inInstance();
 
-        const global = interaction.instance.global;
-        if(!global.started) throw new Error("Game not started.");
+        const ctx = await getCommandGame(interaction);
+
+        const global = ctx.state;
         
         if (!("customId" in interaction)) {
             
@@ -121,10 +124,10 @@ module.exports = {
             }
 
             const db = firebaseAdmin.getFirestore();
-            const ref = db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game');
+            const ref = stateRef(interaction.instance, ctx.game.id);
 
-            const game = await getGameByID(global.game ?? "", interaction.instance);
-            const gameSetup = await getGameSetup(game, interaction.instance.setup);
+            const game = ctx.game;
+            const gameSetup = ctx.gameSetup;
             
             const user = await getUser(interaction.user.id, interaction.instance);
             if(!user) throw new Error("Player not found.");
@@ -139,27 +142,28 @@ module.exports = {
             });
 
             let main = await interaction.instance.setup.primary.guild.members.fetch(user.id).catch(() => undefined);
-            if(main != null) await main.roles.remove(interaction.instance.setup.primary.alive);
+            if(main != null) await main.roles.remove(ctx.gameSetup.alive);
 
             let mafia = await interaction.instance.setup.tertiary.guild.members.fetch(user.id).catch(() => undefined);
-            if(mafia != null) await mafia.roles.remove(interaction.instance.setup.tertiary.access);
+            const hadMafiaAccess = gameSetup.mafia.permissionOverwrites.cache.has(user.id);
+            if(mafia != null && hadMafiaAccess) await revokeMafiaAccess(mafia.id, interaction.instance.setup, gameSetup.mafia);
 
             // set grace to 15 mins
             let newGraceTime = new Date().valueOf() + 15 /* mins */ * 1000 /* ms per sec */ * 60 /* sec per min */;
-            let oldGrace = await getGrace(interaction.instance);
+            let oldGrace = await getGrace(ctx);
             if (oldGrace && oldGrace.when.valueOf() > newGraceTime) {
             } else {
-                await setGrace(true, new Date(newGraceTime), interaction.instance);
+                await setGrace(true, new Date(newGraceTime), ctx);
             }
             
             // extend future
             let newFutureTime = new Date().valueOf() + 30 /* mins */ * 1000 /* ms per sec */ * 60 /* sec per min */;
-            let oldFuture = await getFuture(interaction.instance);
+            let oldFuture = await getFuture(ctx);
             console.log("Old Future", oldFuture?.when.toLocaleTimeString());
             console.log("New Future", new Date(newFutureTime).toLocaleTimeString());
             let doSetFuture = oldFuture != undefined && newFutureTime > oldFuture.when.valueOf();
             if (doSetFuture) {
-                await setFuture(new Date(newFutureTime), false, true, false, interaction.instance);
+                await setFuture(new Date(newFutureTime), false, true, false, ctx);
             }
 
             const embed = new EmbedBuilder()
@@ -167,17 +171,17 @@ module.exports = {
                 .setDescription(`They have taken themselves out of the chat for the next 15 minutes, voting will be disabled for this duration. Please respect this time and give ${interaction.name} space. Please play with good sportmanship and be kind to you fellow players!\n${doSetFuture ? `\n-# Day will end at <t:${Math.round(newFutureTime / 1000)}:T> instead.` : ""}`)
                 .setColor(Colors.Red);
 
-            await interaction.instance.setup.primary.chat.send({ content: `<@&${interaction.instance.setup.primary.alive.id}>`, embeds: [embed] });
+            await ctx.gameSetup.main.send({ content: `<@&${ctx.gameSetup.alive.id}>`, embeds: [embed] });
             await interaction.instance.setup.secondary.logs.send(`<@&${interaction.instance.setup.secondary.mod.id}>, ${user.nickname} has triggered a 15 minute timeout.`);
             
             await new Promise(resolve => setTimeout(resolve, 15 /* mins */ * 60 /* secs per min */ * 1000 /* millseconds per second */));
             // IMPORTANT! DO NOT RESTART MAFIABOT WHILE SOMEONE IS IN TIMEOUT
 
             main = await interaction.instance.setup.primary.guild.members.fetch(user.id).catch(() => undefined);
-            if(main != null) await main.roles.add(interaction.instance.setup.primary.alive);
+            if(main != null) await main.roles.add(ctx.gameSetup.alive);
 
             mafia = await interaction.instance.setup.tertiary.guild.members.fetch(user.id).catch(() => undefined);
-            if(mafia != null) await mafia.roles.add(interaction.instance.setup.tertiary.access);
+            if(mafia != null && hadMafiaAccess) await grantMafiaAccess(mafia.id, interaction.instance.setup, gameSetup.mafia);
 
             await ref.update({
                 players: FieldValue.arrayUnion({

@@ -2,6 +2,7 @@ import { Transaction } from "firebase-admin/firestore";
 import { firebaseAdmin, phoneAdmin } from "./firebase";
 import { Global } from "./global";
 import { getSetup, Setup } from "./setup";
+import { loadGlobal } from "./mafia/state";
 
 export interface Instance {
     setup: Setup,
@@ -20,9 +21,7 @@ export async function getInstance(id: string) {
 
     const setup = await getSetup(id, process.env.PHONE == id ? phoneAdmin : firebaseAdmin);
 
-    const globalRef = ref.collection('settings').doc('game');
-    const globalDoc = await globalRef.get();
-    const global = globalDoc.data() ? globalDoc.data() as Global : undefined;
+    const global = await loadGlobal(id, db);
     if(global == undefined) throw new Error("Database not setup.");
 
     const instance = { setup, global, name, id };

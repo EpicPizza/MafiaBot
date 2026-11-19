@@ -8,6 +8,7 @@ import { getCachedInstances } from "../utils/instance";
 import { fetchMessage } from "../utils/mafia/tracking";
 import { completeMessage } from "../utils/archive";
 import { ColorResolvable, Colors, EmbedBuilder } from "discord.js";
+import { getMainChatIds } from "../utils/mafia/context";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -25,7 +26,9 @@ module.exports = {
     help: "no meow",
     commands: [],
     interactions: [],
-    onStart: async (instance, game) => {
+    onStart: async (ctx) => {
+        const { instance, game } = ctx;
+
         /**
          * Runs during game start processes.
          */
@@ -38,14 +41,18 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onLock: async (instance, game) => {
+    onLock: async (ctx) => {
+        const { instance, game } = ctx;
+
         /**
          * Runs after game has locked.
          */
 
         console.log("Extension Lock");
     },
-    onUnlock: async (instance, game, incremented) => {
+    onUnlock: async (ctx, incremented) => {
+        const { instance, game } = ctx;
+
         /**
          * Runa after game has unlocked.
          * 
@@ -105,7 +112,9 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onEnd: async (instance, game) => {
+    onEnd: async (ctx) => {
+        const { instance, game } = ctx;
+
         /**
          * Runs during game end processes.
          */
@@ -118,16 +127,18 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onVote: async (instance, game, voter, voting, type, users, transaction) => {},
-    onVotes: async (instance, game, board ) => { 
+    onVote: async (ctx, voter, voting, type, users, transaction) => {},
+    onVotes: async (ctx, board ) => {
+        const { instance, game } = ctx;
+ 
         return "Example footer.";
 
         /**
          * Return what is show in the footer in ?votes.
          */
     },
-    onHammer: async (instance, game, hammered) => {},
-    onRemove: async (instance, game, removed) => {},
+    onHammer: async (ctx, hammered) => {},
+    onRemove: async (ctx, removed) => {},
     onDump: async (statsBatch, messageBatch, reactionBatch) => {
         const instances = await getCachedInstances();
         const db = firebaseAdmin.getFirestore();
@@ -157,19 +168,22 @@ module.exports = {
                 ids.push({ channel: entry.channel, id: entry.id });
             });
 
+            // The server's main chat and every game's main chat.
+            const mainChats = await getMainChatIds(instance);
+
             toDelete = toDelete.filter((entry, index, self) => 
-                entry.channel == instance.setup.primary.chat.id && 
+                mainChats.has(entry.channel) && 
                 self.findIndex(t => t.id === entry.id) === index
             );
             
             ids = ids.filter((entry, index, self) => 
-                entry.channel == instance.setup.primary.chat.id && 
+                mainChats.has(entry.channel) && 
                 !toDelete.find(deleting => deleting.id == entry.id) &&
                 self.findIndex(t => t.id === entry.id) === index
             );
 
-            const messages = (await Promise.all(ids.map(async entry => fetchMessage({ channelId: instance.setup.primary.chat.id, id: entry.id, partial: true })))).filter(entry => entry != undefined && 'authorId' in entry);
-            const deleting =  (await Promise.all(toDelete.map(async entry => fetchMessage({ channelId: instance.setup.primary.chat.id, id: entry.id, partial: true })))).filter(entry => entry != undefined && 'authorId' in entry);
+            const messages = (await Promise.all(ids.map(async entry => fetchMessage({ channelId: entry.channel, id: entry.id, partial: true })))).filter(entry => entry != undefined && 'authorId' in entry);
+            const deleting =  (await Promise.all(toDelete.map(async entry => fetchMessage({ channelId: entry.channel, id: entry.id, partial: true })))).filter(entry => entry != undefined && 'authorId' in entry);
 
             await Promise.allSettled(deleting.map(async trackedMessage => {
                 const exists = trackedMessage.starboard == undefined ? undefined : (await channel.messages.fetch({ message: trackedMessage.starboard, cache: true })).id;

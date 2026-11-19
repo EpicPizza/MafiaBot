@@ -1,14 +1,13 @@
 import { DateTime } from 'luxon';
 import { firebaseAdmin } from "../firebase";
-import { getSetup } from "../setup";
-import { getGameByID, getGameSetup } from "./games";
 import { lockGame, unlockGame } from "./main";
-import { Instance } from '../instance';
+import { graceRef, lockRef, stateRef } from './state';
+import { getGameContext, type GameContext } from './context';
 
-export async function setFuture(date: Date, increment: boolean, locking: boolean, grace: boolean, instance: Instance) {
-    const db = firebaseAdmin.getFirestore();
+// All timers belong to one game. ready.ts runs checkFutureLock/checkFutureGrace for each running game.
 
-    const ref = db.collection('instances').doc(instance.id).collection('settings').doc("lock");
+export async function setFuture(date: Date, increment: boolean, locking: boolean, grace: boolean, ctx: GameContext) {
+    const ref = lockRef(ctx.instance, ctx.game.id);
 
     const data = (await ref.get()).data();
 
@@ -22,10 +21,8 @@ export async function setFuture(date: Date, increment: boolean, locking: boolean
     });
 }
 
-export async function setGrace(type: boolean, date: Date, instance: Instance) {
-    const db = firebaseAdmin.getFirestore();
-
-    const ref = db.collection('instances').doc(instance.id).collection('settings').doc("grace");
+export async function setGrace(type: boolean, date: Date, ctx: GameContext) {
+    const ref = graceRef(ctx.instance, ctx.game.id);
 
     const data = (await ref.get()).data();
 
@@ -37,10 +34,8 @@ export async function setGrace(type: boolean, date: Date, instance: Instance) {
     });
 }
 
-export async function getGrace(instance: Instance) {
-    const db = firebaseAdmin.getFirestore();
-
-    const ref = db.collection('instances').doc(instance.id).collection('settings').doc("grace");
+export async function getGrace(ctx: GameContext) {
+    const ref = graceRef(ctx.instance, ctx.game.id);
 
     const data = (await ref.get()).data();
 
@@ -54,10 +49,8 @@ export async function getGrace(instance: Instance) {
     }
 }
 
-export async function getFuture(instance: Instance) {
-    const db = firebaseAdmin.getFirestore();
-
-    const ref = db.collection('instances').doc(instance.id).collection('settings').doc("lock");
+export async function getFuture(ctx: GameContext) {
+    const ref = lockRef(ctx.instance, ctx.game.id);
 
     const data = (await ref.get()).data();
 
@@ -72,21 +65,21 @@ export async function getFuture(instance: Instance) {
     }
 }
 
-export async function checkFutureLock(instance: Instance) {
-    const db = firebaseAdmin.getFirestore();
+export async function checkFutureLock(ctx: GameContext) {
+    const { instance, game } = ctx;
 
-    const ref = db.collection('instances').doc(instance.id).collection('settings').doc("lock");
+    const ref = lockRef(instance, game.id);
 
     const data = (await ref.get()).data();
 
-    const global = instance.global;
+    const global = ctx.state;
 
     if(!data) throw new Error("Database not setup.");
 
     if(data.when == null) return;
 
     if(data.when.toDate().valueOf() - (25 * 1000) < new Date().valueOf()) {
-        await db.collection('instances').doc(instance.id).collection('settings').doc('game').update({
+        await stateRef(instance, game.id).update({
             grace: data.grace,
         });
 
@@ -109,7 +102,7 @@ export async function checkFutureLock(instance: Instance) {
                 
             const setup = instance.setup;
 
-            await setup.primary.chat.sendTyping();
+            await ctx.gameSetup.main.sendTyping();
 
             await new Promise((resolve) => {
                 setTimeout(() => {
@@ -117,29 +110,30 @@ export async function checkFutureLock(instance: Instance) {
                 }, data.when.toDate().valueOf() - new Date().valueOf())
             });
 
+            // Reload: the game may have been locked/unlocked by hand while waiting.
+            const current = await getGameContext(instance, game.id);
+
             if(data.type) {
-                await lockGame(instance);
+                await lockGame(current);
             } else {
-                await unlockGame(instance, data.increment);
+                await unlockGame(current, data.increment);
             }
         } catch(e) {
             console.log(e);
 
             const setup = instance.setup;
-            const global = instance.global;
-            const gameSetup = await getGameSetup(await getGameByID(global.game ?? "", instance), setup);
 
-            gameSetup.spec.send("<@&" + setup.secondary.mod.id + "> Failed to lock channel.");
+            ctx.gameSetup.spec.send("<@&" + setup.secondary.mod.id + "> Failed to lock channel.");
 
             return;
         }
     }
 }
 
-export async function checkFutureGrace(instance: Instance) {
-    const db = firebaseAdmin.getFirestore();
+export async function checkFutureGrace(ctx: GameContext) {
+    const { instance, game } = ctx;
 
-    const ref = db.collection('instances').doc(instance.id).collection('settings').doc("grace");
+    const ref = graceRef(instance, game.id);
 
     const data = (await ref.get()).data();
 
@@ -149,7 +143,7 @@ export async function checkFutureGrace(instance: Instance) {
 
     if(data.when.toDate().valueOf() < new Date().valueOf()) {
         try {
-            await db.collection('instances').doc(instance.id).collection('settings').doc('game').update({
+            await stateRef(instance, game.id).update({
                 grace: data.type,
             });
 

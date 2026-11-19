@@ -23,7 +23,9 @@ module.exports = {
         }
     ],
     interactions: [],
-    onStart: async (instance, game) => {
+    onStart: async (ctx) => {
+        const { instance, game } = ctx;
+
         /**
          * Runs during game start processes.
          */
@@ -36,14 +38,18 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onLock: async (instance, game) => {
+    onLock: async (ctx) => {
+        const { instance, game } = ctx;
+
         /**
          * Runs after game has locked.
          */
 
         console.log("Extension Lock");
     },
-    onUnlock: async (instance, game, incremented) => {
+    onUnlock: async (ctx, incremented) => {
+        const { instance, game } = ctx;
+
         /**
          * Runa after game has unlocked.
          * 
@@ -103,7 +109,9 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onEnd: async (instance, game) => {
+    onEnd: async (ctx) => {
+        const { instance, game } = ctx;
+
         /**
          * Runs during game end processes.
          */
@@ -116,24 +124,26 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onVote: async (instance, game, voter, voting, type, users, transaction) => {
+    onVote: async (ctx, voter, voting, type, users, transaction) => {
+        const { instance, game } = ctx;
+
         /**
          * Control the entire voting logic. This example shows the default voting behavior.
          * 
          * This runs within a database transaction, reading with the transaction blocks other writes, only read with transaction as necessary. Use users or fallback to normal reads.
          */
 
-        const { reply, vote, votes } = await flow.placeVote(transaction, voter, voting, type, users, instance.global.day, game, instance); // doesn't save vote yet since board needs to be created
+        const { reply, vote, votes } = await flow.placeVote(transaction, voter, voting, type, users, ctx.state.day, game, instance); // doesn't save vote yet since board needs to be created
         
         if(vote == undefined) return { reply };
 
         const board = flow.board(votes, users);
 
-        const setMessage = flow.finish(transaction, vote, board, instance.global.day, game, instance); // locks in vote
+        const setMessage = flow.finish(transaction, vote, board, ctx.state.day, game, instance); // locks in vote
 
         return {
             reply,
-            hammer: flow.determineHammer(vote, votes, users, instance.global),
+            hammer: flow.determineHammer(vote, votes, users, ctx.state),
             setMessage,
         }
 
@@ -143,14 +153,16 @@ module.exports = {
          * setMessage?: (id: string) => Promise<void> - Setting the id of the message to keep in logs.
          */
     },
-    onVotes: async (instance, game, board ) => { 
+    onVotes: async (ctx, board ) => {
+        const { instance, game } = ctx;
+ 
         return "Example footer.";
 
         /**
          * Return what is show in the footer in ?votes.
          */
     },
-    onHammer: async (instance, game, hammered) => {},
-    onRemove: async (instance, game, removed) => {},
+    onHammer: async (ctx, hammered) => {},
+    onRemove: async (ctx, removed) => {},
     onDump: async (statsBatch, messageBatch, reactionBatch) => {},
 } satisfies Extension;

@@ -9,6 +9,8 @@ import { getGameByID } from "../../utils/mafia/games";
 import { deleteCollection } from "../../utils/mafia/main";
 import { getSetup } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
+import { stateRef } from "../../utils/mafia/state";
+import { getCommandGame } from "../../utils/mafia/context";
 
 export const ClearCommand = {
     name: "clear",
@@ -39,12 +41,8 @@ export const ClearCommand = {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
        
-        const global = interaction.instance.global;
-        const setup  = interaction.instance.setup;
-        
-        if(global.started == false) throw new Error("Game has not started.");
-
-        const game = await getGameByID(global.game ?? "---", interaction.instance);
+        const ctx = await getCommandGame(interaction);
+        const game = ctx.game;
         if(game == undefined) throw new Error("Game not found?");
 
 
@@ -106,12 +104,8 @@ export const DayCommand = {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
        
-        const global = interaction.instance.global;
-        const setup  = interaction.instance.setup;
-        
-        if(global.started == false) throw new Error("Game has not started.");
-
-        const game = await getGameByID(global.game ?? "", interaction.instance);
+        const ctx = await getCommandGame(interaction);
+        const { game, state: global } = ctx;
 
         const players = interaction.type == 'text' ? interaction.program.getOptionValue('players') === true : interaction.options.getBoolean('players') ?? false;
         const day = interaction.type == 'text' ? interaction.program.processedArgs[0] as number : interaction.options.getNumber("day");
@@ -120,13 +114,13 @@ export const DayCommand = {
 
         const db = firebaseAdmin.getFirestore();
 
-        await db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game').update({
+        await stateRef(interaction.instance, game.id).update({
             day: day,
         });
 
         if(players) {
             await db.collection('instances').doc(interaction.instance.id).collection('games').doc(game.id).collection('days').doc((day).toString()).set({
-                game: global.game,
+                game: game.id,
                 players: global.players.map((player) => player.id),
             });
         }

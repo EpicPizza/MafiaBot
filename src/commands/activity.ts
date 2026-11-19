@@ -8,6 +8,7 @@ import { firebaseAdmin } from "../utils/firebase";
 import { getGameByID } from "../utils/mafia/games";
 import { getUserByName } from "../utils/mafia/user";
 import { TrackedMessage } from "../utils/mafia/tracking";
+import { getCommandGame } from "../utils/mafia/context";
 
 module.exports = {
     data: [
@@ -26,15 +27,10 @@ module.exports = {
     execute: async (interaction: Event<TextCommand>) => {
         interaction.inInstance();
 
-        const global = interaction.instance.global;
+        const ctx = await getCommandGame(interaction);
+        const game = ctx.game;
 
-        if(global.started == false) throw new Error("Game has not started.");
-        if(global.game == null) throw new Error("No active game.");
-
-        const game = await getGameByID(global.game, interaction.instance);
-        if(game == null) throw new Error("Game not found.");
-
-        const day = global.day;
+        const day = ctx.state.day;
 
         const db = firebaseAdmin.getFirestore();
 
@@ -76,7 +72,7 @@ module.exports = {
         const authorIds = new Set(resolved.map(r => r.id));
 
         // Query tracked messages in the chat channel within the day's time window
-        const channelId = interaction.instance.setup.primary.chat.id;
+        const channelId = ctx.gameSetup.main.id;
         const stats = new Map<string, { messages: number, words: number }>();
 
         for(const r of resolved) {

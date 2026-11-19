@@ -6,10 +6,14 @@ import { firebaseAdmin } from "../../utils/firebase";
 import { type Global } from '../../utils/global';
 import { getGameByID, getGameSetup } from "../../utils/mafia/games";
 import { onjoin } from "../../utils/mafia/invite";
+import { grantMafiaAccess } from "../../utils/mafia/main";
 import { getUser, getUsers } from "../../utils/mafia/user";
 import { Setup, getSetup } from "../../utils/setup";
 import { Subinteraction } from "../../utils/subcommands";
 import { Instance } from "../../utils/instance";
+import { stateRef } from "../../utils/mafia/state";
+import { getCommandGame, type GameContext } from "../../utils/mafia/context";
+import type { Player } from "../../utils/mafia/main";
 
 export const ShowAlignments = {
     name: "alignments",
@@ -27,12 +31,13 @@ export const ShowAlignments = {
     execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
         interaction.inInstance();
 
-        const global = interaction.instance.global;
-        if(global.started == false) throw new Error("Game has not started!");
-        const game = await getGameByID(global.game ?? "---", interaction.instance);
+        const ctx = await getCommandGame(interaction);
+
+        const global = ctx.state;
+        const game = ctx.game;
         const setup = interaction.instance.setup;
         if(game == null) throw new Error("Game not found.");
-        const gameSetup = await getGameSetup(game, setup);
+        const gameSetup = ctx.gameSetup;
 
         if(gameSetup.spec.id != (interaction.type == 'text' ? interaction.message.channelId : interaction.channelId)) throw new Error("Uh, this shouldn't be run outside of spectator channel.");
 
@@ -86,18 +91,20 @@ export const ConfirmAlignmentsButton = {
 
         await interaction.update({ components: components });
 
-        const global = interaction.instance.global;
+        const ctx = await getCommandGame(interaction);
+
+        const global = ctx.state;
         const setup = interaction.instance.setup;
-        const which = await getGameByID(global.game ?? "", interaction.instance);
+        const which = ctx.game;
         
         if(typeof setup == 'string') throw new Error("Setup Incomplete");
         if(which == null) throw new Error("Game not found.");
 
-        const gameSetup = await getGameSetup(which, setup);
+        const gameSetup = ctx.gameSetup;
 
         for(let i = 0; i < global.players.length; i++) {
             if(global.players[i].alignment == 'mafia') {
-                await addMafiaPlayer(global.players[i], interaction.instance);
+                await addMafiaPlayer(global.players[i], ctx);
             }
         }
 
@@ -107,19 +114,21 @@ export const ConfirmAlignmentsButton = {
 
         const db = firebaseAdmin.getFirestore();
 
-        await db.collection('instances').doc(interaction.instance.id).collection('settings').doc('game').update({
+        await stateRef(interaction.instance, ctx.game.id).update({
             day: 1,
         });
 
         await db.collection('instances').doc(interaction.instance.id).collection('games').doc(which.id).collection('days').doc((1).toString()).set({
-            game: global.game,
+            game: ctx.game.id,
             players: global.players.map((player) => player.id),
             start: new Date().valueOf(),
         });
     }
 } satisfies Subinteraction;
 
-export async function addMafiaPlayer(player: Global["players"][0], instance: Instance) {
+export async function addMafiaPlayer(player: Player, ctx: GameContext): Promise<boolean> {
+    const { instance, gameSetup } = ctx;
+
     const mafiaMember = await instance.setup.tertiary.guild.members.fetch(player.id).catch(() => undefined);
 
     const user = await getUser(player.id, instance);
@@ -132,17 +141,21 @@ export async function addMafiaPlayer(player: Global["players"][0], instance: Ins
 
     if(mafiaMember?.joinedTimestamp) {
         await mafiaMember.roles.remove(instance.setup.tertiary.spec);
-        await mafiaMember.roles.add(instance.setup.tertiary.access);
-    } else {
-        const db = firebaseAdmin.getFirestore();
+        await grantMafiaAccess(mafiaMember.id, instance.setup, gameSetup.mafia);
 
+        return true;
+    } else {
+        // not in the mafia server yet, grant mafia channel permissions once they join
         await onjoin({
             id: user.id,
             server: "tertiary",
-            roles: {
-                add: ["access"],
-            }
+            roles: {},
+            permissions: {
+                channel: gameSetup.mafia.id,
+            },
+            game: ctx.game.id,
         }, instance);
-        
+
+        return false;
     }
 }

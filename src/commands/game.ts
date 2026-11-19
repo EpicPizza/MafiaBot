@@ -9,6 +9,7 @@ import { removeReactions } from "../discord/helpers";
 import { firebaseAdmin } from "../utils/firebase";
 import { addSignup, getGameByName, getGames, refreshSignup, removeSignup } from "../utils/mafia/games";
 import { getUser, User } from "../utils/mafia/user";
+import { isGameStarted } from "../utils/mafia/state";
 
 module.exports = {
     data: [
@@ -121,7 +122,7 @@ module.exports = {
 
             if(global == null || game == null) throw new Error("Game not found.");
 
-            if(global.started && global.game == game.id) throw new Error("Game has started.");
+            if(await isGameStarted(interaction.instance, game.id)) throw new Error("Game has started.");
 
             const user = await getUser(interaction.user.id, interaction.instance);
 
@@ -183,7 +184,7 @@ async function leaveSignup(interaction: Event<ButtonInteraction | ChatInputComma
     if(global == null || game == null) throw new Error("Game not found.");
 
     if(game.closed) throw new Error("Signups are closed.");
-    if(global.started && global.game == game.id) throw new Error("Game has started.");
+    if(await isGameStarted(interaction.instance, game.id)) throw new Error("Game has started.");
 
     const user = await getUser(interaction.user.id, interaction.instance);
 
@@ -227,7 +228,7 @@ async function handleSignup(interaction: Event<ChatInputCommandInteraction | Tex
     if(global == null || game == null) throw new Error("Game not found.");
 
     if(game.closed) throw new Error("Signups are closed.");
-    if(global.started && global.game == game.id) throw new Error("Game has started.");
+    if(await isGameStarted(interaction.instance, game.id)) throw new Error("Game has started.");
 
     const user = await getUser(interaction.user.id, interaction.instance);
 

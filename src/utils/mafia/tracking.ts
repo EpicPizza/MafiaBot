@@ -4,7 +4,8 @@ import { firebaseAdmin } from "../firebase";
 import { getAuthority, getCachedInstances, Instance } from "../instance";
 import { getReactions, handleMentions, Reaction } from "../archive";
 import { getSetup } from "../setup";
-import { getEnabledExtensions } from "../extensions";
+import { getExtensions } from "../extensions";
+import { findGameForChannel, getMainChats, getRunningGames, isMainChat } from "./context";
 
 export type MessageAction = {
     type: 'delete',
@@ -192,7 +193,11 @@ export async function dumpTracking() {
     const instances = await getCachedInstances();
     
     await Promise.all(instances.map(async instance => {
-        const extensions = getEnabledExtensions(instance.global);
+        // Extensions enabled in any running game, each once.
+        const games = await getRunningGames(instance, true);
+        if(games.length == 0) return;
+
+        const extensions = getExtensions([...new Set(games.flatMap(game => game.state.extensions))]);
         
         await Promise.all(extensions.map(extension => extension.onDump(compressedStats, messageBatch, reactionBatch)));
     }));
@@ -252,7 +257,7 @@ export async function addReaction(reaction: MessageReaction | PartialMessageReac
     if(!reaction.message.guildId) return;
 
     const instance = await getAuthority(reaction.message.guildId);
-    if(!instance || (instance.setup.primary.guild.id == reaction.message.guildId && instance.setup.primary.chat.id != reaction.message.channelId)) return;
+    if(!instance || (instance.setup.primary.guild.id == reaction.message.guildId && !(await isMainChat(instance, reaction.message.channelId)))) return;
     
     reactionBuffer.push({
         type: 'add',
@@ -267,7 +272,7 @@ export async function removeReaction(reaction: MessageReaction | PartialMessageR
     if(!reaction.message.guildId) return;
 
     const instance = await getAuthority(reaction.message.guildId);
-    if(!instance || (instance.setup.primary.guild.id == reaction.message.guildId && instance.setup.primary.chat.id != reaction.message.channelId)) return;
+    if(!instance || (instance.setup.primary.guild.id == reaction.message.guildId && !(await isMainChat(instance, reaction.message.channelId)))) return;
     
     reactionBuffer.push({
         type: 'remove',
@@ -282,7 +287,7 @@ export async function removeAllReactions(message: Message | PartialMessage) {
     if(!message.guildId) return;
 
     const instance = await getAuthority(message.guildId);
-    if(!instance || (instance.setup.primary.guild.id == message.guildId && instance.setup.primary.chat.id != message.channelId)) return;
+    if(!instance || (instance.setup.primary.guild.id == message.guildId && !(await isMainChat(instance, message.channelId)))) return;
 
     reactionBuffer.push({
         type: 'removeAll',
@@ -295,7 +300,7 @@ export async function removeReactionEmoji(reaction: MessageReaction | PartialMes
     if(!reaction.message.guildId) return;
 
     const instance = await getAuthority(reaction.message.guildId);
-    if(!instance || (instance.setup.primary.guild.id == reaction.message.guildId && instance.setup.primary.chat.id != reaction.message.channelId)) return;
+    if(!instance || (instance.setup.primary.guild.id == reaction.message.guildId && !(await isMainChat(instance, reaction.message.channelId)))) return;
     
     reactionBuffer.push({
         type: 'removeReaction',
@@ -310,14 +315,18 @@ export async function createMessage(message: Message, checks: boolean = true) {
 
     if(checks) {
         const instance = await getAuthority(message.guildId);
-        if(!instance || (instance.setup.primary.guild.id == message.guildId && instance.setup.primary.chat.id != message.channelId)) return; //don't need to track every message in the main server
+        if(!instance || (instance.setup.primary.guild.id == message.guildId && !(await isMainChat(instance, message.channelId)))) return; //don't need to track every message in the main server
         
-        if(instance.setup.primary.chat.id == message.channelId && instance.global.started) {
+        // Stats only count in a running game's own main chat.
+        const owner = await findGameForChannel(instance, message.channelId, true);
+        const ctx = owner?.gameSetup.main.id == message.channelId ? owner : undefined;
+
+        if(ctx) {
             statsBuffer.push({
                 type: 'add',
                 id: message.author.id,
-                day: instance.global.day,
-                game: instance.global.game ?? "---",
+                day: ctx.state.day,
+                game: ctx.game.id,
                 instance: instance.id,
                 images: message.attachments.reduce((acc, value) => acc + (value.contentType?.startsWith("image") ? 1 : 0), 0),
                 words: message.content.split(" ").length,
@@ -351,7 +360,7 @@ export async function updateMessage(oldMessage: PartialMessage | Message | Track
     if(!newMessage.guildId) return;
 
     const instance = await getAuthority(newMessage.guildId);
-    if(!instance || (instance.setup.primary.guild.id == newMessage.guildId && instance.setup.primary.chat.id != newMessage.channelId)) return; //don't need to track every message in the main server
+    if(!instance || (instance.setup.primary.guild.id == newMessage.guildId && !(await isMainChat(instance, newMessage.channelId)))) return; //don't need to track every message in the main server
 
     if('partial' in oldMessage && oldMessage.partial) {
         const db = firebaseAdmin.getFirestore();
@@ -406,7 +415,9 @@ export async function deleteMessage(message: PartialMessage | Message) {
     if(!message.guildId) return;
 
     const instance = await getAuthority(message.guildId);
-    if(!instance || (instance.setup.primary.guild.id == message.guildId && instance.setup.primary.chat.id != message.channelId)) return; //don't need to track every message in the main server
+    if(!instance || (instance.setup.primary.guild.id == message.guildId && !(await isMainChat(instance, message.channelId)))) return; //don't need to track every message in the main server
+
+    const mainChat = await isMainChat(instance, message.channelId);
 
     let adjustedInBuffer = false;
     
@@ -415,7 +426,7 @@ export async function deleteMessage(message: PartialMessage | Message) {
 
         adjustedInBuffer = true;
 
-        if(message.channelId == instance.setup.primary.chat.id) {
+        if(mainChat) {
             entry.message.deleted = true;
         } else {
             return false;
@@ -429,7 +440,7 @@ export async function deleteMessage(message: PartialMessage | Message) {
             type: 'delete',
             timestamp: new Date().valueOf(),
             deleted: { channel: message.channelId, id: message.id },
-            snipe: message.channelId == instance.setup.primary.chat.id,
+            snipe: mainChat,
         });
     }
 
@@ -438,7 +449,9 @@ export async function deleteMessage(message: PartialMessage | Message) {
 
 export async function catchupChannel(channel: TextChannel, callback: Function, statsTracking: boolean) {
     const instance = await getAuthority(channel.guildId);
-    if(!instance || (instance.setup.primary.guild.id == channel.guildId && instance.setup.primary.chat.id != channel.id)) return; //don't need to track every message in the main server
+    if(!instance || (instance.setup.primary.guild.id == channel.guildId && !(await isMainChat(instance, channel.id)))) return; //don't need to track every message in the main server
+
+    const ctx = statsTracking ? await findGameForChannel(instance, channel.id, true) : undefined;
 
     const db = firebaseAdmin.getFirestore();
     const ref = db.collection('channels').doc(channel.id).collection('messages');
@@ -465,12 +478,12 @@ export async function catchupChannel(channel: TextChannel, callback: Function, s
                 return;
             }
 
-            if(instance.setup.primary.chat.id == message.channelId && instance.global.started && statsTracking) {
+            if(ctx && ctx.gameSetup.main.id == message.channelId) {
                 statsBuffer.push({
                     type: 'add',
                     id: message.author.id,
-                    day: instance.global.day,
-                    game: instance.global.game ?? "---",
+                    day: ctx.state.day,
+                    game: ctx.game.id,
                     instance: instance.id,
                     images: message.attachments.reduce((acc, value) => acc + (value.contentType?.startsWith("image") ? 1 : 0), 0),
                     words: message.content.split(" ").length,
@@ -636,13 +649,16 @@ export async function startup(instances: Instance[]) {
     }
 
     await Promise.all(instances.map(async instance => {
-        const setup = await getSetup(instance.id);
+        // The server's main chat and every game's main chat.
+        const channels = await getMainChats(instance);
 
-        const messagesFetched = await catchupChannel(setup.primary.chat, async (length: number) => {
-            console.log("(" + instance.id + ") Fetching messages... (" + length + ")");
-        }, true);
+        for(const channel of channels) {
+            const messagesFetched = await catchupChannel(channel, async (length: number) => {
+                console.log("(" + instance.id + ") Fetching messages in " + channel.name + "... (" + length + ")");
+            }, true);
 
-        console.log("Fetched " + messagesFetched + " messages.");
+            console.log("Fetched " + messagesFetched + " messages.");
+        }
     }))
 
     initialized = true;

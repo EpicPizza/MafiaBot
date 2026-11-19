@@ -4,6 +4,7 @@ import { checkFutureGrace, checkFutureLock } from "../utils/mafia/timing";
 import { dumpTracking, startup } from "../utils/mafia/tracking";
 import { getAuthority, getCachedInstances, getInstance, getInstances } from "../utils/instance";
 import { websiteListener } from "../utils/website";
+import { getRunningGames } from "../utils/mafia/context";
 
 export async function clientReadyHandler(...[]: ClientEvents[Events.ClientReady]) {
     console.log("Bot is ready!");
@@ -23,9 +24,14 @@ export async function clientReadyHandler(...[]: ClientEvents[Events.ClientReady]
         try {
             const instances = await getCachedInstances();
 
+            // Timers belong to each running game.
             await Promise.all(instances.map(async instance => {
-                await checkFutureLock(instance);
-                await checkFutureGrace(instance);
+                const games = await getRunningGames(instance);
+
+                await Promise.all(games.map(async ctx => {
+                    await checkFutureLock(ctx);
+                    await checkFutureGrace(ctx);
+                }));
             }));
 
             await dumpTracking();

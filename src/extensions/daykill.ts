@@ -7,7 +7,7 @@ import { killPlayer } from "../commands/advance/kill";
 import { removePlayer } from "../commands/mod/remove";
 import { Extension, ExtensionInteraction } from "../utils/extensions";
 import { firebaseAdmin } from "../utils/firebase";
-import { getGameByID, getGameSetup } from "../utils/mafia/games";
+import { getGameByID, getGameSetup, gameRef } from "../utils/mafia/games";
 import { lockGame, unlockGame } from "../utils/mafia/main";
 import { getFuture } from "../utils/mafia/timing";
 import { getUser, getUserByChannel, getUserByName } from "../utils/mafia/user";
@@ -15,6 +15,7 @@ import { wipe } from "../utils/mafia/vote";
 import { checkMod } from "../utils/mod";
 import { getSetup } from "../utils/setup";
 import { Instance } from "../utils/instance";
+import { getCommandGame } from "../utils/mafia/context";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -83,7 +84,9 @@ module.exports = {
             })
         }
     ],
-    onStart: async (instance, game) => {
+    onStart: async (ctx) => {
+        const { instance, game } = ctx;
+
         /**
          * Runs during game start processes.
          */
@@ -101,14 +104,18 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onLock: async (instance, game) => {
+    onLock: async (ctx) => {
+        const { instance, game } = ctx;
+
         /**
          * Runs after game has locked.
          */
 
         console.log("Extension Lock");
     },
-    onUnlock: async (instance, game, incremented) => {
+    onUnlock: async (ctx, incremented) => {
+        const { instance, game } = ctx;
+
         /**
          * Runa after game has unlocked.
          * 
@@ -135,9 +142,8 @@ module.exports = {
         const db = firebaseAdmin.getFirestore();
 
         const setup = command.instance.setup;
-        const global = command.instance.global;
-
-        if(global.started == false) throw new Error("Game has not started.");
+        const ctx = await getCommandGame(command);
+        const global = ctx.state;
 
         if(command.name == "kill") {
             const user = await getUser(command.user.id, command.instance);
@@ -146,7 +152,7 @@ module.exports = {
             if(player == undefined) throw new Error("You are not part of the game!");
             if(user.channel != command.message.channelId) throw new Error("Must be run in dead chat dm!");
 
-            const daykill = await getDaykill(command.user.id, command.instance);
+            const daykill = await getDaykill(command.user.id, command.instance, ctx.game.id);
             if(daykill == undefined) throw new Error("You don't have any day kills!");
 
             const killing = await getUserByName(command.program.processedArgs[0] as string, command.instance);
@@ -158,10 +164,9 @@ module.exports = {
             console.log(daykill.day + daykill.expire, global.day);
             if(global.day >= daykill.day + daykill.expire) throw new Error("Your day kill has expired! You cannot use it.");
 
-            const game = await getGameByID(global.game ?? "---", command.instance);
-            if(game == undefined) throw new Error("Game not found!");
+            const game = ctx.game;
 
-            const future = await getFuture(command.instance);
+            const future = await getFuture(ctx);
             const settings = await getSettings(command.instance);
             const eod =  future && (future.when.valueOf() - new Date().valueOf()) < (settings.minutes * 60 * 1000);
 
@@ -169,14 +174,14 @@ module.exports = {
 
             await command.message.react("✅");
 
-            await db.collection('instances').doc(command.instance.id).collection('daykill').doc(user.id).delete();
+            await gameRef(command.instance, ctx.game.id).collection('daykill').doc(user.id).delete();
 
-            await lockGame(command.instance);
+            await lockGame(ctx);
 
             if(daykill.lock == 'hammer' || (eod && settings.type == 'mod')) {
-                const content = "<@&" + setup.primary.alive.id + "> <@&" + setup.primary.mod.id + ">\n# " + killing.nickname + " has been killed!\n** **\nThe day has ended! Waiting on game mod to flip."
+                const content = "<@&" + ctx.gameSetup.alive.id + "> <@&" + setup.primary.mod.id + ">\n# " + killing.nickname + " has been killed!\n** **\nThe day has ended! Waiting on game mod to flip."
 
-                await setup.primary.chat.send({ content: content });
+                await ctx.gameSetup.main.send({ content: content });
             } else if(daykill.lock == "pause") {
                 const row = new ActionRowBuilder<ButtonBuilder>()
                     .addComponents([
@@ -190,9 +195,9 @@ module.exports = {
                             .setCustomId(JSON.stringify({ name: "daykill-cancel-reveal" }))
                     ]);
 
-                const content = "<@&" + setup.primary.alive.id + "> <@&" + setup.primary.mod.id + ">\n# " + killing.nickname + " has been killed!\n** **\n" ;
+                const content = "<@&" + ctx.gameSetup.alive.id + "> <@&" + setup.primary.mod.id + ">\n# " + killing.nickname + " has been killed!\n** **\n" ;
 
-                const message = await setup.primary.chat.send({ 
+                const message = await ctx.gameSetup.main.send({ 
                     content: content + "<a:loading:1256150236112621578> Alignment will be automatically revealed in 5 minutes.",
                     components: [row] 
                 });
@@ -222,23 +227,23 @@ module.exports = {
                 });
 
                 const final = await message.reply({
-                    content: "<@&" + setup.primary.alive.id + ">\n# " + killing.nickname + " was **" + (killingPlayer.alignment == null || killingPlayer.alignment == "default" ? "town" : killingPlayer.alignment)  + "**!"
+                    content: "<@&" + ctx.gameSetup.alive.id + ">\n# " + killing.nickname + " was **" + (killingPlayer.alignment == null || killingPlayer.alignment == "default" ? "town" : killingPlayer.alignment)  + "**!"
                 });
 
                 if(daykill.type == "mute") {
-                    await killPlayer(killing.nickname, command.instance);
+                    await killPlayer(killing.nickname, ctx);
                 } else {
-                    await removePlayer(killing.nickname, command.instance);
+                    await removePlayer(killing.nickname, ctx);
                 }
 
-                const setMessage = await wipe(global, killing.nickname + " was " + killingPlayer.alignment + "!", game, command.instance);
+                const setMessage = await wipe(ctx, killing.nickname + " was " + killingPlayer.alignment + "!");
 
                 await setMessage(final.id);
 
-                await unlockGame(command.instance, false);
+                await unlockGame(ctx, false);
             }  
         } else if(command.name == "set") {
-            await checkMod(setup, global, command.user.id, command.message.guildId ?? "---");
+            await checkMod(setup, command.instance.global, command.user.id, command.message.guildId ?? "---");
 
             const type = command.program.processedArgs[0] as string;
             const lock = type == "hammer" ? "hammer" : "pause";
@@ -249,7 +254,7 @@ module.exports = {
             const player = global.players.find(player => player.id == user.id);
             if(player == undefined) throw new Error("Player not part of game?");
 
-            await db.collection('instances').doc(command.instance.id).collection('daykill').doc(user.id).set({
+            await gameRef(command.instance, ctx.game.id).collection('daykill').doc(user.id).set({
                 type: type,
                 expire: expire,
                 lock: lock,
@@ -258,14 +263,13 @@ module.exports = {
 
             await command.message.react("✅");
         } else if(command.name == "list") {
-            await checkMod(setup, global, command.user.id, command.message.guildId ?? "---");
+            await checkMod(setup, command.instance.global, command.user.id, command.message.guildId ?? "---");
 
-            const game = await getGameByID(global.game ?? "---", command.instance);
-            if(game == undefined) throw new Error("Game not found.");
-            const gameSetup = await getGameSetup(game, setup);
+            const game = ctx.game;
+            const gameSetup = ctx.gameSetup;
             if(gameSetup.spec.id != command.message.channelId) throw new Error("Must be run in spectator channel.");
 
-            const daykills = (await Promise.allSettled((await db.collection('instances').doc(command.instance.id).collection('daykill').get()).docs.map(async doc => {
+            const daykills = (await Promise.allSettled((await gameRef(command.instance, ctx.game.id).collection('daykill').get()).docs.map(async doc => {
                 const data = doc.data();
 
                 const user = await getUser(doc.id, command.instance);
@@ -291,7 +295,7 @@ module.exports = {
 
             await command.reply({ embeds: [embed] });
         } else if(command.name == "configure") {
-            await checkMod(setup, global, command.user.id, command.message.guildId ?? "---");
+            await checkMod(setup, command.instance.global, command.user.id, command.message.guildId ?? "---");
 
             const type = command.program.processedArgs[0] as string;
             const minutes = command.program.processedArgs[1] as number;
@@ -303,7 +307,7 @@ module.exports = {
 
             await command.message.react("✅");
         } else if(command.name == "check") {
-            await checkMod(setup, global, command.user.id, command.message.guildId ?? "---");
+            await checkMod(setup, command.instance.global, command.user.id, command.message.guildId ?? "---");
 
             const settings = await getSettings(command.instance);
 
@@ -338,16 +342,14 @@ module.exports = {
         interaction.inInstance();
 
         const setup = interaction.instance.setup;
-        const global = interaction.instance.global;
-
-        const game = await getGameByID(global.game ?? "---", interaction.instance);
-        if(game == undefined) throw new Error("Game not found!");
+        const ctx = await getCommandGame(interaction);
+        const { game, state: global } = ctx;
 
         const customId = extensionInteraction.customId;
 
         if(!('isButton' in interaction) || !interaction.isButton()) return;
 
-        await checkMod(setup, global, interaction.user.id, interaction.guildId ?? "---");
+        await checkMod(setup, interaction.instance.global, interaction.user.id, interaction.guildId ?? "---");
 
         if(extensionInteraction.name == "button-daykill-cancel-reveal") {
             if(close) close(false);
@@ -364,27 +366,29 @@ module.exports = {
             const type = customId.type ?? "mute";
 
             const message = await interaction.message.reply({
-                content: "<@&" + setup.primary.alive.id + ">\n# " + killing.nickname + " was **" + killingPlayer.alignment + "**!",
+                content: "<@&" + ctx.gameSetup.alive.id + ">\n# " + killing.nickname + " was **" + killingPlayer.alignment + "**!",
                 components: [],
             });
 
             if(type == "mute") {
-                await killPlayer(killing.nickname, interaction.instance);
+                await killPlayer(killing.nickname, ctx);
             } else {
-                await removePlayer(killing.nickname, interaction.instance);
+                await removePlayer(killing.nickname, ctx);
             }
 
-            const setMessage = await wipe(global, killing.nickname + " was " + killingPlayer.alignment + "!", game, interaction.instance);
+            const setMessage = await wipe(ctx, killing.nickname + " was " + killingPlayer.alignment + "!");
 
             await setMessage(message.id);
 
-            await unlockGame(interaction.instance, false);
+            await unlockGame(ctx, false);
         }
 
         return;
     },
     onMessage: async (message) => {},
-    onEnd: async (instance, game) => {
+    onEnd: async (ctx) => {
+        const { instance, game } = ctx;
+
         /**
          * Runs during game end processes.
          */
@@ -397,17 +401,19 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onVote: async (instance, game, voter, voting, type, users, transaction) => {},
-    onVotes: async (instance, game, board ) => { return ""; },
-    onHammer: async (instance, game, hammered: string) => {},
-    onRemove: async (instance, game, removed: string) => {},
+    onVote: async (ctx, voter, voting, type, users, transaction) => {},
+    onVotes: async (ctx, board ) => {
+        const { instance, game } = ctx;
+ return ""; },
+    onHammer: async (ctx, hammered: string) => {},
+    onRemove: async (ctx, removed: string) => {},
     onDump: async (statsBatch, messageBatch, reactionBatch) => {},
 } satisfies Extension;
 
-async function getDaykill(id: string, instance: Instance) {
+async function getDaykill(id: string, instance: Instance, gameId: string) {
     const db = firebaseAdmin.getFirestore();
 
-    const data = (await db.collection('instances').doc(instance.id).collection('daykill').doc(id).get()).data();
+    const data = (await gameRef(instance, gameId).collection('daykill').doc(id).get()).data();
     if(data == undefined) return undefined;
 
     return {

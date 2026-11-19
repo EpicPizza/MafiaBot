@@ -28,8 +28,6 @@ module.exports = {
 
         const global = interaction.instance.global;
 
-        const extensions = await getEnabledExtensions(global);
-
         const mod = await isMod(interaction.instance.setup, global, interaction.user.id, (interaction.message.guildId) ?? "");
 
         const command = interaction.program.processedArgs[0] ?? null;

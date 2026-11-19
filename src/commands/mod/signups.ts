@@ -5,6 +5,7 @@ import { Event, type TextCommand } from '../../discord';
 import { fromZod } from '../../utils/text';
 import { activateSignup, closeSignups, getGameByName, openSignups, refreshSignup } from "../../utils/mafia/games";
 import { Subcommand, Subinteraction } from "../../utils/subcommands";
+import { isGameStarted } from "../../utils/mafia/state";
 
 export const SignupsCommand = {
     name: "signups",
@@ -147,7 +148,7 @@ async function createSignups(interaction: Event<CommandInteraction | ButtonInter
     if (global == null || game == null) throw new Error("Could not find game.");
     if (typeof setup == 'string') throw new Error("Setup incomplete.");
 
-    if (global.started) throw new Error("You cannot create signups while a game is underway.");
+    if (await isGameStarted(interaction.instance, game.id)) throw new Error(game.name + " has already started.");
 
     const embed = new EmbedBuilder()
         .setTitle("Signups for " + game.name + " Mafia" + (game.closed ? " are closed" : "") + "!")

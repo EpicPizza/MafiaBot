@@ -7,10 +7,11 @@ import { simpleJoin } from '../utils/text';
 import { fromZod } from '../utils/text';
 import { Extension, ExtensionInteraction } from "../utils/extensions";
 import { firebaseAdmin } from "../utils/firebase";
-import { getGameByID } from "../utils/mafia/games";
+import { getGameByID, gameRef } from "../utils/mafia/games";
 import { deleteCollection } from "../utils/mafia/main";
 import { getUserByName, User } from "../utils/mafia/user";
 import { checkMod } from "../utils/mod";
+import { getCommandGame } from "../utils/mafia/context";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -59,14 +60,16 @@ module.exports = {
         },
     ],
     interactions: [],
-    onStart: async (instance, game) => {
+    onStart: async (ctx) => {
+        const { instance, game } = ctx;
+
         /**
          * Runs during game start processes.
          */
 
         const db = firebaseAdmin.getFirestore();
 
-        await deleteCollection(db, db.collection('instances').doc(instance.id).collection('chats'), 20);
+        await deleteCollection(db, gameRef(instance, ctx.game.id).collection('chats'), 20);
 
         return;
 
@@ -74,13 +77,15 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onLock: async (instance, game) => {
+    onLock: async (ctx) => {
+        const { instance, game } = ctx;
+
         const setup = instance.setup;
-        const global = instance.global;
+        const global = ctx.state;
 
         const db = firebaseAdmin.getFirestore();
 
-        const docs = (await db.collection('instances').doc(instance.id).collection('chats').where('match', '==', true).get()).docs;
+        const docs = (await gameRef(instance, ctx.game.id).collection('chats').where('match', '==', true).get()).docs;
 
         for(let i = 0; i < docs.length; i++) {
             const data = docs[i].data();
@@ -98,13 +103,15 @@ module.exports = {
             }
         }
     },
-    onUnlock: async (instance, game, incremented) => {
+    onUnlock: async (ctx, incremented) => {
+        const { instance, game } = ctx;
+
         const setup = instance.setup;
-        const global = instance.global;
+        const global = ctx.state;
 
         const db = firebaseAdmin.getFirestore();
 
-        const docs = (await db.collection('instances').doc(instance.id).collection('chats').where('match', '==', true).get()).docs;
+        const docs = (await gameRef(instance, ctx.game.id).collection('chats').where('match', '==', true).get()).docs;
 
         for(let i = 0; i < docs.length; i++) {
             const data = docs[i].data();
@@ -132,18 +139,19 @@ module.exports = {
         command.inInstance();
 
         const setup = command.instance.setup;
-        const global = command.instance.global;
+        const ctx = await getCommandGame(command);
+        const global = ctx.state;
 
         const member = await setup.primary.guild.members.fetch(command.user.id);
 
-        await checkMod(setup, global, command.user.id, command.message.guildId ?? "");
+        await checkMod(setup, command.instance.global, command.user.id, command.message.guildId ?? "");
         
-        if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
+        if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != ctx.gameSetup.dms.id) throw new Error("This command must be run in dead chat dms.");
 
         const db = firebaseAdmin.getFirestore();
 
         if(command.name == "create") {
-            const game = await getGameByID(global.game ?? "", command.instance);
+            const game = ctx.game;
 
             const chats = [] as User[];
 
@@ -157,7 +165,7 @@ module.exports = {
 
             const channel = await setup.secondary.guild.channels.create({ name: "creating" });
 
-            await channel.setParent(setup.secondary.dms.id);
+            await channel.setParent(ctx.gameSetup.dms.id);
 
             for(let i = 0; i < chats.length; i++) {
                 const member = await setup.secondary.guild.members.fetch(chats[i].id);
@@ -171,13 +179,13 @@ module.exports = {
 
             await channel.send(chats.reduce((previous, chat) => previous + "<@" + chat.id + "> ", "") + "Here is your chat!");
 
-            await db.collection('instances').doc(command.instance.id).collection('chats').doc(channel.id).set({
+            await gameRef(command.instance, ctx.game.id).collection('chats').doc(channel.id).set({
                 chats: chats.map(chat => chat.id),
                 locked: false,
                 match: false,
             })
         } else if(command.name == "lock" && command.program.getOptionValue('match') === true) {
-            const data = (await db.collection('instances').doc(command.instance.id).collection('chats').doc(command.message.channel.id).get()).data();
+            const data = (await gameRef(command.instance, ctx.game.id).collection('chats').doc(command.message.channel.id).get()).data();
 
             if(data == undefined) return await command.message.react("❎");
 
@@ -190,12 +198,12 @@ module.exports = {
                 await channel.permissionOverwrites.create(member, !global.locked ? readOverwrites() : messageOverwrites());
             }
 
-            await db.collection('instances').doc(command.instance.id).collection('chats').doc(channel.id).update({
+            await gameRef(command.instance, ctx.game.id).collection('chats').doc(channel.id).update({
                 locked: !global.locked,
                 match: true,
             });
         } else if(command.name == "lock" || command.name == "unlock") {
-            const data = (await db.collection('instances').doc(command.instance.id).collection('chats').doc(command.message.channel.id).get()).data();
+            const data = (await gameRef(command.instance, ctx.game.id).collection('chats').doc(command.message.channel.id).get()).data();
 
             if(data == undefined) return await command.message.react("❎");
 
@@ -208,12 +216,12 @@ module.exports = {
                 await channel.permissionOverwrites.create(member, command.name == "lock" ? readOverwrites() : messageOverwrites());
             }
 
-            await db.collection('instances').doc(command.instance.id).collection('chats').doc(channel.id).update({
+            await gameRef(command.instance, ctx.game.id).collection('chats').doc(channel.id).update({
                 locked: command.name == "lock",
                 match: false,
             });
         } else if(command.name == "add" || command.name == "remove") {
-            const data = (await db.collection('instances').doc(command.instance.id).collection('chats').doc(command.message.channel.id).get()).data();
+            const data = (await gameRef(command.instance, ctx.game.id).collection('chats').doc(command.message.channel.id).get()).data();
 
             if(data == undefined) return await command.message.react("❎");
 
@@ -233,7 +241,7 @@ module.exports = {
             if(command.name == "add") {
                 await channel.permissionOverwrites.create(member, locked ? readOverwrites() : messageOverwrites());
 
-                await db.collection('instances').doc(command.instance.id).collection('chats').doc(channel.id).update({
+                await gameRef(command.instance, ctx.game.id).collection('chats').doc(channel.id).update({
                     chats: FieldValue.arrayUnion(user.id),
                 });
 
@@ -241,12 +249,12 @@ module.exports = {
             } else {
                 await channel.permissionOverwrites.delete(member);
 
-                await db.collection('instances').doc(command.instance.id).collection('chats').doc(channel.id).update({
+                await gameRef(command.instance, ctx.game.id).collection('chats').doc(channel.id).update({
                     chats: FieldValue.arrayRemove(user.id),
                 });
             }
         } else if(command.name == "close") {
-            const data = (await db.collection('instances').doc(command.instance.id).collection('chats').doc(command.message.channel.id).get()).data();
+            const data = (await gameRef(command.instance, ctx.game.id).collection('chats').doc(command.message.channel.id).get()).data();
 
             if(data == undefined) return await command.message.react("❎");
 
@@ -261,7 +269,7 @@ module.exports = {
 
             await channel.setName("closed " + channel.name);
 
-            await db.collection('instances').doc(command.instance.id).collection('chats').doc(channel.id).delete();
+            await gameRef(command.instance, ctx.game.id).collection('chats').doc(channel.id).delete();
         }
 
         await command.message.react("✅");
@@ -272,17 +280,21 @@ module.exports = {
     },
     onInteraction: async (extensionInteraction: ExtensionInteraction) => {},
     onMessage: async (message) => {},
-    onEnd: async (instance, game) => {},
-    onVote: async (instance, game, voter, voting, type, users, transaction) => {},
-    onVotes: async (instance, game, board ) => { return ""; },
-    onHammer: async (instance, game, hammered) => {},
-    onRemove: async (instance, game, removed) => {
+    onEnd: async (ctx) => {},
+    onVote: async (ctx, voter, voting, type, users, transaction) => {},
+    onVotes: async (ctx, board ) => {
+        const { instance, game } = ctx;
+ return ""; },
+    onHammer: async (ctx, hammered) => {},
+    onRemove: async (ctx, removed) => {
+        const { instance, game } = ctx;
+
         const setup = instance.setup;
-        const global = instance.global;
+        const global = ctx.state;
 
         const db = firebaseAdmin.getFirestore();
 
-        const ref = db.collection('instances').doc(instance.id).collection('chats').where('chats', 'array-contains', removed);
+        const ref = gameRef(instance, ctx.game.id).collection('chats').where('chats', 'array-contains', removed);
 
         const docs = (await ref.get()).docs;
 
@@ -299,7 +311,7 @@ module.exports = {
 
             await channel.permissionOverwrites.delete(member);
 
-            await db.collection('instances').doc(instance.id).collection('chats').doc(docs[i].id).update({
+            await gameRef(instance, ctx.game.id).collection('chats').doc(docs[i].id).update({
                 chats: FieldValue.arrayRemove(removed),
             })
         }

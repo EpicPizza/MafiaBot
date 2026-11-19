@@ -7,13 +7,15 @@ import type { ZodObject } from 'zod';
 import type { Event, ReactionCommand } from '../discord';
 import type { TextCommand } from '../discord';
 import type { ExtendedClient } from '../discord/client';
-import { type Global } from './global';
+import type { GameContext } from './mafia/context';
+import { findRunningGame } from './mafia/context';
 import type { Signups } from './mafia/games';
 import type { User } from './mafia/user';
 import type { TransactionResult } from './mafia/vote';
 import type { Setup } from './setup';
 import { initHelp } from '../discord/help';
 import { Instance } from './instance';
+import { firebaseAdmin } from './firebase';
 import { MessageAction, ReactionAction, StatsAction } from './mafia/tracking';
 
 const extensions = [] as Extension[]; 
@@ -65,23 +67,35 @@ export interface Extension {
     commands: (() => Command)[],
     interactions: ExtensionInteractions[],
     onInteraction: (extensionInteraction: ExtensionInteraction) => Promise<unknown>,
-    onStart: { (instance: Instance, game: Signups): Promise<unknown> },
-    onLock: { (instance: Instance, game: Signups): Promise<unknown> },
-    onUnlock: { (instance: Instance, game: Signups, incremented: boolean): Promise<unknown> },
+    onStart: { (ctx: GameContext): Promise<unknown> },
+    onLock: { (ctx: GameContext): Promise<unknown> },
+    onUnlock: { (ctx: GameContext, incremented: boolean): Promise<unknown> },
     onCommand: { (command: Event<TextCommand>): Promise<unknown> },
     onMessage: { (message: Message): Promise<unknown> },
-    onEnd: { (instance: Instance, game: Signups): Promise<unknown> },
-    onVote: { (instance: Instance, game: Signups, voter: User, voting: User | undefined, type: 'vote' | 'unvote', users: User[], transaction: Transaction): Promise<TransactionResult> | Promise<void> },
-    onVotes: { (instance: Instance, game: Signups, board: string ): string | Promise<string> },
-    onHammer: { (instance: Instance, game: Signups, hammered: string): Promise<unknown> },
-    onRemove: { (instance: Instance, game: Signups, removed: string): Promise<unknown> },
+    onEnd: { (ctx: GameContext): Promise<unknown> },
+    onVote: { (ctx: GameContext, voter: User, voting: User | undefined, type: 'vote' | 'unvote', users: User[], transaction: Transaction): Promise<TransactionResult> | Promise<void> },
+    onVotes: { (ctx: GameContext, board: string ): string | Promise<string> },
+    onHammer: { (ctx: GameContext, hammered: string): Promise<unknown> },
+    onRemove: { (ctx: GameContext, removed: string): Promise<unknown> },
     onSignup?: { (instance: Instance, game: Signups, id: string): Promise<unknown> },
     onLeave?: { (instance: Instance, game: Signups, id: string): Promise<unknown> },
     onDump: { (statsBatch: StatsAction[], messageBatch: MessageAction[], reactionBatch: ReactionAction[]): Promise<unknown> }
 }
 
-export function getEnabledExtensions(global: Global) {
-    return extensions.filter(extension => global.extensions.find(enabled => enabled == extension.name));
+export function getEnabledExtensions(ctx: GameContext) {
+    return getExtensions(ctx.state.extensions);
+}
+
+// Enabled in the game this channel belongs to (or the only running game), otherwise in any active game (pregame
+// commands like upick, or several games running and the channel picks none).
+async function isExtensionInUse(name: string, instance: Instance, channelId: string | null) {
+    const running = await findRunningGame(instance, channelId, true);
+
+    if(running) return running.state.extensions.includes(name);
+
+    const games = await firebaseAdmin.getFirestore().collection('instances').doc(instance.id).collection('games').where('state', '==', 'active').get();
+
+    return games.docs.some(game => ((game.data().extensions ?? []) as string[]).includes(name));
 }
 
 export function getAllExtensions() {
@@ -117,9 +131,7 @@ export function getExtensionTextCommands() {
 
                 const global = interaction.inInstance();
 
-                const enabledExtensions = await getEnabledExtensions(interaction.instance.global);
-
-                if(!enabledExtensions.map(extension => extension.name).includes(extension.name)) throw new Error("Extension not enabled!");
+                if(!(await isExtensionInUse(extension.name, interaction.instance, interaction.message.channelId))) throw new Error("Extension not enabled!");
 
                 const name = interaction.program.args[0] as string;
 

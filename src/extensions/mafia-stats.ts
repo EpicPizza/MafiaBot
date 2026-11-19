@@ -5,10 +5,11 @@ import { Extension } from "../utils/extensions";
 import { flow } from "../utils/mafia/vote";
 import { Event, TextCommand } from "../discord";
 import { firebaseAdmin } from "../utils/firebase";
-import { getGameByID, getGameSetup } from "../utils/mafia/games";
+import { getGameByID, getGameSetup, gameRef } from "../utils/mafia/games";
 import { StatsAction, TrackedMessage } from "../utils/mafia/tracking";
 import { EmbedBuilder } from "@discordjs/builders";
 import { Colors } from "discord.js";
+import { channelOf, findRunningGame } from "../utils/mafia/context";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -27,7 +28,9 @@ module.exports = {
         }
     ],
     interactions: [],
-    onStart: async (instance, game) => {
+    onStart: async (ctx) => {
+        const { instance, game } = ctx;
+
         /**
          * Runs during game start processes.
          */
@@ -40,14 +43,18 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onLock: async (instance, game) => {
+    onLock: async (ctx) => {
+        const { instance, game } = ctx;
+
         /**
          * Runs after game has locked.
          */
 
         console.log("Extension Lock");
     },
-    onUnlock: async (instance, game, incremented) => {
+    onUnlock: async (ctx, incremented) => {
+        const { instance, game } = ctx;
+
         /**
          * Runa after game has unlocked.
          * 
@@ -72,18 +79,19 @@ module.exports = {
         command.inInstance();
 
         if(command.name != "stats" || command.message.guildId != command.instance.setup.tertiary.guild.id) return;
-        if(command.instance.global.started == false) return;
+        const ctx = await findRunningGame(command.instance, channelOf(command));
+        if(ctx == undefined) return;
 
         const instance = command.instance;
         const db = firebaseAdmin.getFirestore();
 
-        const doc = db.collection('instances').doc(instance.id).collection('mafia-stats').doc('tracking');
+        const doc = gameRef(instance, ctx.game.id).collection('mafia-stats').doc('tracking');
         const data = (await doc.get()).data();
 
         const timestamp = data?.timestamp as number | undefined ?? 0;
         const statsActions = data?.stats as StatsAction[] ?? [];
 
-        const gameSetup = await getGameSetup(await getGameByID(instance.global.game ?? "---", instance), instance.setup);
+        const gameSetup = ctx.gameSetup;
 
         const messages = (await db.collection('channels').doc(gameSetup.mafia.id).collection('messages').orderBy('createdTimestamp').startAfter(timestamp).get()).docs.map(doc => doc.data() as TrackedMessage);
         const appendStats = messages.map(message => {
@@ -94,7 +102,7 @@ module.exports = {
                 day: 0,
                 instance: instance.id,
                 type: 'add',
-                game: instance.global.game ?? "---",
+                game: ctx.game.id,
                 images: 0
             } satisfies StatsAction;
         });
@@ -153,7 +161,9 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onEnd: async (instance, game) => {
+    onEnd: async (ctx) => {
+        const { instance, game } = ctx;
+
         /**
          * Runs during game end processes.
          */
@@ -166,24 +176,26 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onVote: async (instance, game, voter, voting, type, users, transaction) => {
+    onVote: async (ctx, voter, voting, type, users, transaction) => {
+        const { instance, game } = ctx;
+
         /**
          * Control the entire voting logic. This example shows the default voting behavior.
          * 
          * This runs within a database transaction, reading with the transaction blocks other writes, only read with transaction as necessary. Use users or fallback to normal reads.
          */
 
-        const { reply, vote, votes } = await flow.placeVote(transaction, voter, voting, type, users, instance.global.day, game, instance); // doesn't save vote yet since board needs to be created
+        const { reply, vote, votes } = await flow.placeVote(transaction, voter, voting, type, users, ctx.state.day, game, instance); // doesn't save vote yet since board needs to be created
         
         if(vote == undefined) return { reply };
 
         const board = flow.board(votes, users);
 
-        const setMessage = flow.finish(transaction, vote, board, instance.global.day, game, instance); // locks in vote
+        const setMessage = flow.finish(transaction, vote, board, ctx.state.day, game, instance); // locks in vote
 
         return {
             reply,
-            hammer: flow.determineHammer(vote, votes, users, instance.global),
+            hammer: flow.determineHammer(vote, votes, users, ctx.state),
             setMessage,
         }
 
@@ -193,15 +205,17 @@ module.exports = {
          * setMessage?: (id: string) => Promise<void> - Setting the id of the message to keep in logs.
          */
     },
-    onVotes: async (instance, game, board ) => { 
+    onVotes: async (ctx, board ) => {
+        const { instance, game } = ctx;
+ 
         return "Example footer.";
 
         /**
          * Return what is show in the footer in ?votes.
          */
     },
-    onHammer: async (instance, game, hammered) => {},
-    onRemove: async (instance, game, removed) => {},
+    onHammer: async (ctx, hammered) => {},
+    onRemove: async (ctx, removed) => {},
     onDump: async (statsBatch, messageBatch, reactionBatch) => {},
 } satisfies Extension;
 

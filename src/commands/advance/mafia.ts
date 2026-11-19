@@ -12,6 +12,7 @@ import { getSetup, Setup, } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
 import { addMafiaPlayer } from "../mod/alignments";
 import { Instance } from "../../utils/instance";
+import { getCommandGame, type GameContext } from "../../utils/mafia/context";
 
 export const MafiaCommand = {
     name: "mafia",
@@ -29,7 +30,7 @@ export const MafiaCommand = {
     text: () => {
         return new Command()
             .name('mafia')
-            .description('Convert a player to mafia. Creates an invite to send to the player and updates alignment accordingly.')
+            .description('Convert a player to mafia. Gives them access to mafia chat (creates an invite if they are not in the mafia server).')
             .argument('<player>', 'which player', fromZod(z.string().min(1).max(100)));
     },
 
@@ -42,13 +43,13 @@ export const MafiaCommand = {
             await interaction.message.react("<a:loading:1256150236112621578>");
         }
        
-        const global = interaction.instance.global;
+        const ctx = await getCommandGame(interaction);
+       
+        const global = ctx.state;
         const setup  = interaction.instance.setup;
-        
-        if(global.started == false) throw new Error("Game has not started.");
 
-        const game = await getGameByID(global.game ?? "", interaction.instance);
-         const gameSetup = await getGameSetup(game, setup);
+        const game = ctx.game;
+         const gameSetup = ctx.gameSetup;
 
         const player = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');
 
@@ -68,11 +69,15 @@ export const MafiaCommand = {
 
         if(!user) throw new Error("Player not found.");
 
-        await addMafiaPlayer({ id: user.id, alignment: null }, interaction.instance);
+        const inServer = await addMafiaPlayer({ id: user.id, alignment: null }, ctx);
 
-        const invite = await setup.tertiary.guild.invites.create(gameSetup.mafia, { unique: true });
+        if(inServer) {
+            await gameSetup.spec.send("<@" + interaction.user.id + "> " + user.nickname + " has been given access to mafia chat.");
+        } else {
+            const invite = await setup.tertiary.guild.invites.create(gameSetup.mafia, { unique: true });
 
-        await gameSetup.spec.send("<@" + interaction.user.id + "> Here is the invite link for mafia server: \nhttps://discord.com/invite/" + invite.code);
+            await gameSetup.spec.send("<@" + interaction.user.id + "> " + user.nickname + " is not in the mafia server, here is the invite link for mafia server (they'll get access when they join): \nhttps://discord.com/invite/" + invite.code);
+        }
 
         if(interaction.type != 'text') {
             await interaction.editReply({ content: "Mafia added."});
@@ -84,12 +89,12 @@ export const MafiaCommand = {
     }
 } satisfies Subcommand;
 
-async function hammerExtensions(instance: Instance, game: Signups, hammered: string) {
-    const extensions = await getEnabledExtensions(instance.global);
+async function hammerExtensions(ctx: GameContext, hammered: string) {
+    const extensions = getEnabledExtensions(ctx);
 
     const promises = [] as Promise<any>[];
 
-    extensions.forEach(extension => { promises.push(extension.onHammer(instance, game, hammered)) });
+    extensions.forEach(extension => { promises.push(extension.onHammer(ctx, hammered)) });
 
     const results = await Promise.allSettled(promises);
 

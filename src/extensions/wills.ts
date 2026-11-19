@@ -8,6 +8,8 @@ import { deleteCollection } from "../utils/mafia/main";
 import { getUser, getUserByChannel } from "../utils/mafia/user";
 import { checkMod } from "../utils/mod";
 import { getSetup } from "../utils/setup";
+import { getCommandGame } from "../utils/mafia/context";
+import { gameRef } from "../utils/mafia/games";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -48,14 +50,16 @@ module.exports = {
         }
     ],
     interactions: [],
-    onStart: async (instance, game) => {
+    onStart: async (ctx) => {
+        const { instance, game } = ctx;
+
         /**
          * Runs during game start processes.
          */
 
         const db = firebaseAdmin.getFirestore();
 
-        await deleteCollection(db, db.collection('instances').doc(instance.id).collection('wills'), 20);
+        await deleteCollection(db, gameRef(instance, ctx.game.id).collection('wills'), 20);
 
         return;
 
@@ -63,8 +67,8 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onLock: async (instance, game) => {},
-    onUnlock: async (instance, game, incremented) => {},
+    onLock: async (ctx) => {},
+    onUnlock: async (ctx, incremented) => {},
     onCommand: async (command: Event<TextCommand>) => {
         /**
          * Text commands only for the forseeable future.
@@ -75,7 +79,8 @@ module.exports = {
         
         command.inInstance();
 
-        const global = command.instance.global;
+        const ctx = await getCommandGame(command);
+        const global = ctx.state;
         const setup = command.instance.setup;
         
         if(command.name == "set") {
@@ -89,7 +94,7 @@ module.exports = {
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('instances').doc(command.instance.id).collection('wills').doc(user.id);
+            const ref = gameRef(command.instance, ctx.game.id).collection('wills').doc(user.id);
 
             if((await ref.get()).data()?.locked == true) throw new Error("You are not allowed to set a will.");
 
@@ -100,9 +105,9 @@ module.exports = {
 
             await command.message.react("✅");
         } else if(command.name == "lock") {
-            await checkMod(setup, global, command.user.id, command.message.guildId ?? "");
+            await checkMod(setup, command.instance.global, command.user.id, command.message.guildId ?? "");
             
-            if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
+            if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != ctx.gameSetup.dms.id) throw new Error("This command must be run in dead chat dms.");
 
             const player = await getUserByChannel(command.message.channelId, command.instance);
 
@@ -110,7 +115,7 @@ module.exports = {
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('instances').doc(command.instance.id).collection('wills').doc(player.id);
+            const ref = gameRef(command.instance, ctx.game.id).collection('wills').doc(player.id);
 
             await ref.update({
                 will: "",
@@ -119,9 +124,9 @@ module.exports = {
 
             await command.message.react("✅");
         } else {
-            await checkMod(setup, global, command.user.id, command.message.guildId ?? "");
+            await checkMod(setup, command.instance.global, command.user.id, command.message.guildId ?? "");
 
-            if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != setup.secondary.dms.id) throw new Error("This command must be run in dead chat dms.");
+            if(command.message.channel.type != ChannelType.GuildText || command.message.channel.guildId != setup.secondary.guild.id || command.message.channel.parentId != ctx.gameSetup.dms.id) throw new Error("This command must be run in dead chat dms.");
 
             const player = await getUserByChannel(command.message.channelId, command.instance);
 
@@ -129,7 +134,7 @@ module.exports = {
 
             const db = firebaseAdmin.getFirestore();
 
-            const ref = db.collection('instances').doc(command.instance.id).collection('wills').doc(player.id);
+            const ref = gameRef(command.instance, ctx.game.id).collection('wills').doc(player.id);
 
             await ref.delete();
 
@@ -142,17 +147,21 @@ module.exports = {
     },
     onInteraction: async (extensionInteraction: ExtensionInteraction) => {},
     onMessage: async (message) => {},
-    onEnd: async (instance, game) => {},
-    onVote: async (instance, game, voter, voting, type, users, transaction) => {},
-    onVotes: async (instance, game, board ) => { return ""; },
-    onHammer: async (instance, game, hammered) => {
+    onEnd: async (ctx) => {},
+    onVote: async (ctx, voter, voting, type, users, transaction) => {},
+    onVotes: async (ctx, board ) => {
+        const { instance, game } = ctx;
+ return ""; },
+    onHammer: async (ctx, hammered) => {
+        const { instance, game } = ctx;
+
         const user = await getUser(hammered, instance);
 
         if(!user) return;
 
         const db = firebaseAdmin.getFirestore();
 
-        const ref = db.collection('instances').doc(instance.id).collection('wills').doc(user.id);
+        const ref = gameRef(instance, ctx.game.id).collection('wills').doc(user.id);
 
         const data = (await ref.get()).data();
 
@@ -162,7 +171,7 @@ module.exports = {
         
         await wait(1000);        
 
-        const message = await instance.setup.primary.chat.send(".");
+        const message = await ctx.gameSetup.main.send(".");
 
         await wait(2000);
 
@@ -178,7 +187,7 @@ module.exports = {
 
         await wait(5000);
     },
-    onRemove: async (instance, game, removed: string) => {},
+    onRemove: async (ctx, removed: string) => {},
     onDump: async (statsBatch, messageBatch, reactionBatch) => {},
 } satisfies Extension;
 

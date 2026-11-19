@@ -12,6 +12,9 @@ import { getUserByName } from "../../utils/mafia/user";
 import { getSetup, Setup, } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
 import { Instance } from "../../utils/instance";
+import { revokeMafiaAccess } from "../../utils/mafia/main";
+import { stateRef } from "../../utils/mafia/state";
+import { getCommandGame, type GameContext } from "../../utils/mafia/context";
 
 export const KillCommand = {
     name: "kill",
@@ -29,7 +32,7 @@ export const KillCommand = {
     text: () => {
         return new Command()
             .name('kill')
-            .description('Does not add spectator roles immediently after removing. Will kick player out of the mafia server if they are mafia. Use /mod spectator or ?mod spectator to add spectator roles to them later or ending the game will add spectator roles as well.')
+            .description('Does not add spectator roles immediently after removing. Will remove their mafia chat permissions if they are mafia. Use /mod spectator or ?mod spectator to add spectator roles to them later or ending the game will add spectator roles as well.')
             .argument('<player>', 'nickname of player', fromZod(z.string().min(1).max(100)));
     },
 
@@ -45,10 +48,7 @@ export const KillCommand = {
         const playerInput = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');
         if(playerInput == null) throw new Error("Choose a player.");
 
-        const global = interaction.instance.global;
-        const setup  = interaction.instance.setup;
-
-        await killPlayer(playerInput, interaction.instance);
+        await killPlayer(playerInput, await getCommandGame(interaction));
         
         if(interaction.type != 'text') {
             await interaction.editReply({ content: "Player killed."});
@@ -60,12 +60,12 @@ export const KillCommand = {
     }
 } satisfies Subcommand;
 
-export async function onRemove(instance: Instance, game: Signups, removed: string) {
-    const extensions = await getEnabledExtensions(instance.global);
+export async function onRemove(ctx: GameContext, removed: string) {
+    const extensions = getEnabledExtensions(ctx);
 
     const promises = [] as Promise<any>[];
 
-    extensions.forEach(extension => { promises.push(extension.onRemove(instance, game, removed)) });
+    extensions.forEach(extension => { promises.push(extension.onRemove(ctx, removed)) });
 
     const results = await Promise.allSettled(promises);
 
@@ -78,26 +78,21 @@ export async function onRemove(instance: Instance, game: Signups, removed: strin
     }
 }
 
-export async function killPlayer(name: string, instance: Instance) {
-    const global = instance.global;
-
-    if(global.started == false) throw new Error("Game has not started.");
-
-    const game = await getGameByID(global.game ?? "", instance);
-    const gameSetup = await getGameSetup(game, instance.setup);
+export async function killPlayer(name: string, ctx: GameContext) {
+    const { instance, game, gameSetup, state: global } = ctx;
     
     const user = await getUserByName(name, instance);
     if(!user) throw new Error("Player not found.");
 
     const main = await instance.setup.primary.guild.members.fetch(user.id).catch(() => undefined);
-    if(main != null) await main.roles.remove(instance.setup.primary.alive);
+    if(main != null) await main.roles.remove(ctx.gameSetup.alive);
     
     const mafia = await instance.setup.tertiary.guild.members.fetch(user.id).catch(() => undefined);
-    if(mafia != null) await mafia.kick();
+    if(mafia != null) await revokeMafiaAccess(mafia.id, instance.setup, gameSetup.mafia);
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(instance.id).collection('settings').doc('game');
+    const ref = stateRef(instance, game.id);
 
     await db.runTransaction(async t => {
         t.update(ref, {
@@ -105,5 +100,5 @@ export async function killPlayer(name: string, instance: Instance) {
         })
     });
 
-    await onRemove(instance, game, user.id);
+    await onRemove(ctx, user.id);
 }

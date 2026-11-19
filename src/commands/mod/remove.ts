@@ -9,11 +9,14 @@ import { firebaseAdmin } from "../../utils/firebase";
 import { type Global } from '../../utils/global';
 import { Signups, getGameByID, getGameSetup } from "../../utils/mafia/games";
 import { setMafiaSpectator } from "../../utils/mafia/main";
+import { isAliveAnywhere } from "../../utils/mafia/state";
 import { getUserByName } from "../../utils/mafia/user";
 import { checkMod } from "../../utils/mod";
 import { Setup, getSetup } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
 import { Instance } from "../../utils/instance";
+import { stateRef } from "../../utils/mafia/state";
+import { getCommandGame, type GameContext } from "../../utils/mafia/context";
 
 export const RemoveCommand = {
     name: "remove",
@@ -54,7 +57,7 @@ export const RemoveCommand = {
         const player = interaction.type == 'text' ? interaction.program.processedArgs[0] as string : interaction.options.getString('player');
         if(player == null) throw new Error("Choose a player.");
 
-        await removePlayer(player, interaction.instance);
+        await removePlayer(player, await getCommandGame(interaction));
 
         if(interaction.type != 'text') {
             await interaction.editReply({ content: "Player removed."});
@@ -66,13 +69,8 @@ export const RemoveCommand = {
     }
 } satisfies Subcommand;
 
-export async function removePlayer(name: string, instance: Instance) {
-    const global = instance.global;
-
-    if(global.started == false) throw new Error("Game has not started.");
-
-    const game = await getGameByID(global.game ?? "", instance);
-    const gameSetup = await getGameSetup(game, instance.setup);
+export async function removePlayer(name: string, ctx: GameContext) {
+    const { instance, game, state: global } = ctx;
 
     const user = await getUserByName(name, instance);
     if(!user) throw new Error("Player not found.");
@@ -81,18 +79,18 @@ export async function removePlayer(name: string, instance: Instance) {
 
     const main = await instance.setup.primary.guild.members.fetch(user.id).catch(() => undefined);
     if(main == null) throw new Error("Member not found.");
-    await main.roles.remove(instance.setup.primary.alive);
+    await main.roles.remove(ctx.gameSetup.alive);
 
     const dead = await instance.setup.secondary.guild.members.fetch(user.id).catch(() => undefined);
     if(dead == null) throw new Error("Member not found.");
-    await dead.roles.add(instance.setup.secondary.spec);
+    if(!(await isAliveAnywhere(user.id, instance, game.id))) await dead.roles.add(instance.setup.secondary.spec);
 
     const mafia = await instance.setup.tertiary.guild.members.fetch(user.id).catch(() => undefined);
-    await setMafiaSpectator(mafia, main.id, instance.setup, gameSetup, user, instance);
+    await setMafiaSpectator(mafia, main.id, user, ctx);
 
     const db = firebaseAdmin.getFirestore();
 
-    const ref = db.collection('instances').doc(instance.id).collection('settings').doc('game');
+    const ref = stateRef(instance, game.id);
 
     await db.runTransaction(async t => {
         t.update(ref, {
@@ -100,15 +98,15 @@ export async function removePlayer(name: string, instance: Instance) {
         })
     });
 
-    await onRemove(instance, game, user.id);
+    await onRemove(ctx, user.id);
 }
 
-export async function onRemove(instance: Instance, game: Signups, removed: string) {
-    const extensions = await getEnabledExtensions(instance.global);
+export async function onRemove(ctx: GameContext, removed: string) {
+    const extensions = getEnabledExtensions(ctx);
 
     const promises = [] as Promise<any>[];
 
-    extensions.forEach(extension => { promises.push(extension.onRemove(instance, game, removed)) });
+    extensions.forEach(extension => { promises.push(extension.onRemove(ctx, removed)) });
 
     const results = await Promise.allSettled(promises);
 

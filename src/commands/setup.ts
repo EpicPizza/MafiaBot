@@ -7,6 +7,7 @@ import { refreshSignup } from "../utils/mafia/games";
 import { onjoin } from "../utils/mafia/invite";
 import { checkSetup, getSetup } from "../utils/setup";
 import { getInstance } from "../utils/instance";
+import { findCommandGame } from "../utils/mafia/context";
 
 module.exports = {
     data: [
@@ -155,18 +156,7 @@ module.exports = {
 
             const ref = db.collection('instances').doc(interaction.instance.id).collection('settings');
 
-            await ref.doc('lock').set({
-                increment: false,
-                when: null,
-                type: false,
-                grace: true,
-            })
-
-            await ref.doc('grace').set({
-                when: null,
-                type: false,
-            })
-
+            // Lock/grace timers and game state (started, locked, players, day, grace) live under games/{id}/state.
             await ref.doc('setup').set({
                 primary: {
                     alive: null,
@@ -197,16 +187,8 @@ module.exports = {
             });
 
             await ref.doc('game').set({
-                day: 0,
                 game: null,
-                locked: false,
-                players: [],
-                started: false,
-                bulletin: null,
-                extensions: [],
-                grace: false,
                 admin: [],
-                hammer: true,
             })
 
             return await interaction.reply({ content: "Database setup.", ephemeral: true });
@@ -349,14 +331,18 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
             await interaction.deferReply({ ephemeral: true });
 
             const setup = interaction.instance.setup;
-            const global = interaction.instance.global;
+            const running = await findCommandGame(interaction);
 
             if(typeof setup == 'string' || setup == undefined) return await interaction.editReply({ content: setup ? setup : "Something went wrong." });
 
-            if(global.started == false) {
-                await setup.primary.chat.permissionOverwrites.create(setup.primary.alive, {});
+            // The running game's main chat and alive role, or the server's when no game is running.
+            const chat = running?.gameSetup.main ?? setup.primary.chat;
+            const alive = running?.gameSetup.alive ?? setup.primary.alive;
 
-                await setup.primary.chat.permissionOverwrites.create(setup.primary.gang, {
+            if(running == undefined) {
+                await chat.permissionOverwrites.create(alive, {});
+
+                await chat.permissionOverwrites.create(setup.primary.gang, {
                     ViewChannel: true,
                     SendMessages: true,
                     AddReactions: true,
@@ -370,10 +356,10 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
                     CreatePrivateThreads: false, 
                     SendMessagesInThreads: false
                 });
-            } else if(global.locked == true) {
-                await setup.primary.chat.permissionOverwrites.create(setup.primary.alive, {});
+            } else if(running.state.locked == true) {
+                await chat.permissionOverwrites.create(alive, {});
 
-                await setup.primary.chat.permissionOverwrites.create(setup.primary.gang, {
+                await chat.permissionOverwrites.create(setup.primary.gang, {
                     ViewChannel: true,
                     SendMessages: false,
                     AddReactions: true,
@@ -388,7 +374,7 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
                     SendMessagesInThreads: false
                 });
             } else {
-                await setup.primary.chat.permissionOverwrites.create(setup.primary.alive, {
+                await chat.permissionOverwrites.create(alive, {
                     SendMessages: true,
                     AddReactions: true, 
                     AttachFiles: true, 
@@ -400,7 +386,7 @@ Tertiary access role: <@&${setup.tertiary.access.id}>
                     UseApplicationCommands: true,
                 });
             
-                await setup.primary.chat.permissionOverwrites.create(setup.primary.gang, {
+                await chat.permissionOverwrites.create(setup.primary.gang, {
                     ViewChannel: true,
                     SendMessages: false,
                     AddReactions: true,

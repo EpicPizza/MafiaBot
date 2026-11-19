@@ -10,6 +10,7 @@ import { getBoard, retrieveVotes } from "../utils/mafia/fakevotes";
 import { getGameByID, getGameByName } from "../utils/mafia/games";
 import { Log } from "../utils/mafia/vote";
 import { getSetup } from "../utils/setup";
+import { channelOf, findRunningGame } from "../utils/mafia/context";
 
 module.exports = {
     data: [
@@ -54,11 +55,14 @@ async function handleVoteList(interaction: Event<ChatInputCommandInteraction | T
 
     let gameName = interaction.type == 'text' ? interaction.program.getOptionValue('game') as string | undefined ?? null : interaction.options.getString("game");
     
-    const game = gameName != null ? await getGameByName(gameName ?? "---", interaction.instance, true).catch(() => null) :  await getGameByID(interaction.instance.global.game ?? "---", interaction.instance).catch(() => null);
+    const running = await findRunningGame(interaction.instance, channelOf(interaction));
 
-    const global = interaction.instance.global;
+    const game = gameName != null ? await getGameByName(gameName ?? "---", interaction.instance, true).catch(() => null) : running?.game ?? null;
+
+    // The viewed game, when it's the one in progress.
+    const live = running != undefined && game != null && running.game.id == game.id ? running : undefined;
     
-    if(global.started == false && game == null) {
+    if(running == undefined && game == null) {
         if(!(interaction.type == 'text')) throw new Error("Use text command!");
 
         const votes = await retrieveVotes(interaction.message.channelId);
@@ -79,16 +83,16 @@ async function handleVoteList(interaction: Event<ChatInputCommandInteraction | T
     
     let day = interaction.type == 'text' ? (interaction.program.processedArgs.length > 0 ? interaction.program.processedArgs[0] as number | undefined : undefined) : interaction.options.getNumber("day") ?? undefined;
     
-    if(day == undefined && global.started && global.game == game.id) {
-        day = global.day;
+    if(day == undefined && live) {
+        day = live.state.day;
     } else if(day == undefined) {
         throw new Error("Day not specified!");
     } else { 
         day = Math.round(day); 
     }
 
-    if(global.started && global.game == game.id) {
-        if(day > global.day) throw new Error("Not on day " + day + " yet!");
+    if(live) {
+        if(day > live.state.day) throw new Error("Not on day " + day + " yet!");
     } else {
         if(day > game.days) throw new Error("This game only had " + game.days + " days!");
     }
@@ -96,8 +100,9 @@ async function handleVoteList(interaction: Event<ChatInputCommandInteraction | T
     if(day < 1) throw new Error("Must be at least day 1.");
 
     const custom = parseInt(process.env.HAMMER_THRESHOLD_PLAYERS ?? '-1');
-    const botPlayers = global.players.filter(player => player.alignment == "bot").map(player => player.id);
-    const players = custom === -1 ? (global.players.length - botPlayers.length) : custom;
+    const livePlayers = live?.state.players ?? [];
+    const botPlayers = livePlayers.filter(player => player.alignment == "bot").map(player => player.id);
+    const players = custom === -1 ? (livePlayers.length - botPlayers.length) : custom;
     const half = Math.floor(players / 2);
 
     const db = firebaseAdmin.getFirestore();
@@ -108,18 +113,18 @@ async function handleVoteList(interaction: Event<ChatInputCommandInteraction | T
     if(board == "") board = "No votes recorded.";
 
     const embed = new EmbedBuilder()
-        .setTitle("Votes » " + (global.day == day && global.game == game.id ? "Today (Day " + day + ")" : "Day " + day))
+        .setTitle("Votes » " + (live && live.state.day == day ? "Today (Day " + day + ")" : "Day " + day))
         .setColor(Colors.Gold)
         .setDescription(board);
 
-    const extensions = await getEnabledExtensions(global);
+    const extensions = live ? getEnabledExtensions(live) : [];
     const extension = extensions.find(extension => extension.priority.includes("onVotes"));
     
-    if(global.day == day && global.game == game.id) {
+    if(live && live.state.day == day) {
         const standard = "Hammer is at " + (half + 1) + " votes.";
-        const footer = extension ? await extension.onVotes(interaction.instance, game, board) : standard;
+        const footer = extension ? await extension.onVotes(live, board) : standard;
 
-        if(extension || global.hammer) embed.setFooter({ text: footer == "" ? standard : footer });
+        if(extension || live.state.hammer) embed.setFooter({ text: footer == "" ? standard : footer });
     }
 
     const row = new ActionRowBuilder<ButtonBuilder>()

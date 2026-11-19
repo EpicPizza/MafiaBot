@@ -8,6 +8,7 @@ import { removeReactions } from "../../discord/helpers";
 import { firebaseAdmin } from "../../utils/firebase";
 import { getGameByName, refreshSignup, removeSignup } from "../../utils/mafia/games";
 import { onjoin } from "../../utils/mafia/invite";
+import { isAliveAnywhere } from "../../utils/mafia/state";
 import { getUser } from "../../utils/mafia/user";
 import { Subcommand } from "../../utils/subcommands";
 
@@ -66,7 +67,7 @@ export const SpectatorCommand = {
 
         const global = interaction.instance.global;
 
-        if(global.players.filter(player => player.id == spectator).length > 0) throw new Error("Cannot give/remove spectator to a player.");
+        if(await isAliveAnywhere(spectator, interaction.instance)) throw new Error("Cannot give/remove spectator to someone alive in a game.");
 
         const sendDM = interaction.type == 'text' ? interaction.program.getOptionValue('invite') != true : (interaction.options.getBoolean('invite') == null ? true : interaction.options.getBoolean('invite'));
 

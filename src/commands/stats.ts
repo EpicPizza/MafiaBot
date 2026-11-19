@@ -8,6 +8,7 @@ import { firebaseAdmin } from "../utils/firebase";
 import { getGameByID, getGameByName } from "../utils/mafia/games";
 import { getAllUsers, getUsers, getUsersArray } from "../utils/mafia/user";
 import { fetchStats } from "../utils/mafia/tracking";
+import { channelOf, findRunningGame } from "../utils/mafia/context";
 
 module.exports = {
     data: [
@@ -62,17 +63,22 @@ async function handleStatsList(interaction: Event<ChatInputCommandInteraction | 
 
     console.log(gameName);
 
-    if(interaction.instance.global.started == false && gameName == null) throw new Error("Game has not started, specify a game (and day) to view stats from that game!");
+    const running = await findRunningGame(interaction.instance, channelOf(interaction));
 
-    const game = gameName != null ? await getGameByName(gameName ?? "---", interaction.instance, true) :  await getGameByID(interaction.instance.global.game ?? "---", interaction.instance);
+    if(running == undefined && gameName == null) throw new Error("Game has not started, specify a game (and day) to view stats from that game!");
+
+    const game = gameName != null ? await getGameByName(gameName ?? "---", interaction.instance, true) : running!.game;
     if(game == null) throw new Error("Game not found.");
+
+    // The viewed game, when it's the one in progress.
+    const live = running != undefined && running.game.id == game.id ? running : undefined;
 
     const users = await getUsersArray(game.signups, interaction.instance);
     
     if(interaction.type == 'text' ? interaction.program.getOptionValue('total') : (interaction.options.getBoolean('total') === true)) {
         const cumulativeStats: Map<string, { messages: number, words: number }> = new Map();
 
-        const days = interaction.instance.global.started == true && interaction.instance.global.game == game.id ? interaction.instance.global.day : game.days;
+        const days = live ? live.state.day : game.days;
 
         for (let d = 1; d <= days; d++) {
             const docs = await fetchStats(interaction.instance.id, game.id, d);
@@ -117,16 +123,16 @@ async function handleStatsList(interaction: Event<ChatInputCommandInteraction | 
 
     let day = interaction.type == 'text' ? (interaction.program.processedArgs.length > 0 ? interaction.program.processedArgs[0] as number | undefined : undefined) : interaction.options.getNumber("day") ?? undefined;
     
-    if(day == undefined && interaction.instance.global.started && interaction.instance.global.game == game.id) {
-        day = interaction.instance.global.day;
+    if(day == undefined && live) {
+        day = live.state.day;
     } else if(day == undefined) {
         throw new Error("Day not specified!");
     } else { 
         day = Math.round(day); 
     }
 
-    if(interaction.instance.global.started && interaction.instance.global.game == game.id) {
-        if(day > interaction.instance.global.day) throw new Error("Not on day " + day + " yet!");
+    if(live) {
+        if(day > live.state.day) throw new Error("Not on day " + day + " yet!");
     } else {
         if(day > game.days) throw new Error("This game only had " + game.days + " days!");
     }
@@ -159,7 +165,7 @@ async function handleStatsList(interaction: Event<ChatInputCommandInteraction | 
     const message =  list.reduce((previous, current) => previous += current.name + " » " + current.messages + " message" + (current.messages== 1 ? "" : "s") + " containing " + current.words + " word" + (current.words== 1 ? "" : "s") + "\n", "");
 
     const embed = new EmbedBuilder()
-        .setTitle((((interaction.type == 'text') ? interaction.name == "reactions" : interaction.commandName == "reactions") ? "Reaction " : "") + "Stats » " + (interaction.instance.global.day == day && interaction.instance.global.game == game.id ? "Today (Day " + interaction.instance.global.day + ")" : "Day " + day))
+        .setTitle((((interaction.type == 'text') ? interaction.name == "reactions" : interaction.commandName == "reactions") ? "Reaction " : "") + "Stats » " + (live && live.state.day == day ? "Today (Day " + day + ")" : "Day " + day))
         .setColor(Colors.Gold)
         .setDescription(message == '' ? "No Stats" : message)
 

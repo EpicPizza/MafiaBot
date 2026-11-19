@@ -1,12 +1,12 @@
 import { Command } from "commander";
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandSubcommandBuilder } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandSubcommandBuilder } from "discord.js";
 import { z } from "zod";
 import { Event, type TextCommand } from '../../discord';
 import { fromZod } from '../../utils/text';
 import client from "../../discord/client";
 import { removeReactions } from "../../discord/helpers";
 import { firebaseAdmin } from "../../utils/firebase";
-import { archiveGame, createGame, getGameByName, getGameSetup } from "../../utils/mafia/games";
+import { archiveGame, checkModPlayConflict, createGame, getGameByName, getGameSetup } from "../../utils/mafia/games";
 import { getUserByName, getUsersArray } from "../../utils/mafia/user";
 import { getSetup } from "../../utils/setup";
 import { Subcommand } from "../../utils/subcommands";
@@ -52,6 +52,8 @@ export const AssignCommand = {
         const player = await getUserByName(playerName, interaction.instance);
         if (!player) throw new Error("Player not found.");
 
+        await checkModPlayConflict(player.id, 'mod', interaction.instance);
+
         const db = firebaseAdmin.getFirestore();
 
         const ref = db.collection('instances').doc(interaction.instance.id).collection('games').doc(game.id);
@@ -75,12 +77,20 @@ export const CreateCommand = {
                 .setName('game')
                 .setDescription('Name of the game.')
                 .setRequired(true)
+        )
+        .addChannelOption(option =>
+            option
+                .setName('chat')
+                .setDescription('Use an existing channel as the main chat instead of making a new one.')
+                .addChannelTypes(ChannelType.GuildText)
+                .setRequired(false)
         ),
     text: () => {
         return new Command()
             .name('create')
-            .description('Creates a new game. Also makes spectator and mafia channels for that game.')
-            .argument('<name>', 'name of game', fromZod(z.string().min(1).max(100)));
+            .description('Creates a new game. Also makes main, spectator and mafia channels and an alive role for that game.')
+            .argument('<name>', 'name of game', fromZod(z.string().min(1).max(100)))
+            .option('-c, --chat <channel>', 'existing channel to use as the main chat', fromZod(z.string().regex(/^(<#\d+>|\d+)$/, "Not a channel!")));
     },
 
     execute: async (interaction: Event<TextCommand | ChatInputCommandInteraction>) => {
@@ -92,7 +102,9 @@ export const CreateCommand = {
 
         if (name == null) throw new Error("Game needs to be specified.");
 
-        await createGame(interaction, name, interaction.instance);
+        const chat = interaction.type == 'text' ? (interaction.program.getOptionValue('chat') as string | undefined)?.replace(/[<#>]/g, "") : interaction.options.getChannel('chat')?.id;
+
+        await createGame(interaction, name, interaction.instance, chat);
     }
 } satisfies Subcommand;
 

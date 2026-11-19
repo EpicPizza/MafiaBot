@@ -1,6 +1,6 @@
 import { AutocompleteInteraction } from "discord.js";
 import { getAllNicknames } from "./mafia/user";
-import { getGames } from "./mafia/games";
+import { getGames, resolveGame } from "./mafia/games";
 import { getAllExtensions } from "./extensions";
 import { Instance } from "./instance";
 import { Event } from "../discord";
@@ -29,16 +29,17 @@ export async function standardAutocomplete(interaction: Event<AutocompleteIntera
     } else {
         const action = interaction.options.getSubcommand();
 
-        const global = interaction.instance.global;
+        const game = await resolveGame(interaction.options.getString('game'), interaction.instance).catch(() => undefined);
+        const gameExtensions = game?.extensions ?? [];
 
         let names = getAllExtensions().map(extension => extension.name).splice(0, 25);
 
         switch(action) {
             case 'disable':
-                names = names.filter(extension => global.extensions.find(enabled => enabled == extension));
+                names = names.filter(extension => gameExtensions.find(enabled => enabled == extension));
                 break;
             case 'enable':
-                names = names.filter(extension => !global.extensions.find(enabled => enabled == extension));
+                names = names.filter(extension => !gameExtensions.find(enabled => enabled == extension));
                 break;
         }
 

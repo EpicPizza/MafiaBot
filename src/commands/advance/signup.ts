@@ -7,6 +7,7 @@ import { removeReactions } from "../../discord/helpers";
 import { addSignup, getGameByName, refreshSignup, removeSignup } from "../../utils/mafia/games";
 import { getUserByName } from "../../utils/mafia/user";
 import { Subcommand } from "../../utils/subcommands";
+import { isGameStarted } from "../../utils/mafia/state";
 
 // Mod tools for managing signups. Intentionally skips the closed/locked checks that player-facing signup commands enforce.
 export const SignupCommand = {
@@ -108,8 +109,7 @@ export const SignupCommand = {
 
         if(!user) throw new Error("Player not found.");
 
-        const global = interaction.instance.global;
-        const isStarted = (id: string) => global.started && global.game == id;
+        const isStarted = (id: string) => isGameStarted(interaction.instance, id);
 
         let reply: string;
 
@@ -117,7 +117,7 @@ export const SignupCommand = {
             const game = await getGameByName(args[1], interaction.instance);
 
             if(game == null) throw new Error("Game not found.");
-            if(isStarted(game.id)) throw new Error(game.name + " has already started. Use ?adv add to add a player midgame.");
+            if(await isStarted(game.id)) throw new Error(game.name + " has already started. Use ?adv add to add a player midgame.");
             if(game.signups.includes(user.id)) throw new Error(user.nickname + " is already signed up for " + game.name + ".");
 
             await addSignup({ id: user.id, game: game.name }, interaction.instance);
@@ -131,8 +131,8 @@ export const SignupCommand = {
             if(from == null) throw new Error("Game to transfer from not found.");
             if(to == null) throw new Error("Game to transfer to not found.");
             if(from.id == to.id) throw new Error("Cannot transfer to the same game.");
-            if(isStarted(from.id)) throw new Error(from.name + " has already started. Cannot transfer players out of a running game.");
-            if(isStarted(to.id)) throw new Error(to.name + " has already started. Use ?adv add to add a player midgame.");
+            if(await isStarted(from.id)) throw new Error(from.name + " has already started. Cannot transfer players out of a running game.");
+            if(await isStarted(to.id)) throw new Error(to.name + " has already started. Use ?adv add to add a player midgame.");
             if(!from.signups.includes(user.id)) throw new Error(user.nickname + " is not signed up for " + from.name + ".");
 
             await removeSignup({ id: user.id, game: from.name }, interaction.instance);

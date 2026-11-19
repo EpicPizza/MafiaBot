@@ -4,6 +4,9 @@ import { firebaseAdmin } from '../utils/firebase';
 import { editOverwrites } from "../utils/mafia/main";
 import { RoleQueue } from '../utils/mafia/invite';
 import { getAuthority } from '../utils/instance';
+import { getRunningGames } from '../utils/mafia/context';
+import { isAliveAnywhere } from "../utils/mafia/state";
+import { getGameByID } from "../utils/mafia/games";
 
 export async function guildMemberUpdateHandler(...[oldMember, newMember]: ClientEvents[Events.GuildMemberUpdate]) {
     try {
@@ -72,7 +75,8 @@ export async function guildMemberAddHanlder(...[member]: ClientEvents[Events.Gui
         const instance = await getAuthority(member.guild.id, false);
         if(instance == undefined) return;
 
-        const global = instance.global;
+        const runningGames = await getRunningGames(instance);
+        const started = runningGames.length > 0;
         const setup = instance.setup;
 
         const db = firebaseAdmin.getFirestore();
@@ -91,7 +95,17 @@ export async function guildMemberAddHanlder(...[member]: ClientEvents[Events.Gui
 
         const ref = db.collection('instances').doc(instance.id).collection('roles').where('id', '==', member.id).where('server', '==', name);
         const docs = (await ref.get()).docs
-        const roles = docs.map(doc => doc.data()) as RoleQueue[];
+        const queued = docs.map(doc => doc.data()) as RoleQueue[];
+
+        // Untagged entries predate game tagging and are stale (e.g. a spectator invite from a game the player died in long
+        // ago). Tagged ones are current: entries for ended games are pruned when a game starts, and game-less ones (null) are
+        // mod/spectator invites.
+        const isCurrent = (queue: RoleQueue) => queue.game !== undefined;
+        const roles = queued.filter(isCurrent);
+        const stale = queued.length - roles.length;
+
+        // Never make someone a spectator while they're alive in a game.
+        const alive = roles.some(queue => queue.roles.add?.includes("spectator")) && await isAliveAnywhere(member.id, instance);
 
         for(let i = 0; i < roles.length; i++) {
             const queue: RoleQueue = roles[i];
@@ -99,13 +113,21 @@ export async function guildMemberAddHanlder(...[member]: ClientEvents[Events.Gui
 
             let message = `${name.substring(0, 1).toUpperCase() + name.substring(1)} Server\n\n`;
 
-            const addRoles = queue.roles.add?.map(role => guild.roles.cache.find(cachedRole => cachedRole.name == role)).filter(role => role != undefined) ?? [];
+            if(queue.game) {
+                const game = await getGameByID(queue.game, instance, true).catch(() => undefined);
+
+                message += "Game: " + (game?.name ?? queue.game) + "\n\n";
+            }
+
+            const addNames = alive ? queue.roles.add?.filter(role => role != "spectator") : queue.roles.add;
+
+            const addRoles = addNames?.map(role => guild.roles.cache.find(cachedRole => cachedRole.name == role)).filter(role => role != undefined) ?? [];
             const removeRoles = queue.roles.remove?.map(role => guild.roles.cache.find(cachedRole => cachedRole.name == role)).filter(role => role != undefined) ?? [];
 
             await Promise.allSettled(addRoles.map(role => member.roles.add(role)));
             await Promise.allSettled(removeRoles.map(role => member.roles.remove(role)));
 
-            if(!global.started) {
+            if(!started) {
                 if(addRoles.length > 0) message += "Added roles: " + addRoles.map(role => role.name).join(", ") + "\n";
                 if(removeRoles.length > 0) message += "Removed roles: " + removeRoles.map(role => role.name).join(", ") + "\n";
                 if(addRoles.length > 0 || removeRoles.length > 0) message += "\n";
@@ -113,9 +135,9 @@ export async function guildMemberAddHanlder(...[member]: ClientEvents[Events.Gui
 
             if(queue.permissions) {
                 const permissionsChannel = guild.channels.cache.get(queue.permissions.channel);
-                if(permissionsChannel && permissionsChannel.type == ChannelType.GuildText) await permissionsChannel.permissionOverwrites.create(member.id, editOverwrites());
+                if(permissionsChannel && (permissionsChannel.type == ChannelType.GuildText || permissionsChannel.type == ChannelType.GuildCategory)) await permissionsChannel.permissionOverwrites.create(member.id, editOverwrites());
 
-                if(!global.started) {
+                if(!started) {
                     message += "Read permissions for " + permissionsChannel?.url + "\n\n";
                 }
             }
@@ -136,7 +158,19 @@ export async function guildMemberAddHanlder(...[member]: ClientEvents[Events.Gui
             ]});
         }
 
-        if(roles.length == 0 && (setup.secondary.guild.id == member.guild.id || setup.tertiary.guild.id == member.guild.id) && member.kickable && global.started) {
+        if(stale > 0 || alive) {
+            await setup.secondary.logs.send({ embeds: [
+                new EmbedBuilder()
+                    .setTitle('Invite Entry Skipped')
+                    .setColor(Colors.Orange)
+                    .setDescription(`${name.substring(0, 1).toUpperCase() + name.substring(1)} Server - <@${member.id}>\n\n`
+                        + (stale > 0 ? `Ignored ${stale} stale entr${stale == 1 ? "y" : "ies"} from another or an older game.\n` : "")
+                        + (alive ? "Did not add spectator role, they're alive in a game." : ""))
+            ]});
+        }
+
+        // mafia server no longer kicks during games, access to mafia chat is handled by category permission overwrites
+        if(roles.length == 0 && setup.secondary.guild.id == member.guild.id && member.kickable && started) {
             await member.kick();
 
             await setup.secondary.logs.send({ embeds: [

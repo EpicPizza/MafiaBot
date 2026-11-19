@@ -7,11 +7,12 @@ import { simpleJoin } from '../utils/text';
 import { fromZod } from '../utils/text';
 import { Extension, ExtensionInteraction } from "../utils/extensions";
 import { firebaseAdmin } from "../utils/firebase";
-import { getGameByID } from "../utils/mafia/games";
+import { getGameByID, gameRef } from "../utils/mafia/games";
 import { deleteCollection } from "../utils/mafia/main";
 import { getUserByName, User } from "../utils/mafia/user";
 import { checkMod } from "../utils/mod";
 import { getSetup } from "../utils/setup";
+import { getCommandGame } from "../utils/mafia/context";
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
@@ -61,18 +62,20 @@ module.exports = {
         },
     ],
     interactions: [],
-    onStart: async (instance, game) => {
+    onStart: async (ctx) => {
+        const { instance, game } = ctx;
+
         /**
          * Runs during game start processes.
          */
 
         const db = firebaseAdmin.getFirestore();
-        const col = db.collection('instances').doc(instance.id).collection('threads');
+        const col = gameRef(instance, ctx.game.id).collection('threads');
 
         await deleteCollection(db, col, 20);
         
         const channel = await instance.setup.secondary.guild.channels.create({ name: "creating" });
-        await channel.setParent(instance.setup.secondary.dms.id);
+        await channel.setParent(ctx.gameSetup.dms.id);
         await channel.permissionOverwrites.create(channel.guild.roles.everyone, readOverwrites());
         await channel.setName("threads");
         await channel.setTopic(game.name + " Mafia");
@@ -92,8 +95,8 @@ module.exports = {
          * Nothing to return.
          */
     },
-    onLock: async (instance, game) => {},
-    onUnlock: async (instance, game, incremented) => {},
+    onLock: async (ctx) => {},
+    onUnlock: async (ctx, incremented) => {},
     onCommand: async (command: Event<TextCommand>) => {
         /**
          * Text commands only for the forseeable future.
@@ -112,7 +115,8 @@ module.exports = {
 
         const db = firebaseAdmin.getFirestore();
 
-        const col = db.collection('instances').doc(command.instance.id).collection('threads');
+        const ctx = await getCommandGame(command);
+        const col = gameRef(command.instance, ctx.game.id).collection('threads');
         
         const channelId = (await col.doc('main').get()).data()?.channel as string | undefined;
         if(channelId == undefined) throw new Error("Threads incomplete setup.");
@@ -120,7 +124,7 @@ module.exports = {
         if(channel == null || channel.type != ChannelType.GuildText) throw new Error("Threads channel not found!");
 
         if(command.name == "create") {
-            const game = await getGameByID(global.game ?? "", command.instance);
+            const game = (await getCommandGame(command)).game;
 
             const chats = [] as User[];
 
@@ -215,10 +219,12 @@ module.exports = {
     },
     onInteraction: async (extensionInteraction: ExtensionInteraction) => {},
     onMessage: async (message) => {},
-    onEnd: async (instance, game) => {
+    onEnd: async (ctx) => {
+        const { instance, game } = ctx;
+
         const db = firebaseAdmin.getFirestore();
 
-        const col = db.collection('instances').doc(instance.id).collection('threads');
+        const col = gameRef(instance, ctx.game.id).collection('threads');
         
         const channelId = (await col.doc('main').get()).data()?.channel as string | undefined;
         if(channelId == undefined) throw new Error("Threads incomplete setup.");
@@ -250,13 +256,17 @@ module.exports = {
             await channel.send({ embeds: [embed], components: [row] });
         }
     },
-    onVote: async (instance, game, voter, voting, type, users, transaction) => {},
-    onVotes: async (instance, game, board ) => { return ""; },
-    onHammer: async (instance, game, hammered) => {},
-    onRemove: async (instance, game, removed) => {
+    onVote: async (ctx, voter, voting, type, users, transaction) => {},
+    onVotes: async (ctx, board ) => {
+        const { instance, game } = ctx;
+ return ""; },
+    onHammer: async (ctx, hammered) => {},
+    onRemove: async (ctx, removed) => {
+        const { instance, game } = ctx;
+
         const db = firebaseAdmin.getFirestore();
 
-        const col = db.collection('instances').doc(instance.id).collection('threads');
+        const col = gameRef(instance, ctx.game.id).collection('threads');
         
         const channelId = (await col.doc('main').get()).data()?.channel as string | undefined;
         if(channelId == undefined) throw new Error("Threads incomplete setup.");
