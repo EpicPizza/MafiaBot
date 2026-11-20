@@ -3,6 +3,7 @@ import { Attachment, ChatInputCommandInteraction, Colors, EmbedBuilder, Message 
 import { firebaseAdmin } from "./firebase";
 import { Instance } from "./instance";
 import { isMod } from "./mod";
+import { removeAssetFromGroups, renameAssetInGroups } from "./assetGroups";
 
 /**
  * Assets (rolecards, item images, videos, ...).
@@ -40,6 +41,7 @@ export function assetKey(name: string) {
     if(key.length == 0) throw new Error("Asset name cannot be empty.");
     if(key.length > 64) throw new Error("Asset name must be 64 characters or less.");
     if(key.includes("/") || key == "." || key == "..") throw new Error("Asset name cannot contain '/'.");
+    if(/^__.*__$/.test(key)) throw new Error("Names can't start and end with '__'.");
 
     return key;
 }
@@ -188,6 +190,7 @@ export async function removeAsset(instance: Instance, name: string) {
 
     await assetsRef(instance).doc(assetKey(asset.name)).delete();
     await firebaseAdmin.getBucket().file(asset.path).delete({ ignoreNotFound: true }).catch(() => {});
+    await removeAssetFromGroups(instance, assetKey(asset.name));
 
     return asset;
 }
@@ -204,6 +207,8 @@ export async function renameAsset(instance: Instance, name: string, to: string) 
         t.delete(fromRef);
         t.set(toRef, { ...asset, name: to.trim() });
     });
+
+    await renameAssetInGroups(instance, fromRef.id, toRef.id);
 
     return { ...asset, name: to.trim() };
 }
@@ -280,6 +285,31 @@ export function assetListEmbed(assets: Asset[], mod: boolean, query: string) {
 
 type AssetInteraction = { type: 'text', message: Message } | ChatInputCommandInteraction;
 
+/**
+ * Messages that show assets as media only, with no names: each asset is a "." link on one
+ * line ("[.](url) [.](url) ..."), and Discord shows the media under it. Normally one message;
+ * more only when the links don't fit in Discord's 2000-character limit.
+ */
+export function assetMediaMessages(assets: Asset[]) {
+    const messages: { content: string }[] = [];
+    let content = "";
+
+    for(const asset of assets) {
+        const link = `[.](${asset.url})`;
+
+        if(content.length > 0 && content.length + 1 + link.length > 2000) {
+            messages.push({ content });
+            content = "";
+        }
+
+        content += (content.length > 0 ? " " : "") + link;
+    }
+
+    if(content.length > 0) messages.push({ content });
+
+    return messages;
+}
+
 /** Replies to a text command, or edits the deferred reply of a slash command. Never pings. */
 export async function respond(interaction: AssetInteraction, payload: { content?: string, embeds?: EmbedBuilder[] }) {
     const options = { ...payload, allowedMentions: { parse: [] } };
@@ -293,4 +323,9 @@ export async function respond(interaction: AssetInteraction, payload: { content?
 
 export function commandGuild(interaction: AssetInteraction) {
     return 'message' in interaction && interaction.type == 'text' ? interaction.message.guildId : (interaction as ChatInputCommandInteraction).guildId;
+}
+
+/** An optional variadic text argument: commander gives [] when it's left out, and a string otherwise. */
+export function optionalText(value: unknown) {
+    return typeof value == 'string' ? value : undefined;
 }

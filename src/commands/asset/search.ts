@@ -4,6 +4,7 @@ import { Event, type TextCommand } from '../../discord';
 import { commandGuild, assetListEmbed, getVisibleAssets, isAssetMod, respond } from "../../utils/assets";
 import { Subcommand } from "../../utils/subcommands";
 import { simpleJoin } from "../../utils/text";
+import { optionalText } from "../../utils/assets";
 
 export const AssetSearchCommand = {
     name: "search",
@@ -36,7 +37,7 @@ export const AssetSearchCommand = {
 
         if(interaction.type != 'text') await interaction.deferReply({ ephemeral: true });
 
-        const query = ((interaction.type == 'text' ? interaction.program.processedArgs[0] as string | undefined : interaction.options.getString('query')) ?? "").trim().toLowerCase();
+        const query = ((interaction.type == 'text' ? optionalText(interaction.program.processedArgs[0]) : interaction.options.getString('query')) ?? "").trim().toLowerCase();
         const mine = interaction.type == 'text' ? interaction.program.getOptionValue('mine') == true : interaction.options.getBoolean('mine') ?? false;
 
         const mod = await isAssetMod(interaction.instance, interaction.user.id, commandGuild(interaction));
