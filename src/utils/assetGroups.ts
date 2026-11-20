@@ -40,7 +40,7 @@ export function matchNames(entries: string[], known: Set<string>) {
     const missing: string[] = [];
 
     for(const entry of entries) {
-        const key = assetKey(entry);
+        const key = entry.trim().toLowerCase(); // not assetKey: an entry may be several names, longer than one name may be
 
         if(known.has(key)) {
             keys.push(key);
@@ -67,7 +67,10 @@ export function matchNames(entries: string[], known: Set<string>) {
         if(split[0] != null && split[0].length > 0) {
             keys.push(...split[0]);
         } else {
-            missing.push(entry);
+            // Point at the words that aren't names by themselves; if every word is, the entry as a whole didn't fit.
+            const unknown = entry.trim().split(/\s+/).filter(word => !known.has(word.toLowerCase()));
+
+            missing.push(...(unknown.length > 0 ? unknown : [ entry.trim() ]));
         }
     }
 
