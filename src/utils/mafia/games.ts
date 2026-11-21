@@ -40,6 +40,10 @@ export interface Signups {
     links: Link[],
     state: 'active' | 'completed' | 'counting' | 'canned',
     pinned: string | null,
+    voteBoard?: { // live vote board message, see /mod board
+        id: string,
+        channel: string,
+    } | null,
     start: number | null,
     end: number | null,
 }
