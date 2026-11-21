@@ -15,6 +15,7 @@ import { Instance } from "../instance";
 import { createGameState, isAliveAnywhere, isGameStarted, settingsRef, stateRef } from "./state";
 import { channelOf, clearRunningCache, getGameContext, getRunningGame, getRunningGames, labelReplies, updateCachedContext, clearCachedContext, type GameContext } from "./context";
 import { pruneRoleQueue } from "./invite";
+import { refreshVoteBoard } from "./voteBoard";
 
 const pings = true;
 
@@ -163,6 +164,8 @@ export async function unlockGame(ctx: GameContext, increment: boolean = false, p
     }
 
     await unlockExtensions(ctx, increment);
+
+    refreshVoteBoard(instance, game.id);
 }
 
 export async function lockExtensions(ctx: GameContext) {
@@ -225,6 +228,8 @@ export async function lockGame(ctx: GameContext) {
     await main.send("Game has locked!");
 
     await lockExtensions(ctx);
+
+    refreshVoteBoard(instance, game.id);
 }
 
 export async function checkSignups(signups: string[], setup: Setup) { //probably could be optimized in a better way but who cares :)

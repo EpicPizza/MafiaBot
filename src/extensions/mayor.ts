@@ -11,6 +11,7 @@ import { Signups, getGameByID, getGameSetup, gameRef } from "../utils/mafia/game
 import { deleteCollection } from "../utils/mafia/main";
 import { User, getUserByChannel, getUsersArray } from "../utils/mafia/user";
 import { CustomLog, TransactionResult, Vote, flow, getVotes, handleHammer } from "../utils/mafia/vote";
+import { refreshVoteBoard } from "../utils/mafia/voteBoard";
 import { checkMod } from "../utils/mod";
 import { getSetup } from "../utils/setup";
 import { Instance } from "../utils/instance";
@@ -438,6 +439,8 @@ async function reveal(id: string, ctx: GameContext) {
             await logRef.update({
                 messageId: id,
             });
+
+            refreshVoteBoard(instance, game.id);
         };
 
         return {

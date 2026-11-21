@@ -8,6 +8,7 @@ import { Signups } from "./games";
 import { lockGame } from "./main";
 import { User } from "./user";
 import { Instance } from '../instance';
+import { refreshVoteBoard } from './voteBoard';
 
 export interface Vote {
     id: string,
@@ -189,6 +190,8 @@ export const flow = {
             await ref.update({
                 messageId: id,
             });
+
+            refreshVoteBoard(instance, game.id);
         }
     },
     determineHammer: (vote: Vote, votes: Vote[], users: User[], global: RunningState) => {
@@ -292,6 +295,8 @@ export async function wipe(ctx: GameContext, message: string) {
             await ref.update({
                 messageId: id,
             });
+
+            refreshVoteBoard(instance, game.id);
         };
     });
 }

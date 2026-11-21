@@ -1,14 +1,12 @@
 import { Command } from "commander";
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandBuilder } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandBuilder } from "discord.js";
 import { z } from "zod";
 import { Data, Event } from '../discord';
 import { TextCommand } from '../discord';
 import { fromZod } from '../utils/text';
-import { getEnabledExtensions } from "../utils/extensions";
-import { firebaseAdmin } from "../utils/firebase";
 import { getBoard, retrieveVotes } from "../utils/mafia/fakevotes";
 import { getGameByID, getGameByName } from "../utils/mafia/games";
-import { Log } from "../utils/mafia/vote";
+import { getBoardText, getHammerFooter, historyButton } from "../utils/mafia/voteBoard";
 import { getSetup } from "../utils/setup";
 import { channelOf, findRunningGame } from "../utils/mafia/context";
 
@@ -99,17 +97,7 @@ async function handleVoteList(interaction: Event<ChatInputCommandInteraction | T
 
     if(day < 1) throw new Error("Must be at least day 1.");
 
-    const custom = parseInt(process.env.HAMMER_THRESHOLD_PLAYERS ?? '-1');
-    const livePlayers = live?.state.players ?? [];
-    const botPlayers = livePlayers.filter(player => player.alignment == "bot").map(player => player.id);
-    const players = custom === -1 ? (livePlayers.length - botPlayers.length) : custom;
-    const half = Math.floor(players / 2);
-
-    const db = firebaseAdmin.getFirestore();
-    const docs = (await db.collection('instances').doc(interaction.instance.id).collection('games').doc(game.id).collection('days').doc(day.toString()).collection('votes').orderBy('timestamp', 'desc').limit(1).get()).docs;
-
-    let board = "";
-    if(docs.length == 1) board = (docs[0].data() as Log).board;
+    let board = await getBoardText(interaction.instance, game.id, day);
     if(board == "") board = "No votes recorded.";
 
     const embed = new EmbedBuilder()
@@ -117,23 +105,14 @@ async function handleVoteList(interaction: Event<ChatInputCommandInteraction | T
         .setColor(Colors.Gold)
         .setDescription(board);
 
-    const extensions = live ? getEnabledExtensions(live) : [];
-    const extension = extensions.find(extension => extension.priority.includes("onVotes"));
-    
     if(live && live.state.day == day) {
-        const standard = "Hammer is at " + (half + 1) + " votes.";
-        const footer = extension ? await extension.onVotes(live, board) : standard;
+        const footer = await getHammerFooter(live, board);
 
-        if(extension || live.state.hammer) embed.setFooter({ text: footer == "" ? standard : footer });
+        if(footer) embed.setFooter({ text: footer });
     }
 
     const row = new ActionRowBuilder<ButtonBuilder>()
-        .setComponents([
-            new ButtonBuilder()
-                .setLabel("History")
-                .setStyle(ButtonStyle.Link)
-                .setURL((process.env.DEV == "TRUE" ? process.env.DEVDOMAIN as string : process.env.DOMAIN as string) + "/" + interaction.instance.id + "/" + game.id + "?tab=Votes&day=" + day)
-        ])
+        .setComponents([historyButton(interaction.instance, game.id, day)]);
 
     await interaction.reply({ embeds: [embed], components: [row] });
 }
