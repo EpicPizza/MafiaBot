@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { ChatInputCommandInteraction, Colors, EmbedBuilder, SlashCommandStringOption, SlashCommandSubcommandGroupBuilder } from "discord.js";
 import { z } from "zod";
 import { Event, type TextCommand } from '../../discord';
-import { AssetVisibility, assetMediaMessages, commandGuild, isAssetMod, optionalText, requireAssetMod, respond } from "../../utils/assets";
+import { AssetVisibility, assetDisplayMessages, commandGuild, isAssetMod, optionalText, requireAssetMod, respond, respondAll, uploadLimit } from "../../utils/assets";
 import { addToGroup, createGroup, deleteGroup, getGroupAssets, getVisibleGroup, getVisibleGroups, groupEmbed, parseAssetList, removeFromGroup, setGroupVisibility } from "../../utils/assetGroups";
 import { Subcommand } from "../../utils/subcommands";
 import { fromZod, simpleJoin } from "../../utils/text";
@@ -59,6 +59,7 @@ export const AssetGroupCommand = {
             .setName('display')
             .setDescription('Post every asset in a group.')
             .addStringOption(groupOption)
+            .addStringOption(option => option.setName('message').setDescription('Text to post with the assets.').setMaxLength(1800))
             .addBooleanOption(option => option.setName('hidden').setDescription('Only show it to you. Defaults to false.'))
         )
         .addSubcommand(sub => sub
@@ -109,7 +110,8 @@ export const AssetGroupCommand = {
         group.command('display')
             .alias('show')
             .description('Post every asset in a group.')
-            .argument('<group...>', 'name of the group', simpleJoin);
+            .argument('<group...>', 'name of the group', simpleJoin)
+            .option('-m, --message <message...>', 'text to post with the assets');
 
         group.command('info')
             .description("List a group's public assets. Use /asset group info to see private ones.")
@@ -223,17 +225,9 @@ export const AssetGroupCommand = {
 
                 if(assets.length == 0) return await respond(interaction, { content: "This group has no assets." });
 
-                const messages = assetMediaMessages(assets);
+                const message = interaction.type == 'text' ? (sub!.getOptionValue('message') as string[] | undefined)?.join(" ") : interaction.options.getString('message') ?? undefined;
 
-                for(const [ i, message ] of messages.entries()) {
-                    if(i == 0) {
-                        await respond(interaction, message);
-                    } else if(interaction.type == 'text') {
-                        if(interaction.message.channel.isSendable()) await interaction.message.channel.send({ ...message, allowedMentions: { parse: [] } });
-                    } else {
-                        await interaction.followUp({ ...message, ephemeral: interaction.options.getBoolean('hidden') ?? false, allowedMentions: { parse: [] } });
-                    }
-                }
+                await respondAll(interaction, assetDisplayMessages(assets, message, uploadLimit(interaction)), interaction.type != 'text' && (interaction.options.getBoolean('hidden') ?? false));
 
                 return;
             }

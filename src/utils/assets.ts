@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { Attachment, ChatInputCommandInteraction, Colors, EmbedBuilder, Message } from "discord.js";
+import { Attachment, AttachmentBuilder, ChatInputCommandInteraction, Colors, EmbedBuilder, GuildPremiumTier, Message } from "discord.js";
 import { firebaseAdmin } from "./firebase";
 import { Instance } from "./instance";
 import { isMod } from "./mod";
@@ -225,11 +225,6 @@ function downloadUrl(bucket: string, path: string, token: string) {
     return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(path)}?alt=media&token=${token}`;
 }
 
-/** The message that shows an asset: a link to its file in Firebase Storage, which Discord embeds. */
-export function getAssetPayload(asset: Asset) {
-    return { content: `[${asset.name}](${asset.url})` };
-}
-
 function formatSize(size: number) {
     return size >= 1024 * 1024 ? (size / 1024 / 1024).toFixed(1) + "MB" : Math.ceil(size / 1024) + "KB";
 }
@@ -285,24 +280,139 @@ export function assetListEmbed(assets: Asset[], mod: boolean, query: string) {
 
 type AssetInteraction = { type: 'text', message: Message } | ChatInputCommandInteraction;
 
-/**
- * Messages that show assets as media only, with no names: each asset is a "." link on one
- * line ("[.](url) [.](url) ..."), and Discord shows the media under it. Normally one message;
- * more only when the links don't fit in Discord's 2000-character limit.
- */
-export function assetMediaMessages(assets: Asset[]) {
-    const messages: { content: string }[] = [];
-    let content = "";
+/** Characters in a custom message that can each hide one asset link. */
+const HIDING_PUNCTUATION = /[.,!?;:]/g;
 
-    for(const asset of assets) {
+/** Parts of a message whose punctuation must stay as-is: mentions/emoji, code, links, and URLs. */
+const PROTECTED_SPANS = /<[^<>\s]*>|`[^`]*`|\[[^\]]*\]\([^)]*\)|\S*:\/\/\S*/g;
+
+/** Positions of the punctuation in `text` that can be turned into links without breaking any markdown. */
+function punctuationSpots(text: string) {
+    const blocked = new Set<number>();
+
+    for(const match of text.matchAll(PROTECTED_SPANS)) {
+        for(let i = match.index; i < match.index + match[0].length; i++) blocked.add(i);
+    }
+
+    return [ ...text.matchAll(HIDING_PUNCTUATION) ]
+        .map(match => match.index)
+        .filter(index => !blocked.has(index) && text[index - 1] != '\\');
+}
+
+/** Discord only embeds the first 5 links in a message. */
+const LINKS_PER_MESSAGE = 5;
+
+/** Discord allows 10 attachments per message. */
+const FILES_PER_MESSAGE = 10;
+
+const MiB = 1024 * 1024;
+
+export type AssetMessage = { content?: string, files?: AttachmentBuilder[] };
+
+/** The largest file the bot can upload where the command was run. */
+export function uploadLimit(interaction: AssetInteraction) {
+    if(!('message' in interaction && interaction.type == 'text')) return (interaction as ChatInputCommandInteraction).attachmentSizeLimit;
+
+    switch(interaction.message.guild?.premiumTier) {
+        case GuildPremiumTier.Tier3: return 100 * MiB;
+        case GuildPremiumTier.Tier2: return 50 * MiB;
+        default: return 10 * MiB;
+    }
+}
+
+/**
+ * The messages that show assets, with an optional text message on the first one.
+ *
+ * If every asset fits under the upload limit, they're posted as real Discord attachments
+ * (10 per message, and each message's files together stay under the limit), with no links at all.
+ * Otherwise they're all posted as links Discord embeds, never a mix: 5 per message, since Discord
+ * stops embedding after that. In the first message each link hides behind one of the text's
+ * punctuation marks ("Your cards[!](url)"), in order, and links beyond the punctuation get "."
+ * at the end. Other messages are just "." links ("[.](url) [.](url) ...").
+ */
+export function assetDisplayMessages(assets: Asset[], text: string | undefined, limit: number): AssetMessage[] {
+    if(text != undefined && text.trim().length == 0) text = undefined;
+    if(text != undefined && text.length > 2000) throw new Error("Message is too long.");
+
+    const messages: AssetMessage[] = [];
+
+    if(assets.every(asset => asset.size <= limit)) {
+        let batch: Asset[] = [];
+        let size = 0;
+
+        const flush = () => {
+            if(batch.length == 0) return;
+
+            messages.push({
+                ...(messages.length == 0 && text != undefined ? { content: text } : {}),
+                files: batch.map(asset => new AttachmentBuilder(asset.url, { name: asset.filename })),
+            });
+
+            batch = [];
+            size = 0;
+        };
+
+        for(const asset of assets) {
+            if(batch.length == FILES_PER_MESSAGE || size + asset.size > limit) flush();
+
+            batch.push(asset);
+            size += asset.size;
+        }
+
+        flush();
+
+        if(messages.length == 0 && text != undefined) messages.push({ content: text });
+
+        return messages;
+    }
+
+    let rest = assets;
+
+    if(text != undefined) {
+        const spots = punctuationSpots(text);
+        let length = text.length;
+        let fit = 0;
+
+        for(const [ i, asset ] of assets.slice(0, LINKS_PER_MESSAGE).entries()) {
+            const added = i < spots.length ? asset.url.length + 4 : asset.url.length + 5;
+
+            if(length + added > 2000) break;
+
+            length += added;
+            fit++;
+        }
+
+        const hidden = assets.slice(0, Math.min(fit, spots.length));
+        const appended = assets.slice(hidden.length, fit);
+
+        let content = "";
+        let last = 0;
+
+        hidden.forEach((asset, i) => {
+            content += text.slice(last, spots[i]) + `[${text[spots[i]]}](${asset.url})`;
+            last = spots[i] + 1;
+        });
+
+        content += text.slice(last) + appended.map(asset => ` [.](${asset.url})`).join("");
+
+        messages.push({ content });
+        rest = assets.slice(fit);
+    }
+
+    let content = "";
+    let count = 0;
+
+    for(const asset of rest) {
         const link = `[.](${asset.url})`;
 
-        if(content.length > 0 && content.length + 1 + link.length > 2000) {
+        if(count == LINKS_PER_MESSAGE || (content.length > 0 && content.length + 1 + link.length > 2000)) {
             messages.push({ content });
             content = "";
+            count = 0;
         }
 
         content += (content.length > 0 ? " " : "") + link;
+        count++;
     }
 
     if(content.length > 0) messages.push({ content });
@@ -310,8 +420,21 @@ export function assetMediaMessages(assets: Asset[]) {
     return messages;
 }
 
+/** Posts several messages: the first as the reply, the rest after it in the same channel (or as follow-ups). */
+export async function respondAll(interaction: AssetInteraction, messages: AssetMessage[], hidden: boolean) {
+    for(const [ i, message ] of messages.entries()) {
+        if(i == 0) {
+            await respond(interaction, message);
+        } else if('message' in interaction && interaction.type == 'text') {
+            if(interaction.message.channel.isSendable()) await interaction.message.channel.send({ ...message, allowedMentions: { parse: [] } });
+        } else {
+            await (interaction as ChatInputCommandInteraction).followUp({ ...message, ephemeral: hidden, allowedMentions: { parse: [] } });
+        }
+    }
+}
+
 /** Replies to a text command, or edits the deferred reply of a slash command. Never pings. */
-export async function respond(interaction: AssetInteraction, payload: { content?: string, embeds?: EmbedBuilder[] }) {
+export async function respond(interaction: AssetInteraction, payload: { content?: string, embeds?: EmbedBuilder[], files?: AttachmentBuilder[] }) {
     const options = { ...payload, allowedMentions: { parse: [] } };
 
     if('message' in interaction && interaction.type == 'text') {
