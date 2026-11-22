@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
 import { Event, type TextCommand } from '../../discord';
-import { commandGuild, getAssetPayload, getVisibleAsset, isAssetMod, respond } from "../../utils/assets";
+import { assetDisplayMessages, commandGuild, getVisibleAsset, isAssetMod, respondAll, uploadLimit } from "../../utils/assets";
 import { Subcommand } from "../../utils/subcommands";
 import { simpleJoin } from "../../utils/text";
 
@@ -19,6 +19,12 @@ export const AssetDisplayCommand = {
                 .setRequired(true)
                 .setAutocomplete(true)
         )
+        .addStringOption(option =>
+            option
+                .setName('message')
+                .setDescription('Text to post with it. Defaults to the asset name.')
+                .setMaxLength(1800)
+        )
         .addBooleanOption(option =>
             option
                 .setName('hidden')
@@ -29,7 +35,8 @@ export const AssetDisplayCommand = {
             .name('display')
             .alias('show')
             .description('Post an asset in this channel.')
-            .argument('<name...>', 'name of the asset', simpleJoin);
+            .argument('<name...>', 'name of the asset', simpleJoin)
+            .option('-m, --message <message...>', 'text to post with it (defaults to the asset name)');
     },
 
     execute: async (interaction: Event<ChatInputCommandInteraction | TextCommand>) => {
@@ -42,6 +49,8 @@ export const AssetDisplayCommand = {
         const mod = await isAssetMod(interaction.instance, interaction.user.id, commandGuild(interaction));
         const asset = await getVisibleAsset(interaction.instance, name, mod);
 
-        await respond(interaction, getAssetPayload(asset));
+        const message = interaction.type == 'text' ? (interaction.program.getOptionValue('message') as string[] | undefined)?.join(" ") : interaction.options.getString('message') ?? undefined;
+
+        await respondAll(interaction, assetDisplayMessages([ asset ], message ?? asset.name, uploadLimit(interaction)), interaction.type != 'text' && (interaction.options.getBoolean('hidden') ?? false));
     }
 } satisfies Subcommand;
