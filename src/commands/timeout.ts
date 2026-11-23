@@ -132,6 +132,9 @@ module.exports = {
             const user = await getUser(interaction.user.id, interaction.instance);
             if(!user) throw new Error("Player not found.");
 
+            const alive = global.players.find(player => player.id == user.id);
+            if(alive == undefined) throw new Error("You're not alive!");
+
             const alignment = global.players.find(player => player.id == user.id)?.alignment ?? null;
 
             await db.runTransaction(async t => {
