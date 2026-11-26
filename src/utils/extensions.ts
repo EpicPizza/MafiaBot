@@ -17,6 +17,7 @@ import { initHelp } from '../discord/help';
 import { Instance } from './instance';
 import { firebaseAdmin } from './firebase';
 import { MessageAction, ReactionAction, StatsAction } from './mafia/tracking';
+import { getActiveGameDocs } from "./mafia/gameCache";
 
 const extensions = [] as Extension[]; 
 const extensionsPath = path.join(__dirname, '../extensions');
@@ -93,9 +94,9 @@ async function isExtensionInUse(name: string, instance: Instance, channelId: str
 
     if(running) return running.state.extensions.includes(name);
 
-    const games = await firebaseAdmin.getFirestore().collection('instances').doc(instance.id).collection('games').where('state', '==', 'active').get();
+    const games = await getActiveGameDocs(instance.id);
 
-    return games.docs.some(game => ((game.data().extensions ?? []) as string[]).includes(name));
+    return games.some(game => ((game.data().extensions ?? []) as string[]).includes(name));
 }
 
 export function getAllExtensions() {

@@ -11,6 +11,7 @@ import { getUsersArray, User } from "../utils/mafia/user";
 import { Setup } from "../utils/setup";
 import { Instance } from "../utils/instance";
 import { channelOf, findRunningGame } from "../utils/mafia/context";
+import { getActiveGameDocs } from "../utils/mafia/gameCache";
 
 const Format = z.union([ z.literal('complete'), z.literal('gxe'), z.literal('wr'), z.literal('alphabetical'), z.literal('pronouns') ]);
 
@@ -242,8 +243,7 @@ async function handlePlayerList(interaction: Event<ChatInputCommandInteraction |
 async function getGames(instance: Instance) {
     const db = firebaseAdmin.getFirestore();
         
-    const ref = db.collection('instances').doc(instance.id).collection('games').where('state', '==', 'active');        
-    const docs = (await ref.get()).docs;
+    const docs = await getActiveGameDocs(instance.id);
     
     const games = [] as { name: string, id: string, url: string | null }[];
     

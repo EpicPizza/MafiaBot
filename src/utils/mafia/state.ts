@@ -3,6 +3,7 @@ import { firebaseAdmin } from "../firebase";
 import type { Global } from "../global";
 import type { Instance } from "../instance";
 import type { Player } from "./main";
+import { getActiveGameDocs } from "./gameCache";
 
 // Per-game state, stored at instances/{instance}/games/{game}/state/{game|lock|grace}.
 // Per-game options (extensions, hammer) live on the game doc itself, since they're set before the game starts.
@@ -87,11 +88,9 @@ export async function isGameStarted(instance: Instance, game: string) {
 // Spectator rule: someone alive in any started game gets no spectator access until they're out of every game.
 // `except` skips the game the player is dying/ending in, since its state may not be updated yet.
 export async function isAliveAnywhere(id: string, instance: Instance, except?: string | null) {
-    const db = getDB();
+    const games = await getActiveGameDocs(instance.id);
 
-    const games = await db.collection('instances').doc(instance.id).collection('games').where('state', '==', 'active').get();
-
-    const states = await Promise.all(games.docs
+    const states = await Promise.all(games
         .filter(game => game.id != except)
         .map(game => stateCollection(instance.id, game.id).doc('game').get()));
 

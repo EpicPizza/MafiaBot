@@ -4,6 +4,7 @@ import { Data, Event } from '../discord';
 import { TextCommand } from '../discord';
 import { firebaseAdmin } from "../utils/firebase";
 import { getSetup } from "../utils/setup";
+import { getActiveGameDocs } from "../utils/mafia/gameCache";
 
 module.exports = {
     data: [
@@ -34,9 +35,7 @@ module.exports = {
         
         const db = firebaseAdmin.getFirestore();
 
-        const ref = db.collection('instances').doc(interaction.instance.id).collection('games').where('state', '==', 'active');
-
-        const docs = (await ref.get()).docs;
+        const docs = await getActiveGameDocs(interaction.instance.id);
 
         const games = [] as { name: string, id: string, url: string | null }[];
 

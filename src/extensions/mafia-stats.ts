@@ -88,7 +88,8 @@ module.exports = {
         const doc = gameRef(instance, ctx.game.id).collection('mafia-stats').doc('tracking');
         const data = (await doc.get()).data();
 
-        const timestamp = data?.timestamp as number | undefined ?? 0;
+        // First run for a game starts at the game's start, not the channel's whole history.
+        const timestamp = data?.timestamp as number | undefined ?? ctx.game.start ?? 0;
         const statsActions = data?.stats as StatsAction[] ?? [];
 
         const gameSetup = ctx.gameSetup;
@@ -119,6 +120,8 @@ module.exports = {
             .setDescription(message);
 
         await command.reply({ embeds: [embed] });
+
+        if(messages.length == 0) return; // nothing new to save
 
         await doc.set({
             timestamp: messages[messages.length - 1].createdTimestamp,

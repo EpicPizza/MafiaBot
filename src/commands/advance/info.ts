@@ -4,6 +4,7 @@ import { Event, type TextCommand } from '../../discord';
 import { firebaseAdmin } from "../../utils/firebase";
 import { Subcommand } from "../../utils/subcommands";
 import { getRunningGames } from "../../utils/mafia/context";
+import { getGameDocs } from "../../utils/mafia/gameCache";
 
 export const InfoCommand = {
     name: "info",
@@ -23,7 +24,7 @@ export const InfoCommand = {
 
         const db = firebaseAdmin.getFirestore();
 
-        const docs = (await db.collection('instances').doc(interaction.instance.id).collection('games').get()).docs;
+        const docs = await getGameDocs(interaction.instance.id);
 
         const running = new Set((await getRunningGames(interaction.instance)).map(game => game.game.id));
 

@@ -16,6 +16,7 @@ import { createGameState, isAliveAnywhere, isGameStarted, settingsRef, stateRef 
 import { channelOf, clearRunningCache, getGameContext, getRunningGame, getRunningGames, labelReplies, updateCachedContext, clearCachedContext, type GameContext } from "./context";
 import { pruneRoleQueue } from "./invite";
 import { refreshVoteBoard } from "./voteBoard";
+import { getActiveGameDocs } from "./gameCache";
 
 const pings = true;
 
@@ -688,9 +689,7 @@ export async function checkNotInStartedGame(ids: string[], instance: Instance, e
 
 // Everyone signed up for a started game other than exceptGame.
 export async function getStartedSignups(instance: Instance, exceptGame?: string) {
-    const db = firebaseAdmin.getFirestore();
-
-    const games = (await db.collection('instances').doc(instance.id).collection('games').where('state', '==', 'active').get()).docs.filter(doc => doc.id != exceptGame);
+    const games = (await getActiveGameDocs(instance.id)).filter(doc => doc.id != exceptGame);
 
     const started = await Promise.all(games.map(async doc => (await isGameStarted(instance, doc.id)) ? (doc.data().signups ?? []) as string[] : []));
 

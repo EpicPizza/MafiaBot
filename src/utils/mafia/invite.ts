@@ -1,5 +1,6 @@
 import { firebaseAdmin } from "../firebase";
 import { Instance } from "../instance";
+import { getActiveGameDocs } from "./gameCache";
 
 export interface RoleQueue {
     server: 'primary' | 'secondary' | 'tertiary',
@@ -33,7 +34,7 @@ export async function onjoin(queue: RoleQueue, instance: Instance) {
 export async function pruneRoleQueue(instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    const active = new Set((await db.collection('instances').doc(instance.id).collection('games').where('state', '==', 'active').get()).docs.map(doc => doc.id));
+    const active = new Set((await getActiveGameDocs(instance.id)).map(doc => doc.id));
 
     const docs = (await db.collection('instances').doc(instance.id).collection('roles').get()).docs;
 

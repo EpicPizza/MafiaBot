@@ -9,6 +9,7 @@ import { getSetup } from "../setup";
 import { getPlayerObjects, getUser } from "./user";
 import { Instance } from "../instance";
 import { isGameStarted } from "./state";
+import { getActiveGameDocs, getGameDoc, getGameDocs } from "./gameCache";
 
 export interface Signups {
     name: string,
@@ -548,7 +549,7 @@ function getRandom(min: number, max: number) {
 export async function checkModPlayConflict(id: string, as: 'player' | 'mod', instance: Instance) {
     const db = firebaseAdmin.getFirestore();
 
-    const docs = (await db.collection('instances').doc(instance.id).collection('games').where('state', '==', 'active').get()).docs;
+    const docs = await getActiveGameDocs(instance.id);
 
     for (const doc of docs) {
         const data = doc.data();
@@ -559,11 +560,7 @@ export async function checkModPlayConflict(id: string, as: 'player' | 'mod', ins
 }
 
 export async function getGames(instance: Instance, allowCompleted: boolean = false) {
-    const db = firebaseAdmin.getFirestore();
-
-    let query = db.collection('instances').doc(instance.id).collection('games') as Query;
-    if (allowCompleted === false) query = query.where('state', '==', 'active');
-    const docs = (await query.get()).docs;
+    const docs = allowCompleted ? await getGameDocs(instance.id) : await getActiveGameDocs(instance.id);
 
     const games = [] as { name: string, id: string }[];
 
@@ -582,11 +579,7 @@ export async function getGames(instance: Instance, allowCompleted: boolean = fal
 }
 
 export async function getGameByName(name: string, instance: Instance, allowCompleted: boolean = false) {
-    const db = firebaseAdmin.getFirestore();
-
-    let query = db.collection('instances').doc(instance.id).collection('games') as Query;
-    if (allowCompleted === false) query = query.where('state', '==', 'active');
-    const docs = (await query.get()).docs;
+    const docs = allowCompleted ? await getGameDocs(instance.id) : await getActiveGameDocs(instance.id);
     const games = docs.map(doc => doc.data());
 
     for (let i = 0; i < games.length; i++) {
@@ -599,16 +592,12 @@ export async function getGameByName(name: string, instance: Instance, allowCompl
 }
 
 export async function getGameByID(id: string, instance: Instance, allowCompleted: boolean = false) {
-    const db = firebaseAdmin.getFirestore();
+    const doc = await getGameDoc(instance.id, id);
 
-    const ref = db.collection('instances').doc(instance.id).collection('games').doc(id);
+    if (doc == undefined) throw new Error("Game not found in database.");
+    if (allowCompleted === false && doc.data.state != 'active') throw new Error("Game completed!");
 
-    const doc = (await ref.get());
-
-    if (doc.data() == undefined) throw new Error("Game not found in database.");
-    if (allowCompleted === false && doc.data()?.state != 'active') throw new Error("Game completed!");
-
-    return { ...doc.data(), id: doc.id } as Signups;
+    return { ...doc.data, id: doc.id } as Signups;
 }
 
 // The game a config command (extensions, hammer) acts on: the named game, else the running game that owns the channel

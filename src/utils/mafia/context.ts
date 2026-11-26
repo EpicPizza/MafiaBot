@@ -4,6 +4,7 @@ import client from "../../discord/client";
 import { firebaseAdmin } from "../firebase";
 import { getGameByID, getGameSetup, type GameSetup, type Signups } from "./games";
 import { defaultState, stateRef, type GameOptions, type GameState } from "./state";
+import { getActiveGameDocs, getGameDocs } from "./gameCache";
 
 // Everything a command or event needs to act on one game. Commands resolve a context once at their entry point (from the
 // channel they ran in, see findRunningGame) and pass it down.
@@ -70,9 +71,9 @@ export async function getRunningGames(instance: Instance, useCache: boolean = fa
         return contexts.filter(context => context != undefined && context.state.started) as GameContext[];
     }
 
-    const games = await firebaseAdmin.getFirestore().collection('instances').doc(instance.id).collection('games').where('state', '==', 'active').get();
+    const games = await getActiveGameDocs(instance.id);
 
-    const contexts = (await Promise.all(games.docs.map(async doc => {
+    const contexts = (await Promise.all(games.map(async doc => {
         const state = (await stateRef(instance, doc.id).get()).data();
         if(state?.started != true) return undefined;
 
@@ -195,9 +196,9 @@ export async function getMainChatIds(instance: Instance, useCache: boolean = tru
 
     if(useCache && cached && Date.now() - cached.timestamp < TTL) return cached.ids;
 
-    const games = await firebaseAdmin.getFirestore().collection('instances').doc(instance.id).collection('games').get();
+    const games = await getGameDocs(instance.id);
 
-    const ids = new Set([instance.setup.primary.chat.id, ...games.docs.map(doc => doc.data().channels?.main as string | undefined).filter(id => id != undefined)]);
+    const ids = new Set([instance.setup.primary.chat.id, ...games.map(doc => doc.data().channels?.main as string | undefined).filter(id => id != undefined)]);
 
     mainChats.set(instance.id, { ids, timestamp: Date.now() });
 
