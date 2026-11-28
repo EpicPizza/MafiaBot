@@ -19,6 +19,33 @@ import { getCommandGame, type GameContext, type RunningState } from "../utils/ma
 
 //Note: Errors are handled by bot, you can throw anywhere and the bot will put it in an ephemeral reply or message where applicable.
 
+const weightSchema = z.string().trim().transform((val, ctx) => {
+    let parsed: number;
+
+    const fraction = /^(\d+(?:\.\d+)?|\.\d+)\s*\/\s*(\d+(?:\.\d+)?|\.\d+)$/.exec(val);
+    if (fraction) {
+        const numerator = Number(fraction[1]);
+        const denominator = Number(fraction[2]);
+        if (denominator === 0) {
+            ctx.addIssue({ code: "custom", message: "Weight denominator cannot be 0." });
+            return z.NEVER;
+        }
+        parsed = numerator / denominator;
+    } else if (/^(\d+(?:\.\d+)?|\.\d+)$/.test(val)) {
+        parsed = Number(val);
+    } else {
+        ctx.addIssue({ code: "custom", message: "Weight must be a non-negative number or fraction (e.g. 0, 0.5, 1/2, 2)." });
+        return z.NEVER;
+    }
+
+    if (!Number.isFinite(parsed) || parsed < 0) {
+        ctx.addIssue({ code: "custom", message: "Weight must be a non-negative finite number." });
+        return z.NEVER;
+    }
+
+    return parsed;
+});
+
 module.exports = {
     name: "Mayors",
     emoji: "🗳️",
@@ -38,7 +65,7 @@ module.exports = {
                 .name('set')
                 .description('must be run by the mod, inside the dm that is mayor.')
                 .requiredOption('--type <type>', 'hidden, secret, classic, public', fromZod(z.literal("hidden").or(z.literal("secret")).or(z.literal("classic")).or(z.literal('public'))))
-                .requiredOption('--weight <weight>', 'number of votes', fromZod(z.coerce.number().int().min(1)))
+                .requiredOption('--weight <weight>', 'number of votes (0, decimal, or fraction)', fromZod(weightSchema))
                 .requiredOption('--day <day>', 'which day to be active on', fromZod(z.coerce.number().int().min(1)));
         },
         () => {
@@ -153,7 +180,7 @@ module.exports = {
 
             const mayors = await getMayors(command.instance, game.id, await getUsersArray(game.signups, command.instance));
 
-            let message = mayors.reduce((prev, mayor) => prev + (mayor.nickname ?? "<@" + mayor.id + ">") + " - " + capitalize(mayor.type) + " (Weight: " + mayor.weight + ") (Day: " + mayor.day + ")\n", "");
+            let message = mayors.reduce((prev, mayor) => prev + (mayor.nickname ?? "<@" + mayor.id + ">") + " - " + capitalize(mayor.type) + " (Weight: " + formatWeight(mayor.weight) + ") (Day: " + mayor.day + ")\n", "");
 
             const embed = new EmbedBuilder()
                 .setTitle("Mayor List")
@@ -248,6 +275,14 @@ module.exports = {
     onDump: async (statsBatch, messageBatch, reactionBatch) => {},
 } satisfies Extension;
 
+function roundWeight(weight: number): number {
+    return Number(weight.toFixed(6)) || 0;
+}
+
+function formatWeight(weight: number): string {
+    return roundWeight(weight).toString();
+}
+
 function capitalize(input: string) {
     return input.substring(0, 1).toUpperCase() + input.substring(1, input.length).toLowerCase();
 }
@@ -310,11 +345,11 @@ function getBoard(votes: Vote[], users: User[], mayors: Awaited<ReturnType<typeo
                 if(!mayor) {
                     return ""
                 } else if((mayor.type == "classic" || mayor.type == "public" || mayor.type == "secret") && mayor.reveal == true) {
-                    return " (" + mayor.weight + ")"
+                    return " (" + formatWeight(mayor.weight) + ")"
                 } else if(deadChat && (mayor.type == "hidden" || (mayor.type == "secret" && mayor.reveal == false))) {
-                    return " ~~(" + mayor.weight + ")~~"
+                    return " ~~(" + formatWeight(mayor.weight) + ")~~"
                 } else if(deadChat && mayor.type == "classic" && mayor.reveal == false) {
-                    return " *(" + mayor.weight + ")*";
+                    return " *(" + formatWeight(mayor.weight) + ")*";
                 } else {
                     return "";
                 }
@@ -327,12 +362,12 @@ function getBoard(votes: Vote[], users: User[], mayors: Awaited<ReturnType<typeo
 
         counting.push({
             voting,
-            count,
+            count: roundWeight(count),
             voters
         });
     });
 
-    counting.sort((a, b) => b.voters.length - a.voters.length);
+    counting.sort((a, b) => b.count - a.count || b.voters.length - a.voters.length);
 
     const board = counting.reduce((prev, curr) => prev += (curr.count + " - " + curr.voting + " « " + curr.voters.join(", ")) + "\n", "");
 
@@ -344,7 +379,7 @@ function determineHammer(vote: Vote, votes: Vote[], users: User[], mayors: Await
 
     const botPlayers = global.players.filter(player => player.alignment == "bot").map(player => player.id);
 
-    let votesForHammer = votes.filter(v => v.for == vote.for).reduce((prev, vote) => {
+    let votesForHammer = roundWeight(votes.filter(v => v.for == vote.for).reduce((prev, vote) => {
         const mayor = mayors.find(mayor => mayor.id == vote.id && mayor.day == day);
 
         if(mayor && (mayor.type != "classic" || (mayor.type == "classic" && mayor.reveal == true))) {
@@ -352,11 +387,11 @@ function determineHammer(vote: Vote, votes: Vote[], users: User[], mayors: Await
         } else {
             return prev + 1;
         }
-    }, 0);
+    }, 0));
 
-    const half = Math.floor((global.players.length - botPlayers.length) / 2);
+    const threshold = Math.floor((global.players.length - botPlayers.length) / 2) + 1;
 
-    if(votesForHammer > half && botPlayers.indexOf(vote.for) == -1) {
+    if(votesForHammer >= threshold && botPlayers.indexOf(vote.for) == -1) {
         return { hammered: true, message: (users.find(user => user.id == vote.for)?.nickname ?? "<@" + vote.for + ">") + " has been hammered!", id: vote.for };
     } else {
         return { hammered: false, message: null, id: null };
